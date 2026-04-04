@@ -21,7 +21,7 @@
 - **6 Smart Categories**: Tasks, Reminders, Ideas, Follow-ups, Journal, General
 - **Priority Inference**: High/Medium/Low priority auto-detected
 - **Date Extraction**: Automatic calendar date/time parsing from note content
-- **Background Processing**: 8-second polling loop runs silently in the background
+- **Event-Driven Architecture**: AI processing and cloud sync trigger instantly and asynchronously upon local save, preserving battery life and eliminating polling.
 
 ### 📂 Organization & Search
 - **Smart Folders**: Browse notes by category with real-time count badges
@@ -38,7 +38,7 @@
 ### 🔗 External Integrations
 - **Google Calendar**: Auto-create calendar events from dated notes
 - **Google Tasks**: Sync task-category notes to Google Tasks
-- **Telegram Bot**: (Optional) Forward digest summaries to Telegram
+- **Telegram Daily Digest**: Client-side scheduled WorkManager task delivers a 9 AM summary locally (No paid cloud functions required).
 
 ### 🎨 User Experience
 - **Theme Support**: Light/Dark/System theme with persistent preference
@@ -109,7 +109,7 @@ WhisperLog follows **Clean Architecture** with layers for Presentation, Features
 2. CaptureService validates and creates Note with `status: pendingAi`
 3. Note saved to **Isar database** instantly (< 50ms)
 4. User sees "Saved" toast immediately
-5. Background: AiProcessingService (8s polling) → Gemini classifies → updates to `active`
+5. Background: event-driven AI orchestration invokes Gemini classification per newly saved note and updates status to `active`
 6. Background: FirestoreNoteSyncService → pushes to `users/{uid}/notes/{noteId}`
 
 **Guarantee**: Notes save instantly locally even if Firebase is offline.
@@ -153,7 +153,7 @@ lib/
 |---------|---------|
 | **CaptureService** | Ingest raw transcripts → create Note objects |
 | **NoteRepository** | Central CRUD interface for all note operations |
-| **AiProcessingService** | 8s polling → Gemini classify → set to active |
+| **AiProcessingService** | Event-driven Gemini classify → set to active |
 | **FirestoreNoteSyncService** | Bi-directional sync with conflict resolution |
 | **OverlayCoordinator** | Manage floating bubble state & permissions |
 | **ExternalSyncService** | Google Calendar/Tasks event creation |

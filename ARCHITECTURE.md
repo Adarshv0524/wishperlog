@@ -1,1225 +1,742 @@
 # WhisperLog Architecture
 
-**Complete system design, data flows, database schemas, and component interactions.**
+Version: 2.0 Blueprint-Conformant Target Architecture  
+Date: 2026-04-04  
+Status: Authoritative intended architecture for hardening and implementation alignment
 
----
+## 1. Purpose
 
-## Table of Contents
-1. [System Architecture Diagram](#system-architecture)
-2. [Data Flow & Pipelines](#data-flows)
-3. [Database Schemas](#database-schemas)
-4. [Services & Components](#services--components)
-5. [Initialization Sequence](#initialization-sequence)
-6. [Tech Stack (30 Technologies)](#tech-stack)
-7. [Patterns & Best Practices](#patterns--best-practices)
+This document is the source-of-truth architecture specification for WhisperLog.
+It defines the intended system shape, behavior, constraints, and acceptance criteria.
 
----
+This architecture is explicitly based on the Original Master Blueprint and therefore enforces:
+- local-first data handling
+- zero-friction capture UX
+- event-driven AI processing (no periodic polling loop for AI)
+- 100% free/client-side strategy for Telegram automation
+- Android-first execution model
 
-## System Architecture
+## 2. Product Intent
 
-### Complete Component Graph
+WhisperLog is a local-first, system-level capture product for fast thought externalization.
+The user should be able to capture voice or text in under one interaction cycle, with immediate local confirmation.
+Everything else is asynchronous enrichment.
 
-This diagram shows all layers, services, and integrations in WhisperLog:
+### 2.1 Key Product Principles
+
+1. Capture must be faster than cognition drift.
+2. Save confirmation must not depend on network, AI, or cloud infrastructure.
+3. Overlay and home canvas must share the same capture semantics.
+4. AI is additive, not blocking.
+5. Sync is best-effort and recoverable.
+6. The default experience must function offline.
+
+## 3. Non-Negotiable Constraints
+
+1. No paid backend architecture requirement.
+2. No Cloud Functions dependency for core Telegram digest flow.
+3. No AI polling timers draining battery.
+4. No bottom navigation bar in primary UX layout.
+5. No blocking network call before local note save confirmation.
+
+## 4. System Context
+
+WhisperLog runs primarily on-device and treats cloud services as optional durability and integration layers.
+
+### 4.1 External Dependencies
+
+- Firebase Auth for user identity.
+- Firestore for cloud backup mirror.
+- Gemini API for note classification/enrichment.
+- Google Calendar API for reminder event materialization.
+- Google Tasks API for task materialization.
+- Telegram Bot API for daily digest send and callback update polling.
+
+### 4.2 Runtime Platforms
+
+- Android is mandatory target.
+- iOS/web/desktop are non-primary and may remain partial.
+
+### 4.3 Chronological System Story
+
+WhisperLog should be understood as a time-ordered journey, not just a set of modules.
+
+1. A user captures a thought from overlay or home canvas.
+2. The app writes the note locally to Isar with status pendingAi.
+3. The user gets immediate save confirmation.
+4. An event is emitted for AI enrichment.
+5. Gemini classifies and beautifies the note asynchronously.
+6. The note is upgraded to active.
+7. External sync attempts calendar/task materialization where applicable.
+8. Firestore backup mirrors the latest note snapshot.
+9. Daily Telegram digest is sent by client-side scheduler.
+10. Telegram callbacks are polled and reflected back into local/cloud state.
+
+## 5. High-Level Component Graph
 
 ```mermaid
-graph TB
-    subgraph "Presentation Layer"
-        SignInScreen["SignIn Screen<br/>Google OAuth"]
-        HomeScreen["Home Screen<br/>Thought Canvas"]
-        FolderScreen["Folder Screen<br/>Category View"]
-        SettingsScreen["Settings Screen<br/>Overlay Toggle"]
-        OverlayBubble["Overlay Bubble<br/>Voice Capture"]
-    end
-
-    subgraph "State Management"
-        ThemeCubit["Theme Cubit<br/>Light/Dark/System"]
-        GoRouter["GoRouter<br/>Navigation"]
-        OverlayCoord["OverlayCoordinator<br/>State+Config"]
-    end
-
-    subgraph "Feature Layer"
-        CaptureService["CaptureService<br/>Note Ingestion"]
-        NoteRepo["NoteRepository<br/>CRUD + Streams"]
-        UserRepo["UserRepository<br/>Auth + User"]
-        AiService["AiProcessingService<br/>Background AI"]
-        ExternalSync["ExternalSyncService<br/>Google Services"]
-        FirestoreSync["FirestoreNoteSyncService<br/>Cloud Sync"]
-        FcmService["FcmSyncService<br/>Push Notifications"]
-    end
-
-    subgraph "Domain Models"
-        NoteModel["Note Model<br/>Isar Collection"]
-        Enums["Enums<br/>Category/Priority/Status"]
-        UserModel["User Model"]
-    end
-
-    subgraph "Data Persistence"
-        IsarDB["Isar Database<br/>Local NoSQL<br/>Thread-Safe"]
-        SharedPrefs["SharedPreferences<br/>Settings + Overlay"]
-    end
-
-    subgraph "External Services"
-        Firebase["Firebase<br/>Auth + Firestore"]
-        Gemini["Google Gemini<br/>AI Classification"]
-        GoogleCalendar["Google Calendar<br/>Event Sync"]
-        GoogleTasks["Google Tasks<br/>Task Sync"]
-        FCM["Firebase Cloud<br/>Messaging"]
-    end
-
-    subgraph "Platform Layer"
-        OverlayWindow["flutter_overlay_window<br/>Android Overlay"]
-        SpeechToText["speech_to_text<br/>Voice Recognition"]
-        PermHandler["permission_handler<br/>Runtime Perms"]
-        Connectivity["connectivity_plus<br/>Network State"]
-        WorkManager["workmanager<br/>Background Jobs"]
-    end
-
-    subgraph "Core Infrastructure"
-        DIContainer["GetIt<br/>Dependency Injection"]
-        AppEnv["AppEnv<br/>Config + Env Vars"]
-        WorkService["WorkManagerService<br/>Task Scheduling"]
-        ConnectivityCoord["ConnectivitySyncCoordinator<br/>Network Triggers"]
-    end
-
-    SignInScreen --> UserRepo
-    HomeScreen --> CaptureService
-    HomeScreen --> NoteRepo
-    FolderScreen --> NoteRepo
-    SettingsScreen --> OverlayCoord
-    OverlayBubble --> CaptureService
-    OverlayBubble --> SpeechToText
-    
-    CaptureService --> IsarDB
-    NoteRepo --> IsarDB
-    AiService --> IsarDB
-    FirestoreSync --> IsarDB
-    
-    CaptureService --> NoteModel
-    NoteRepo --> NoteModel
-    
-    AiService --> Gemini
-    ExternalSync --> GoogleCalendar
-    ExternalSync --> GoogleTasks
-    FirestoreSync --> Firebase
-    FcmService --> FCM
-    UserRepo --> Firebase
-    
-    DIContainer --> CaptureService
-    DIContainer --> NoteRepo
-    DIContainer --> AiService
-    DIContainer --> FirestoreSync
-    DIContainer --> FcmService
-    
-    Connectivity --> ConnectivityCoord
-    WorkManager --> WorkService
-    
-    classDef presentation fill:#FF6B6B,stroke:#C92A2A,color:#fff
-    classDef state fill:#4ECDC4,stroke:#1B998B,color:#fff
-    classDef feature fill:#45B7D1,stroke:#0984E3,color:#fff
-    classDef domain fill:#96CEB4,stroke:#52B788,color:#fff
-    classDef persistence fill:#FFE66D,stroke:#FFA502,color:#000
-    classDef external fill:#DDA15E,stroke:#BC6C25,color:#fff
-    classDef platform fill:#D4A5A5,stroke:#9A6C6C,color:#fff
-    classDef core fill:#C1A3E8,stroke:#8B5CF6,color:#fff
-    
-    class SignInScreen,HomeScreen,FolderScreen,SettingsScreen,OverlayBubble presentation
-    class ThemeCubit,GoRouter,OverlayCoord state
-    class CaptureService,NoteRepo,UserRepo,AiService,ExternalSync,FirestoreSync,FcmService feature
-    class NoteModel,Enums,UserModel domain
-    class IsarDB,SharedPrefs persistence
-    class Firebase,Gemini,GoogleCalendar,GoogleTasks,FCM external
-    class OverlayWindow,SpeechToText,PermHandler,Connectivity,WorkManager platform
-    class DIContainer,AppEnv,WorkService,ConnectivityCoord core
+flowchart TD
+  A[Capture Source Overlay Hold Text Banner Home Canvas] --> B[CaptureService ingestRawCapture]
+  B --> C[Isar writeTxn pendingAi]
+  C --> D[UI confirmation under 200ms]
+  C --> E[Event bus emit note saved]
+  E --> F[AI orchestrator handles event]
+  F --> G[Gemini classifier]
+  G --> H[Update Isar to active]
+  H --> I[External sync orchestrator]
+  I --> J[Google Calendar or Tasks]
+  H --> K[Firestore backup sync]
+  J --> K
+  K --> L[WorkManager daily digest at 09:00]
+  L --> M[Telegram Bot API sendMessage]
+  N[WorkManager poll every 4h] --> O[Telegram getUpdates]
+  O --> P[Apply done or archive in Isar]
+  P --> K
 ```
 
----
+## 6. End-to-End Data Pipeline
 
-## Data Flows
-
-### 1. Save Flow: Capture → Isar → Firestore
+### 6.1 Capture-to-Active Lifecycle
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant UI as HomeScreen
-    participant Capture as CaptureService
-    participant Isar as IsarDB
-    participant AI as AiProcessing
-    participant Firestore as Firestore
-    participant ExtSync as ExternalSync
+  participant U as User
+  participant O as Overlay or Home Canvas
+  participant C as CaptureService
+  participant I as Isar
+  participant E as EventBus
+  participant A as AI Orchestrator
+  participant G as Gemini
+  participant X as External Sync
+  participant F as Firestore
 
-    User->>UI: Click "Save" button
-    UI->>Capture: ingestRawCapture(transcript, source)
-    
-    Capture->>Capture: Validate & trim text
-    Capture->>Capture: Generate noteId (timestamp+random)
-    Capture->>Capture: Create Note(status=pendingAi)
-    
-    Capture->>Isar: writeTxn() → put(note)
-    Isar-->>Capture: ✓ Saved locally
-    
-    Capture-->>UI: Return Note object
-    UI->>User: Show Toast "Saved"
-    
-    Note over Capture,UI: Async background processing starts
-    
-    Capture->>AI: _promotePendingNote(noteId, transcript)
-    
-    loop Every 8 seconds
-        AI->>Isar: Find notes.status==pendingAi
-        AI->>AI: Gemini.classify(transcript)
-        AI->>Isar: writeTxn() → update to active
-        Isar-->>AI: ✓ Updated
-        AI->>Firestore: _syncNoteToFirestore(note)
-        Firestore-->>AI: ✓ Synced
-        AI->>ExtSync: syncExternalForNote(note)
-        ExtSync->>GoogleCalendar: Create event (if date)
-        ExtSync->>GoogleTasks: Create task (if task category)
-    end
-    
-    Note over Firestore: Note now searchable and accessible from any device
+  U->>O: Hold to dictate or type and Save
+  O->>C: ingestRawCapture(raw, source)
+  C->>I: writeTxn put(note status=pendingAi)
+  I-->>C: ack
+  C-->>O: saved confirmation
+  C->>E: publish NoteSaved(noteId)
+  E->>A: handle note saved
+  A->>I: load note
+  A->>G: classify(rawTranscript)
+  G-->>A: title category priority extractedDate cleanBody
+  A->>I: writeTxn update note status=active
+  A->>X: sync external (calendar or tasks)
+  X-->>A: external ids
+  A->>I: writeTxn patch external ids
+  A->>F: upsert users uid notes noteId
 ```
 
-### 2. View Flow: Stream-Based Rendering
+### 6.2 Telegram Daily Digest and Action Feedback Loop
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant UI as FolderScreen
-    participant Repo as NoteRepository
-    participant Isar as IsarDB
-    participant Listener as StreamListener
+  participant WM as WorkManager
+  participant Digest as TelegramDigestWorker
+  participant Poll as TelegramPollingWorker
+  participant Isar
+  participant TG as Telegram Bot API
+  participant Backup as FirestoreBackupService
 
-    User->>UI: Navigate to category folder
-    
-    UI->>Repo: watchActiveByCategory(category)
-    Repo->>Isar: Query notes.where().status!=archived.filter(category)
-    Isar-->>Repo: Return List<Note>
-    Repo-->>UI: StreamBuilder emits first value
-    
-    UI->>UI: Build ListView with notes
-    User->>User: See notes instantly
-    
-    Note over Isar,Listener: User creates new note in background
-    
-    Isar->>Listener: Trigger watchLazy() event
-    Listener-->>Repo: Stream emits
-    Repo->>Isar: Query again
-    Isar-->>Repo: Updated List<Note>
-    Repo-->>UI: StreamBuilder rebuilds
-    UI->>UI: New note appears in list (animated)
+  WM->>Digest: trigger daily at local 09:00
+  Digest->>Isar: query active notes
+  Digest->>TG: sendMessage with inline Done Archive buttons
+
+  WM->>Poll: trigger every 4 hours
+  Poll->>TG: getUpdates with offset
+  TG-->>Poll: callback_query actions
+  Poll->>Isar: apply done or archive transitions
+  Poll->>Backup: mirror changed notes to Firestore
 ```
 
-### 3. Edit Flow: Local Update + Cloud Merge
+## 7. Core UX Architecture
+
+### 7.1 Overlay States
+
+Overlay must support three deterministic states:
+1. Idle Bubble state
+2. Listening state while hold gesture active
+3. Processing-to-save then return to Idle
+
+Double-tap opens text banner state.
+Banner has exactly two closure paths:
+- X closes without save
+- Save persists immediately to Isar
+
+### 7.2 Home Thought Canvas
+
+Top section must be a large multiline glassmorphic input region between 30vh and 40vh.
+
+Canvas gesture parity with overlay:
+- Hold mic starts on-device speech capture.
+- Release mic stops and saves instantly.
+
+### 7.3 Folder Grid
+
+Bottom half shows exactly six folders:
+- Tasks
+- Reminders
+- Ideas
+- Follow-up
+- Journal
+- General
+
+### 7.4 Design Language Contract
+
+1. Mesh gradient atmospheric background.
+2. Deep glassmorphism with blur and translucent borders.
+3. No bottom navigation bars in core surface.
+4. Motion should be subtle and state-meaningful.
+
+## 8. Local-First Storage Contract
+
+### 8.1 Latency Objective
+
+- P50 local save: <= 80ms
+- P95 local save: <= 200ms
+- User confirmation should occur immediately after local transaction success.
+
+### 8.2 Save Ordering Rule
+
+1. Validate input.
+2. Construct note entity.
+3. Write to Isar in transaction.
+4. Return success to caller.
+5. Fire async events for AI and cloud sync.
+
+### 8.3 Forbidden Ordering
+
+These are architecture violations:
+- waiting for Gemini before save confirmation
+- waiting for Firestore before save confirmation
+- waiting for Google API sync before save confirmation
+
+## 9. Event-Driven AI Architecture
+
+### 9.1 Triggering Model
+
+Mandatory trigger: NoteSaved domain event.
+
+Not allowed:
+- perpetual Timer.periodic AI polling
+- periodic full-database scans for pendingAi
+
+### 9.2 Event Payload
+
+- eventType: NoteSaved
+- noteId: string
+- source: enum
+- createdAt: timestamp
+- retryCount: int default 0
+
+### 9.3 AI Output Contract
+
+Gemini returns strict JSON keys:
+- title
+- category
+- priority
+- extracted_date
+- clean_body
+
+Category allowed values:
+- Tasks
+- Reminders
+- Ideas
+- Follow-up
+- Journal
+- General
+
+Priority allowed values:
+- high
+- medium
+- low
+
+### 9.4 AI Error Handling
+
+1. If classification fails, keep note status as pendingAi.
+2. Queue targeted retry for that specific note.
+3. Never block UI.
+4. Never delete user raw transcript.
+
+## 10. Cloud Backup Architecture
+
+### 10.1 Firestore Path
+
+users/{uid}/notes/{noteId}
+
+### 10.2 Write Semantics
+
+- merge writes
+- idempotent updates
+- last-write-wins by updated_at
+- offline-first with retries
+
+### 10.3 Failure Semantics
+
+- cloud failure does not rollback local save
+- retry metadata retained locally
+
+## 11. External Sync Architecture
+
+### 11.1 Eligibility Rules
+
+Google Calendar sync eligibility:
+- category == Reminders
+- extracted_date != null
+- gcal_event_id == null
+
+Google Tasks sync eligibility:
+- category == Tasks
+- gtask_id == null
+
+### 11.2 Idempotency
+
+Do not duplicate external entities.
+Use stored external ids and duplicate checks before create.
+
+## 12. Telegram Client-Side Strategy
+
+### 12.1 Why Client-Side
+
+Blueprint requires zero paid backend dependency for digest/action flow.
+Therefore, Telegram operations execute from app via WorkManager.
+
+### 12.2 Daily Digest Worker
+
+- Trigger: local 09:00 every day
+- Input: active notes from Isar
+- Output: formatted digest sent through sendMessage
+- Buttons: Done and Archive inline callbacks
+
+### 12.3 Polling Worker
+
+- Trigger: every 4 hours
+- Call: getUpdates with persisted offset
+- Parse callback_query payload
+- Apply note mutation locally in Isar
+- Mirror mutation to Firestore
+
+### 12.4 Callback Payload Format
+
+`<action>|<uid>|<note_id>`
+
+Allowed actions:
+- done
+- archive
+
+### 12.5 Security Considerations
+
+- Bot token should not be hardcoded.
+- Store token in env/config with hardening strategy.
+- Avoid exposing sensitive logs.
+
+## 13. Isar Data Schema (Strict)
+
+### 13.1 Isar Note Entity
 
 ```mermaid
-graph TD
-    Start["User taps note to edit"]
-    Open["Open edit bottom sheet<br/>with current values"]
-    Modify["User modifies:<br/>title, body,<br/>category, priority"]
-    TapSave["Tap Save button"]
-    
-    TapSave --> UpdateLocal["NoteRepository.<br/>updateEditedNote()"]
-    UpdateLocal --> FindNote["Query Isar<br/>for existing note"]
-    FindNote --> CopyWith["note.copyWith(<br/>title, body,<br/>updatedAt=now())"]
-    CopyWith --> IsarTxn["Isar.writeTxn()<br/>→ put(updated)"]
-    IsarTxn --> IsarOK["✓ Local update<br/>instant"]
-    
-    IsarOK --> FsSync["_syncNoteToFirestore()<br/>with merge:true"]
-    FsSync --> FsSet["Firestore.set({<br/>title, body,<br/>updatedAt,<br/>...}, merge:true)"]
-    FsSet --> FsConflict["Server merges<br/>by updatedAt<br/>timestamp"]
-    FsConflict --> FsOK["✓ Cloud synced"]
-    
-    FsOK --> UIUpdate["StreamBuilder rebuilds<br/>in folder/home"]
-    UIUpdate --> Done["Note reflects<br/>edits everywhere"]
-    
-    style Start fill:#FF6B6B,stroke:#C92A2A,color:#fff
-    style IsarOK fill:#52B788,stroke:#2B6A4F,color:#fff
-    style FsOK fill:#52B788,stroke:#2B6A4F,color:#fff
-    style Done fill:#52B788,stroke:#2B6A4F,color:#fff
-```
-
-### 4. Search Flow: Fuzzy Matching
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant SearchModal as SearchNotesModal
-    participant Repo as NoteRepository
-    participant Isar as IsarDB
-    participant Fuzzy as FuzzyLibrary
-
-    User->>SearchModal: Open search modal
-    SearchModal->>Repo: watchAllActive()
-    Repo->>Isar: Query all notes
-    Isar-->>Repo: Return List<Note>
-    Repo-->>SearchModal: StreamBuilder emits
-    
-    SearchModal->>SearchModal: Render empty search
-    
-    User->>SearchModal: Type "meet"
-    SearchModal->>SearchModal: _debounce(300ms)
-    
-    SearchModal->>Fuzzy: Fuzzy<Note>({...}, options)
-    Fuzzy->>Fuzzy: Search across<br/>title + cleanBody<br/>with threshold=0.45
-    Fuzzy-->>SearchModal: Return sorted matches
-    
-    SearchModal->>SearchModal: Rebuild ListView<br/>with results
-    User->>User: See matching notes instantly
-    
-    User->>SearchModal: Tap result
-    SearchModal->>Repo: context.go('/folder', extra: note.category)
-    SearchModal-->>User: Close + navigate
-```
-
----
-
-## Database Schemas
-
-### Isar Local Database: Note Collection
-
-```dart
-@collection
-class Note {
-  /// Hash of noteId (unique primary key)
-  Id get isarId => fastHash(noteId);
-
-  /// Unique identifier (timestamp_microseconds + random)
-  final String noteId;
-
-  /// Firebase user UID
-  final String uid;
-
-  /// Original raw input (voice transcript or pasted text)
-  final String rawTranscript;
-
-  /// AI-extracted or user-provided title (max 60 chars, truncated)
-  final String title;
-
-  /// AI-enhanced clean body text (for display and search)
-  final String cleanBody;
-
-  /// Note category (tasks, reminders, ideas, followUp, journal, general)
-  @enumerated
-  final NoteCategory category;
-
-  /// Priority level (high, medium, low)
-  @enumerated
-  final NotePriority priority;
-
-  /// Extracted date/time if calendar-relevant
-  final DateTime? extractedDate;
-
-  /// UTC timestamp when note was created
-  final DateTime createdAt;
-
-  /// UTC timestamp of last modification
-  final DateTime updatedAt;
-
-  /// Current status (active, pendingAi, archived)
-  @enumerated
-  final NoteStatus status;
-
-  /// AI model name used (e.g., "gemini-2.0-flash")
-  final String aiModel;
-
-  /// Link to Google Calendar event (if synced)
-  final String? gcalEventId;
-
-  /// Link to Google Tasks item (if synced)
-  final String? gtaskId;
-
-  /// Source of capture (homeWritingBox, voiceOverlay, textOverlay)
-  @enumerated
-  final CaptureSource source;
-
-  /// Last successful Firestore sync timestamp
-  final DateTime? syncedAt;
-}
-```
-
-### Firestore Cloud Database Structure
-
-```
-firestore/
-├── users/{uid}
-│   ├── email: string
-│   ├── displayName: string
-│   ├── photoUrl: string
-│   ├── fcmToken: string                    # For push notifications
-│   ├── createdAt: timestamp
-│   └── notes/{noteId}                      # Subcollection
-│       ├── note_id: string
-│       ├── uid: string
-│       ├── raw_transcript: string
-│       ├── title: string
-│       ├── clean_body: string
-│       ├── category: string               # tasks, reminders, ideas, etc.
-│       ├── priority: string               # high, medium, low
-│       ├── extracted_date: timestamp
-│       ├── created_at: timestamp
-│       ├── updated_at: timestamp
-│       ├── status: string                 # active, pendingAi, archived
-│       ├── ai_model: string
-│       ├── gcal_event_id: string
-│       ├── gtask_id: string
-│       ├── source: string
-│       └── synced_at: timestamp
-```
-
-### Security Rules (Firestore)
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // User documents (read only for self, write restricted)
-    match /users/{uid} {
-      allow read, write: if request.auth.uid == uid;
-      
-      // Notes subcollection (full CRUD for user's notes)
-      match /notes/{noteId} {
-        allow read, write: if request.auth.uid == uid;
-      }
-    }
+erDiagram
+  USER ||--o{ NOTE : owns
+  USER {
+    string uid PK
+    string email
+    string display_name
+    string telegram_chat_id
+    string digest_time
+    int timezone_offset_minutes
+    string fcm_token
+    bool overlay_visible
+    map overlay_position
   }
-}
-```
 
----
-
-## Services & Components
-
-### CaptureService
-**File**: `lib/features/capture/data/capture_service.dart`
-
-Ingests raw transcripts and creates Note objects. Handles:
-- Text validation and trimming
-- Note ID generation (timestamp + random)
-- Isar transaction wrapper
-- Background AI promotion
-- Firestore async sync
-
-```dart
-Future<Note?> ingestRawCapture({
-  required String rawTranscript,
-  required CaptureSource source,
-  bool syncToCloud = true,
-})
-```
-
-**Key Property**: Local save always succeeds, even if Firebase is offline.
-
-### NoteRepository
-**File**: `lib/features/notes/data/note_repository.dart`
-
-Central CRUD interface with streams for reactive updates:
-```dart
-Future<void> savePendingFromHome(String rawText)
-Stream<Map<NoteCategory, int>> watchActiveCounts()
-Stream<List<Note>> watchActiveByCategory(NoteCategory category)
-Stream<List<Note>> watchAllActive()
-Future<void> updateEditedNote({...})
-Future<void> archive(String noteId)
-Future<void> cyclePriority(String noteId)
-```
-
-All operations are local-first with async Firestore sync.
-
-### AiProcessingService
-**File**: `lib/features/ai/data/ai_processing_service.dart`
-
-Runs background polling every 8 seconds:
-1. Query Isar for notes with `status == pendingAi`
-2. Call GeminiNoteClassifier for each note
-3. Extract title, category, priority, date
-4. Update note to `status: active`
-5. Trigger Firestore sync
-
-**Non-blocking**: If Gemini API fails, note stays `pendingAi` for retry.
-
-### FirestoreNoteSyncService
-**File**: `lib/features/sync/data/firestore_note_sync_service.dart`
-
-Bi-directional cloud sync:
-- Push updated notes to Firestore with `merge: true`
-- Pull changes via FCM push notifications
-- Merge strategy: Server-side timestamp wins
-- Error handling: Log + retry on next opportunity
-
-### OverlayCoordinator
-**File**: `lib/features/overlay_v1/overlay_coordinator.dart`
-
-Manages Android floating bubble state:
-- Permission request flow (flutter_overlay_window →  fallback to permission_handler)
-- Isolate lifecycle management
-- State persistence (SharedPreferences)
-- Bubble config (opacity, size, snap position)
-
-### FcmSyncService
-**File**: `lib/features/sync/data/fcm_sync_service.dart`
-
-Firebase Cloud Messaging integration:
-- FCM token registration in user document
-- Foreground message handling
-- Background message processing via `ensureFcmBackgroundHandlerRegistered`
-- Triggers cloud-to-local sync when remote note changes detected
-
-### ExternalSyncService
-**File**: `lib/features/sync/data/external_sync_service.dart`
-
-Google Calendar & Tasks sync:
-- Extract calendar dates → create Google Calendar events
-- Detect task category → create Google Tasks items
-- Fuzzy match existing events to prevent duplicates
-- OAuth flow for Google API access
-
----
-
-## Initialization Sequence
-
-App startup follows a strict 13-step initialization sequence in `main.dart`:
-
-```
-1. WidgetsFlutterBinding.ensureInitialized()
-   └─ Initialize Flutter engine binding
-   
-2. Register FCM background handler
-   └─ Enable background message processing
-   
-3. Load .env file (AppEnv.load())
-   └─ Set GOOGLE_GEMINI_API_KEY, TELEGRAM_BOT_USERNAME, etc.
-   
-4. Firebase.initializeApp(DefaultFirebaseOptions.currentPlatform)
-   └─ Initialize Firebase SDK with platform-specific config
-   
-5. IsarService.instance.init()
-   └─ Open local database with schema recovery
-   
-6. WorkManager.initialize()
-   └─ Setup background task scheduler
-   
-7. RegisterPeriodicGoogleTasksSync()
-   └─ Register Google Tasks sync task (4-hour interval)
-   
-8. init() from injection_container
-   └─ Register 12+ services in GetIt
-   
-9. sl<ThemeCubit>().hydrate()
-   └─ Load saved theme preference from SharedPreferences
-   
-10. sl<OverlayCoordinator>().hydrateAndRestore()
-    └─ Restore overlay state if user had it visible before app closed
-    
-11. sl<AiProcessingService>().start()
-    └─ Start 8-second polling loop for pendingAi notes
-    
-12. sl<ConnectivitySyncCoordinator>().start()
-    └─ Monitor network state, trigger sync when online
-    
-13. sl<FcmSyncService>().initialize()
-    └─ Setup FCM listeners and fetch initial token
-    
-14. runApp(MyApp())
-    └─ Launch Flutter app with GoRouter-based navigation
-```
-
----
-
-## Tech Stack (30 Technologies)
-
-### Frontend & UI (4)
-| # | Technology | Version | Purpose |
-|---|------------|---------|---------|
-| 1 | Flutter | 3.11.4+ | Cross-platform mobile framework |
-| 2 | Material Design 3 | native | Modern UI system with themes |
-| 3 | GoRouter | 17.2.0 | Type-safe navigation |
-| 4 | Flutter BLoC | 9.1.1 | State management pattern |
-
-### State & DI (3)
-| # | Technology | Version | Purpose |
-|---|------------|---------|---------|
-| 5 | GetIt | 9.2.1 | Service locator for DI |
-| 6 | ValueNotifier | native | Reactive state (overlay) |
-| 7 | Streams | native | Async data flows |
-
-### Storage (2)
-| # | Technology | Version | Purpose |
-|---|------------|---------|---------|
-| 8 | Isar | 3.1.0+1 | Local NoSQL database |
-| 9 | SharedPreferences | 2.5.3 | Key-value store for prefs |
-
-### Firebase (4)
-| # | Technology | Version | Purpose |
-|---|------------|---------|---------|
-| 10 | Firebase Core | 4.6.0 | SDK initialization |
-| 11 | Firebase Auth | 6.3.0 | Google OAuth sign-in |
-| 12 | Cloud Firestore | 6.2.0 | Cloud database + sync |
-| 13 | Firebase Cloud Messaging | 16.0.2 | Push notifications |
-
-### AI & APIs (3)
-| # | Technology | Version | Purpose |
-|---|------------|---------|---------|
-| 14 | Google Generative AI | 0.4.7 | Gemini classification |
-| 15 | Google APIs for Dart | 14.0.0 | Calendar + Tasks APIs |
-| 16 | Fuzzy | 0.5.1 | Fuzzy string matching |
-
-### Platform Integrations (5)
-| # | Technology | Version | Purpose |
-|---|------------|---------|---------|
-| 17 | flutter_overlay_window | 0.5.0 | Android floating bubble |
-| 18 | speech_to_text | 7.0.0 | Voice-to-text |
-| 19 | permission_handler | 11.3.1+ | Runtime permissions |
-| 20 | connectivity_plus | 6.1.5 | Network monitoring |
-| 21 | workmanager | 0.6.0 | Background task scheduling |
-
-### Utilities & Helpers (5)
-| # | Technology | Version | Purpose |
-|---|------------|---------|---------|
-| 22 | url_launcher | 6.3.2 | Open URLs/apps |
-| 23 | http | 1.5.0 | HTTP client |
-| 24 | flutter_dotenv | 5.2.1 | Environment variables |
-| 25 | flutter_svg | 2.2.0 | SVG rendering |
-| 26 | path_provider | 2.1.5 | Platform directories |
-
-### Development & Build (3)
-| # | Technology | Version | Purpose |
-|---|------------|---------|---------|
-| 27 | flutter_lints | 6.0.0 | Dart linting |
-| 28 | build_runner | 2.4.6 | Code generation |
-| 29 | isar_generator | 3.0.5 | Isar schema generation |
-| 30 | Google Sign-In | 6.1.5 | OAuth provider |
-
----
-
-## Patterns & Best Practices
-
-### 1. Clean Architecture
-```
-Presentation ← Feature ← Data ← External Services
-```
-Each layer has clear responsibilities and dependencies flow downward only.
-
-### 2. Repository Pattern
-- `NoteRepository`: Abstracts local Isar + cloud Firestore
-- `UserRepository`: Abstracts Firebase auth
-- Single point of truth for data access
-
-### 3. Service Locator Pattern
-GetIt manages all singletons centrally—no manual dependency passing required.
-
-### 4. Local-First with Async Cloud Sync
-- Save always succeeds locally (< 50ms)
-- Cloud sync happens asynchronously in background
-- No blocked UI on network latency
-
-### 5. Stream-Based Reactivity
-```dart
-StreamBuilder(
-  stream: noteRepository.watchActiveByCategory(category),
-  builder: (context, snapshot) {
-    final notes = snapshot.data ?? [];
-    return ListView(...);
+  NOTE {
+    string note_id PK
+    string uid FK
+    string raw_transcript
+    string title
+    string clean_body
+    string category
+    string priority
+    datetime extracted_date
+    datetime created_at
+    datetime updated_at
+    string status
+    string ai_model
+    string gcal_event_id
+    string gtask_id
+    string source
+    datetime synced_at
   }
-)
-```
-Automatic rebuilds when Isar database changes.
-
-### 6. Error Handling & Recovery
-- Try-catch wrappers on all async operations
-- Detailed debug logging with context prefixes (`[Main]`, `[CaptureService]`, etc.)
-- Graceful fallbacks (Isar schema recovery, Firebase init timeout, etc.)
-
-### 7. Background Processing
-- 8-second polling loop for AI (non-blocking)
-- 4-hour WorkManager task for Google Tasks sync
-- Network-aware sync via ConnectivitySyncCoordinator
-
----
-
-## Conclusion
-
-WhisperLog combines **local-first architecture** with **cloud-first convenience**, ensuring notes are instantly saved and accessible offline while syncing seamlessly to the cloud when available. The modular service-oriented design makes the system maintainable, testable, and extensible for future features.
-
----
-
-## Layered Architecture
-
-### 1. Core Layer (`lib/core/`)
-
-#### Configuration (`core/config/`)
-- **AppEnv**: Environment variable loader
-  - `.env` file parser
-  - Firebase configuration
-
-#### Dependency Injection (`core/di/`)
-- **injection_container.dart**: GetIt setup
-- **Registered Singletons**:
-  - `AppPreferencesRepository` - User preferences
-  - `UserRepository` - Firebase auth & Firestore user management
-  - `NoteRepository` - Note CRUD operations
-  - `ExternalSyncService` - Google Calendar/Tasks sync
-  - `CaptureService` - Note ingestion pipeline
-  - `OverlayV1Preferences` - Overlay state persistence
-  - `OverlayCoordinator` - Overlay lifecycle management
-  - `FirestoreNoteSyncService` - Cloud sync service
-  - `AiProcessingService` - Background AI processing
-  - `FcmSyncService` - Firebase messaging
-  - `ConnectivitySyncCoordinator` - Network-based sync triggers
-  - `ThemeCubit` - Theme state management
-
-#### Storage (`core/storage/`)
-- **IsarService**: Isar database singleton
-  - Thread-safe initialization with retry logic (20 attempts)
-  - Automatic recovery from corrupted files
-  - Schema version management
-  - Supported collections: `Note`
-
-#### Settings (`core/settings/`)
-- **AppPreferencesRepository**: SharedPreferences wrapper
-  - Theme mode (light|dark|system, default: system)
-  - Digest time (hour/minute, default: 09:00)
-
-#### Theme (`core/theme/`)
-- **app_theme.dart**: Material Design 3 themes (light/dark)
-- **theme_cubit.dart**: BLoC for theme state with persistence
-
-#### Background Tasks (`core/background/`)
-- **WorkManagerService**: Background task orchestration
-  - Periodic Google Tasks sync: every 4 hours
-  - Constraints: network connected, battery not low
-  - Retry: exponential backoff (30-minute intervals)
-- **ConnectivitySyncCoordinator**: Network change monitoring
-  - Triggers flush of pending AI processing when online
-  - Retries with exponential backoff (15-minute intervals)
-
----
-
-### 2. Shared Layer (`lib/shared/`)
-
-#### Data Models
-- **Note** (`shared/models/note.dart`):
-  - Isar collection with custom ID hashing
-  - Fields:
-    ```
-    noteId (string, primary key via fastHash)
-    uid (Firebase user ID or 'local_anonymous')
-    rawTranscript (original voice-to-text)
-    title (AI-derived or user-provided)
-    cleanBody (AI-processed content)
-    category (NoteCategory: tasks|reminders|ideas|followUp|journal|general)
-    priority (NotePriority: high|medium|low)
-    extractedDate (DateTime, optional)
-    createdAt (DateTime)
-    updatedAt (DateTime)
-    status (NoteStatus: active|archived|pendingAi)
-    aiModel (model name used for processing)
-    gcalEventId (Google Calendar event link)
-    gtaskId (Google Tasks list link)
-    source (CaptureSource: voiceOverlay|textOverlay|homeWritingBox)
-    syncedAt (last cloud sync timestamp)
-    ```
-  - **Custom ID Logic**: `fastHash()` - XOR-based hashing for Isar compatibility
-
-- **Enums** (`shared/models/enums.dart`):
-  - `NoteCategory`: 6 categories for note classification
-  - `NotePriority`: 3 priority levels
-  - `NoteStatus`: 3 states (active, archived, pendingAi)
-  - `CaptureSource`: 3 capture origins
-
-- **User** (`shared/models/user.dart`):
-  - Firebase user data wrapper
-
-#### Widgets & Utilities
-- **shared/widgets/**: Reusable UI components
-  - `GlassContainer`: Glassmorphic design component
-  - `GlassPageBackground`: Page background with glass effect
-  - `GlassNoteCard`: Reusable note card widget
-- **shared/models/note_helpers.dart**: Utility functions for note operations
-
----
-
-### 3. Features Layer (`lib/features/`)
-
-#### Authentication Feature (`features/auth/`)
-- **UserRepository**:
-  - Google Sign-In integration
-  - Firebase Auth state stream
-  - Firestore user document management
-  - FCM token registration and updates
-  - Exception handling with developer-friendly errors (SHA-1 mismatch)
-- **Onboarding Screens**:
-  - SignInScreen: Google OAuth entry point
-  - PermissionsScreen: Runtime permission requests
-  - TelegramScreen: Telegram bot connection flow
-
-#### Note Capture Feature (`features/capture/`)
-
-**Data Layer**:
-- **CaptureService**:
-  - Main ingestion pipeline for voice/text
-  - Operations:
-    1. Validate and trim input text
-    2. Generate unique noteId (timestamp + 20-bit random)
-    3. Create Note with `status: pendingAi`
-    4. Store in Isar with transaction
-    5. Optional Firestore sync (controlled by `syncToCloud` parameter)
-    6. Queue for AI processing via `_promotePendingNote()`
-  - Dependencies: GeminiNoteClassifier, Firebase, IsarService
-  - Error handling: Try-catch with detailed logging
-
-- **CaptureNoteRepository**: Alternative capture path (legacy)
-
-#### Notes Management Feature (`features/notes/`)
-
-**Data Layer**:
-- **NoteRepository**:
-  - CRUD operations on Note collection
-  - Key methods:
-    - `savePendingFromHome(text)`: User-typed notes
-    - `archive(noteId)`: Mark as archived
-    - `unarchive(noteId)`: Restore archived notes
-    - `watchActiveCounts()`: Stream of per-category counts
-    - `watchActiveByCategory(category)`: Stream of category notes
-    - `watchAllActive()`: Stream of all active notes
-    - `watchPendingAiCount()`: Stream of pending count
-  - Uses Isar transactions for atomicity
-  - Firestore sync for cloud backup
-
-**Presentation Layer**:
-- **FolderScreen**: Category-based note list with:
-  - Live note count updates
-  - AI processing status banner
-  - Note editing bottom sheet
-  - Archive/unarchive actions
-
-#### AI Processing Feature (`features/ai/`)
-
-**Data Layer**:
-- **AiProcessingService**:
-  - Autonomous background processor
-  - Periodic checking every 8 seconds
-  - Operations per note:
-    1. Find notes with `status: pendingAi`
-    2. Call `GeminiNoteClassifier.classify()`
-    3. Update note with AI results
-    4. Sync to Firestore
-  - Single instance prevents concurrent processing
-  - Methods: `start()`, `flushPendingQueue()`, `dispose()`
-
-- **GeminiNoteClassifier**:
-  - Google Generative AI (Gemini) integration
-  - Extracts:
-    - Enhanced title from transcript
-    - Category classification
-    - Priority inference
-    - Action items
-    - Relevant dates for calendar/task sync
-
-#### Synchronization Feature (`features/sync/`)
-
-**Data Layer**:
-
-1. **FirestoreNoteSyncService**:
-   - Bi-directional cloud sync
-   - Cloud path: `users/{uid}/notes/{noteId}`
-   - Methods:
-     - `syncNoteById()`: Fetch from cloud, update local
-     - `applyStatusFromPush()`: Handle FCM status changes
-     - `watchAndSyncArchive()`: Keep archive status in sync
-
-2. **ExternalSyncService**:
-   - Google Calendar & Google Tasks integration
-   - Ensures OAuth sign-in is connected
-   - Syncs active notes to Google services
-   - Bidirectional sync for updates
-   - Uses fuzzy matching for reconciliation
-   - APIs: CalendarApi (v3), TasksApi (v1)
-
-3. **FcmSyncService**:
-   - Firebase Cloud Messaging integration
-   - Lifecycle:
-     - `initialize()`: Register FCM token to Firestore
-     - `onMessage`: Handle foreground messages
-     - `onMessageOpenedApp`: Handle notification taps
-     - Background handler: Process messages while app closed
-   - FCM token persisted in Firestore user document
-
-4. **GoogleApiClient**:
-   - Authenticated HTTP client for Google APIs
-   - Uses GoogleSignIn for OAuth token management
-
-#### Overlay Feature (`features/overlay_v1/`)
-
-**Domain Layer** (`overlay_v1/domain/`):
-- **OverlayV1State**:
-  - `mode`: OverlayV1Mode (hidden|idle)
-  - `position`: Offset (x, y coordinates)
-  - `isVisible`: Computed property
-
-- **OverlayBubbleConfig**:
-  - `opacity`: 0.1-1.0 (default: 0.4)
-  - `size`: 40-80 dp (default: 56)
-  - `snapEnabled`: bool (default: true)
-
-**Data Layer** (`overlay_v1/data/`):
-- **OverlayV1Preferences**:
-  - SharedPreferences persistence
-  - Persisted state: visibility, position, opacity, size, snap settings
-
-- **OverlayV1Logger**: Debug logging
-
-**Presentation Layer** (`overlay_v1/presentation/`):
-
-1. **OverlayCoordinator**:
-   - Core orchestrator for overlay lifecycle
-   - Methods:
-     - `requestPermission()`: Two-stage fallback (FlutterOverlayWindow → Permission.systemAlertWindow)
-     - `showIdleBubble()`: Boot overlay with current config
-     - `hideOverlay()`: Close overlay and persist state
-     - `updateBubbleConfig()`: Live config broadcast to isolate
-     - `hydrate()`: Load state from SharedPreferences
-     - `hydrateAndRestore()`: Load and show if enabled
-   - Polling mechanism: 15 attempts × 300ms for permission checks
-   - Detailed boot diagnostics and error logging
-
-2. **OverlayBubbleWidget**:
-   - State machine for bubble ↔ text panel transitions
-   - Visual states:
-     - **Idle**: White transparent circle, 56dp, icon: mic_none
-     - **Listening**: Blue pulse, 1.1× scale, border prominence, icon: mic, haptic feedback
-     - **Processing**: Orange indicator, 1.04× scale, icon: hourglass_bottom
-   - Gestures:
-     - **Drag**: Pan position with edge snapping (if snapEnabled)
-     - **Long press**: Start voice capture (press) → finish (release)
-     - **Tap/Double-tap**: Toggle text panel
-   - Voice capture lifecycle:
-     1. Check microphone permission
-     2. Initialize speech_to_text with onDevice: true
-     3. Listen and accumulate transcript with partialResults
-     4. On release: stop listening, process, save to Isar
-     5. Empty transcript filtering
-   - Text panel lifecycle:
-     1. Resize window from bubble to 240dp height
-     2. Auto-focus text field
-     3. Save → Isar ingestion with syncToCloud: false
-   - Toast system: Auto-dismiss after 900ms
-   - Dependencies: SpeechToText, CaptureService, FlutterOverlayWindow
-
-3. **OverlayPermissionExplainerDialog**:
-   - Glassmorphic dialog explaining SYSTEM_ALERT_WINDOW requirement
-   - Shown before permission request
-
-4. **OverlayCustomizationScreen**:
-   - Settings screen for opacity/size/snap tuning
-   - Real-time slider updates broadcast to active overlay
-
-#### Home Screen Feature (`features/home/`)
-- **HomeScreen**:
-  - Large multiline "Thought Canvas" for quick text capture
-  - Inline dictation controls with mic glow animation
-  - Category grid with live note counts
-  - Search integration
-  - Voice support with animated listening state
-
-#### Settings Feature (`features/settings/`)
-- **SettingsScreen**:
-  - Theme mode selection
-  - Digest time configuration
-  - Floating Capture toggle with permission auto-check
-  - Telegram bot connection
-  - Sync now trigger
-  - Notification settings
-
----
-
-## Data Flow Architecture
-
-### 1. Voice Capture Lifecycle (Overlay)
-```
-User Long-Press Bubble
-    ↓
-_onLongPressStart()
-    ↓
-Mic permission check
-    ↓
-Initialize SpeechToText (onDevice: true)
-    ↓
-Visual: Listening state (blue pulse)
-    ↓
-Accumulate transcript via partialResults
-    ↓
-User Releases
-    ↓
-_onLongPressEnd()
-    ↓
-Stop listening
-    ↓
-[Empty filter] → discard if blank
-    ↓
-CaptureService.ingestRawCapture(syncToCloud: false)
-    ↓
-Isar.writeTxn() → save locally
-    ↓
-Show toast "Saved"
-    ↓
-Return to Idle state
 ```
 
-### 2. Home Screen Text Capture Lifecycle
-```
-User types in Thought Canvas
-    ↓
-Hits "Save" button
-    ↓
-_saveWritingBox()
-    ↓
-CaptureService.ingestRawCapture(syncToCloud: true)
-    ↓
-Isar.writeTxn() → save locally
-    ↓
-_promotePendingNote() → queue for AI (async)
-    ↓
-Firestore.set() → sync to cloud (async, unwaited)
-    ↓
-Show snackbar "Note saved"
-    ↓
-Clear text field
-```
+### 13.2 Field Definitions
 
-### 3. AI Processing Lifecycle
-```
-AiProcessingService.start() → 8-second polling loop
-    ↓
-Query Isar: notes.filter().statusEqualTo(pendingAi).findAll()
-    ↓
-For each pending note:
-  ├─ GeminiNoteClassifier.classify()
-  ├─ Extract: title, category, priority, date, content
-  └─ Update note fields
-    ↓
-Isar.writeTxn() → save updated note with status: active
-    ↓
-_syncNoteToFirestore() → cloud sync (async)
-    ↓
-Note now visible in Folder screens
-```
+1. note_id: globally unique immutable id
+2. uid: owner user id
+3. raw_transcript: raw captured text from voice or typing
+4. title: short headline generated by AI or fallback
+5. clean_body: beautified user-friendly body
+6. category: one of six folder categories
+7. priority: high medium low
+8. extracted_date: parsed reminder/task datetime
+9. created_at: creation timestamp
+10. updated_at: mutation timestamp
+11. status: pendingAi active archived done
+12. ai_model: model name used
+13. gcal_event_id: optional Calendar event id
+14. gtask_id: optional Task id
+15. source: capture origin enum
+16. synced_at: last cloud sync timestamp
 
-### 4. Cloud Synchronization Lifecycle
-```
-Network State Change (Online)
-    ↓
-ConnectivitySyncCoordinator detects change
-    ↓
-Trigger: AiProcessingService.flushPendingQueue()
-    ↓
-ExternalSync.syncExternalForNote() for active notes
-    ↓
-FirestoreNoteSyncService.syncNoteById() for pending sync
-    ↓
-FCM registration and sync status updates
-    ↓
-All notes synced to cloud
-```
+## 14. Firestore User Schema (Strict)
 
----
+```mermaid
+erDiagram
+  USER ||--o{ NOTE : owns
 
-## State Management Strategy
+  USER {
+    string uid PK
+    string email
+    string display_name
+    string telegram_chat_id
+    string digest_time
+    int timezone_offset_minutes
+    string fcm_token
+    bool overlay_visible
+    map overlay_position
+  }
 
-### BLoC Pattern
-- **ThemeCubit**: Theme mode (light|dark|system)
-  - Persists via SharedPreferences
-  - Watches system theme if mode = system
-
-### Reactive Streams
-- **NoteRepository**: Isar lazy watch streams
-  - `watchActiveCounts()`: Per-category sync with Firestore
-  - `watchActiveByCategory()`: Real-time note list updates
-  - `watchPendingAiCount()`: AI processing progress indicator
-  - `watchAllActive()`: App-wide note stream
-
-### ValueNotifier Pattern
-- **OverlayCoordinator**:
-  - `state`: OverlayV1State (mode, position)
-  - `bubbleConfig`: OverlayBubbleConfig (opacity, size, snap)
-  - Listeners broadcast changes to overlay isolate via `shareData()`
-
----
-
-## Error Handling & Recovery
-
-### Database Layer
-- **Isar Corruption Recovery**:
-  - Automatic purge and reinitialize on schema mismatch
-  - 20-attempt retry with 50ms delays on lock conflicts
-  - Graceful degradation if init fails temporarily
-
-### Network Layer
-- **Firestore Sync**:
-  - Silent failures with exponential backoff retry
-  - Connection monitoring via ConnectivityPlus
-  - Manual "Sync Now" trigger in Settings
-
-### Overlay Layer
-- **Permission Fallback**:
-  - Primary: `FlutterOverlayWindow.requestPermission()`
-  - Fallback: `Permission.systemAlertWindow.request()`
-  - Polling: 15 attempts × 300ms after request returns
-- **Boot Diagnostics**:
-  - Detailed `debugPrint()` logging of every step
-  - Stack traces on exceptions
-  - NavigatorObserver to catch unexpected routing
-
-### Capture Layer
-- **Input Validation**:
-  - Trim whitespace
-  - Filter empty strings
-  - Unique noteId generation (timestamp + random)
-- **Error Logging**:
-  - Try-catch with stack trace capture
-  - Context-aware debug messages
-
----
-
-## Routing Architecture
-
-### GoRouter Configuration (`lib/app/router.dart`)
-
-| Route | Screen | Purpose |
-|-------|--------|---------|
-| `/` | SignInScreen | Default redirect |
-| `/signin` | SignInScreen | Google OAuth entry |
-| `/permissions` | PermissionsScreen | Runtime permission flow |
-| `/telegram` | TelegramScreen | Telegram bot connection |
-| `/home` | HomeScreen | Main app after auth |
-| `/folder` | FolderScreen | Category-based note list |
-| `/settings` | SettingsScreen | App settings & overlay toggle |
-| `/settings/overlay-customization` | OverlayCustomizationScreen | Bubble appearance tuning |
-
-### Auth Redirect Logic
-```
-FirebaseAuth.instance.currentUser != null?
-  ├─ Yes → Navigate to /home
-  └─ No  → Navigate to /signin
+  NOTE {
+    string note_id PK
+    string uid FK
+    string raw_transcript
+    string title
+    string clean_body
+    string category
+    string priority
+    datetime extracted_date
+    datetime created_at
+    datetime updated_at
+    string status
+    string ai_model
+    string gcal_event_id
+    string gtask_id
+    string source
+    datetime synced_at
+  }
 ```
 
----
+## 15. Background Scheduling Architecture
 
-## Platform-Specific Considerations
+### 15.1 WorkManager Jobs
 
-### Android
-- **Overlay**: flutter_overlay_window (v0.5.0)
-  - Requires SYSTEM_ALERT_WINDOW permission
-  - Separate isolate for window management
-  - ForegroundServiceType: specialUse
-- **Speech Recognition**: On-device via speech_to_text
-- **Permissions**: Runtime via permission_handler
+Mandatory jobs:
+1. telegram_daily_digest_0900_local
+2. telegram_poll_updates_every_4h
 
-### iOS/Web/Desktop
-- **Overlay**: Not available (graceful fallback)
-- **Speech Recognition**: Supported via speech_to_text
-- **Cloud Sync**: Full support via Firebase
+Optional jobs:
+1. connectivity_recovered_flush_pending
+2. external_sync_maintenance
 
----
+### 15.2 Job Constraints
 
-## Security & Privacy
+- network required for Telegram and cloud sync tasks
+- exponential backoff for API failures
+- unique work names for idempotency
 
-### Authentication
-- **Firebase Auth**: Google Sign-In with SHA-1 verification
-- **OAuth Scope**: Email and profile information
-- **Token Management**: Automatic refresh via Firebase
+## 16. Reliability Patterns
 
-### Data Storage
-- **Local**: Isar with no built-in encryption
-- **Cloud**: Firestore with user-scoped security rules
-  - Rule: `request.auth.uid == userId` for user/{userId} access
+1. Bounded retries with jitter for remote APIs.
+2. Idempotent write operations.
+3. Crash-safe checkpoints for long jobs.
+4. Readiness gates for Isar initialization.
+5. Defensive stream error containment.
 
-### External APIs
-- **Google APIs**: OAuth-authenticated HTTP client (google_sign_in)
-- **FCM**: Server-to-client authentication via FCM token
+## 17. Observability
 
----
+### 17.1 Required Logs
 
-## Performance Optimization
+- capture_save_started
+- capture_save_local_success
+- capture_save_local_failure
+- note_saved_event_emitted
+- ai_job_started
+- ai_job_success
+- ai_job_failure
+- firestore_backup_success
+- firestore_backup_failure
+- telegram_digest_sent
+- telegram_digest_failed
+- telegram_poll_success
+- telegram_poll_failed
 
-### Database
-- **Lazy Initialization**: IsarService uses `Future<Isar>?` to avoid blocking
-- **Transactions**: Batch operations with writeTxn()
-- **Indexing**: Primary key on noteId via custom fastHash()
+### 17.2 Metrics
 
-### Background Processing
-- **AI Processing**: 8-second periodic polling (not real-time)
-- **Sync Debouncing**: Exponential backoff (15-30 min intervals)
-- **Network Monitoring**: Connectivity-based sync triggers
+- local_save_latency_ms
+- ai_processing_latency_ms
+- ai_retry_count
+- cloud_sync_latency_ms
+- telegram_digest_send_count
+- telegram_poll_action_count
 
-### UI
-- **AnimatedSwitcher**: Efficient state transitions in overlay
-- **Lazy Loading**: Stream builders for list rendering
-- **SingleTickerProviderStateMixin**: Minimal animation controllers
+## 18. Security and Privacy
 
----
+1. Principle of least data transfer.
+2. Raw transcript remains local-first.
+3. Tokens managed through environment and secure storage strategy.
+4. PII logging prohibited.
+5. User-initiated data deletion path required.
 
-## Testing Strategy
+## 19. Dependency Boundaries
 
-### Unit Tests
-- Note model validation
-- Capture service ingestion logic
-- AI classification results
-- Utility functions (category parsing, date extraction)
+Core app must not depend on paid server compute for critical flows.
+Any optional backend integration must remain non-blocking and replaceable.
 
-### Integration Tests
-- Overlay lifecycle (permission → show → hide)
-- Capture → AI processing → sync pipeline
-- Cloud sync with offline handling
-- External service integration
+## 20. Anti-Patterns (Explicitly Forbidden)
 
-### Manual Testing Checklist
-- [ ] Google Sign-In works without ApiException 10
-- [ ] Overlay bubble appears as 56dp transparent circle
-- [ ] Voice capture saves notes to local database
-- [ ] Home canvas save writes to Firestore
-- [ ] AI processing categorizes notes
-- [ ] Floating capture toggle reads OS permission state
-- [ ] Settings save/restore persist across restarts
-- [ ] Offline mode captures locally, syncs when online
-- [ ] Google Calendar/Tasks sync works bidirectionally
+1. AI Timer.periodic polling loops.
+2. Blocking network call before local save confirmation.
+3. Cloud-only digest orchestration.
+4. Hidden status transitions without audit fields.
+5. Global mutable singleton state without readiness barriers.
 
----
+## 21. Migration Strategy to Blueprint Compliance
 
-## Deployment & Versioning
+### Phase A: Runtime Hardening
 
-### Current Version
-- **App Version**: 1.0.0+1
-- **Build Target**: Android SDK 35, iOS 12.0+
+- remove AI polling service
+- implement event bus and note-specific queues
+- unify capture pipelines
 
-### Dependencies Updates
-- **Outdated Packages**: 25 packages have newer versions
-- **Constraint Flexibility**: Consider gradual upgrades per platform
+### Phase B: Telegram Clientization
 
----
+- migrate digest send from cloud function to app worker
+- migrate callback handling from webhook to getUpdates polling worker
+- preserve Firestore mirror writes
 
-## Future Enhancements
+### Phase C: Observability and QA
 
-1. **Encryption**: End-to-end encryption for local and cloud storage
-2. **Biometric Auth**: Fingerprint/face unlock for sensitive notes
-3. **Batch Sync**: Optimize cloud sync with batching and compression
-4. **Custom AI Models**: On-device Gemini Nano for privacy
-5. **Voice Commands**: Gesture-based overlay interactions
-6. **Multi-device Sync**: Real-time sync across multiple devices
-7. **Note Sharing**: Collaborative note-taking features
-8. **Widgets**: Home screen widgets for quick access
-9. **Accessibility**: Screen reader and high-contrast support
-10. **Analytics**: User behavior insights with privacy compliance
+- implement instrumentation contract
+- build deterministic integration test harness
 
----
+## 22. Testing Architecture
 
-## Documentation References
+### 22.1 Unit Tests
 
-- [Flutter Documentation](https://flutter.dev/docs)
-- [Firebase Documentation](https://firebase.google.com/docs)
-- [Firestore Security Rules](https://firebase.google.com/docs/firestore/security/start)
-- [Google APIs for Dart](https://pub.dev/packages/googleapis)
-- [Isar Documentation](https://isar.dev/)
-- [BLoC Pattern](https://bloclibrary.dev/)
-- [GoRouter Documentation](https://pub.dev/packages/go_router)
+- note entity serialization
+- category/priority parsing
+- AI payload parsing
+- Telegram payload parsing
+
+### 22.2 Integration Tests
+
+- capture -> Isar pendingAi
+- event emission -> AI update
+- AI update -> Firestore merge
+- daily digest worker send
+- polling worker action apply
+
+### 22.3 End-to-End Tests
+
+- overlay hold-release capture
+- overlay text banner save
+- home canvas hold-release capture
+- folder count updates
+
+## 23. Requirement Traceability Matrix
+
+The matrix below maps architecture controls to blueprint constraints.
+
+| Control ID | Blueprint Clause | Enforced Rule | Validation Method |
+|---|---|---|---|
+| AC-001 | Local-first strict rule | Isar write before async work | integration test |
+| AC-002 | Event-driven AI | No timer polling | static code audit |
+| AC-003 | Telegram client-side | No cloud function dependency | runtime dependency audit |
+| AC-004 | Digest schedule | Daily local 09:00 | scheduler test |
+| AC-005 | Poll schedule | 4-hour getUpdates worker | scheduler test |
+| AC-006 | UX parity | Overlay and home gesture equivalence | UI integration test |
+| AC-007 | Folder contract | Exactly six smart folders | widget test |
+| AC-008 | Design language | Glassmorphism + mesh gradient + no bottom nav | visual review |
+| AC-009 | Save latency | <= 200ms local confirmation target | performance test |
+| AC-010 | Idempotency | no duplicate calendar/task entities | sync integration test |
+
+## 24. Implementation Priorities and Exit Criteria
+
+This section replaces the oversized checklist with practical execution guidance for engineering and QA.
+
+### 24.1 Priority Backlog (Now -> Next)
+
+1. AI Trigger Refactor (Critical)
+- Remove timer-based scanning and switch to NoteSaved event stream subscription.
+- Ensure one event maps to one targeted note processing job.
+- Add bounded retry policy per note with telemetry.
+
+2. Telegram Client-Side Automation (High)
+- Implement daily 09:00 local WorkManager digest job.
+- Implement 4-hour Telegram getUpdates polling job.
+- Persist polling offset safely across restarts.
+
+3. Isar Startup Reliability (High)
+- Harden Isar readiness barrier to avoid half-initialized handles.
+- Ensure all repositories await a single in-flight init promise.
+- Prevent stream crashes on startup race conditions.
+
+4. Save Path Consistency (High)
+- Guarantee every capture path confirms success immediately after local Isar commit.
+- Move all network sync operations to asynchronous post-commit jobs.
+
+5. UX Parity Lock (Medium)
+- Keep overlay and home canvas behavior equivalent for hold/release voice capture.
+- Enforce double-tap expansion semantics for overlay text panel.
+
+### 24.2 Release Gates
+
+A release candidate cannot pass architecture review unless all gates below are green:
+
+Gate A: Local-First Gate
+- Evidence: tests proving note availability immediately after local commit with network disabled.
+
+Gate B: Event-Driven AI Gate
+- Evidence: no Timer.periodic AI loops in runtime path; event stream instrumentation present.
+
+Gate C: Telegram Client-Side Gate
+- Evidence: daily digest and 4-hour polling executed from app-side WorkManager.
+
+Gate D: Stability Gate
+- Evidence: no unhandled Isar initialization exceptions during cold start stress tests.
+
+Gate E: UX Contract Gate
+- Evidence: overlay + canvas interaction parity verified by integration tests.
+
+### 24.3 Validation Matrix
+
+| Area | Validation Method | Pass Threshold |
+|---|---|---|
+| Local save latency | Instrumented benchmark | P95 <= 200ms |
+| AI trigger path | Static/runtime audit | Event-driven only |
+| Telegram digest | WorkManager integration test | Sends once/day at local window |
+| Telegram action polling | Integration test with mocked updates | Done/Archive applied idempotently |
+| Isar startup safety | Cold-start stress tests | Zero unhandled init exceptions |
+| Cloud backup durability | Offline/online recovery test | Eventual Firestore convergence |
+
+### 24.4 Ownership Model
+
+- Architecture owner: enforces non-negotiable constraints.
+- Mobile lead: owns runtime implementation and migration sequencing.
+- QA lead: owns gate evidence and regression matrix.
+- Release manager: blocks shipment when any gate is red.
+
+### 24.5 Short-Term Milestones
+
+Milestone M1
+- Remove AI polling timer.
+- Introduce event bus and targeted AI jobs.
+
+Milestone M2
+- Ship Telegram digest and polling workers in Flutter runtime.
+- Remove Cloud Functions dependency from critical Telegram flow.
+
+Milestone M3
+- Complete Isar startup hardening and stream resilience.
+- Finalize architecture conformance report.
+## 25. Operational Runbooks
+
+### 25.1 Startup Runbook
+
+1. Initialize Flutter binding.
+2. Load environment variables.
+3. Initialize Firebase.
+4. Initialize Isar with readiness barrier.
+5. Initialize DI container.
+6. Start overlay coordinator.
+7. Register WorkManager jobs.
+8. Start app shell.
+
+### 25.2 Capture Failure Runbook
+
+1. Confirm input validity.
+2. Confirm Isar open and ready.
+3. Retry transaction with bounded attempts.
+4. Surface user-safe error if local write fails.
+5. Record structured crash breadcrumb.
+
+### 25.3 AI Failure Runbook
+
+1. Keep note status pendingAi.
+2. Enqueue targeted retry.
+3. Increment retry metadata.
+4. Backoff and stop after threshold.
+5. Expose pending count to UI for transparency.
+
+### 25.4 Telegram Failure Runbook
+
+1. Validate bot token and chat id.
+2. Retry send with exponential backoff.
+3. Persist unsent digest marker.
+4. Retry in next worker window.
+
+## 26. Performance Budget
+
+- Startup to interactive: <= 3.5s on target baseline device.
+- Capture save local commit: <= 200ms p95.
+- Overlay interaction feedback: <= 50ms visual response.
+- Folder refresh after save: <= 300ms.
+
+## 27. Data Retention and Cleanup
+
+- Archived notes remain queryable for history views.
+- Pending retry metadata older than retention window may be compacted.
+- Telegram polling offsets must persist across process restarts.
+
+## 28. Governance
+
+Any architecture change to these sections requires:
+1. architecture review
+2. QA signoff
+3. updated traceability matrix entries
+4. updated test mapping
+
+## 29. Definition of Done for Blueprint Compliance
+
+A release is blueprint-compliant only when all are true:
+1. No AI polling loop exists.
+2. Capture local save is consistently non-blocking for network.
+3. Telegram daily digest is app-side WorkManager at local 09:00.
+4. Telegram action polling runs every 4 hours via getUpdates.
+5. Overlay and home capture semantics are parity-complete.
+6. Documentation, runtime, and tests align.
+
+## 30. Appendix: Canonical Status Values
+
+- pendingAi
+- active
+- archived
+- done
+
+## 31. Appendix: Canonical Category Values
+
+- tasks
+- reminders
+- ideas
+- followUp
+- journal
+- general
+
+## 32. Appendix: Canonical Source Values
+
+- voiceOverlay
+- textOverlay
+- homeWritingBox
+
+## 33. Appendix: Architecture Decision Record Seeds
+
+- ADR-001: local-first save ordering
+- ADR-002: event-driven ai orchestration
+- ADR-003: client-only telegram automation
+- ADR-004: external sync idempotency
+- ADR-005: isar readiness barrier strategy
+
+## 34. Closing Statement
+
+This ARCHITECTURE.md defines the intended target architecture and compliance contract.
+Implementation, QA, and release decisions must be measured against this document.

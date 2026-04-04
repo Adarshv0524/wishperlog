@@ -52,7 +52,7 @@ class NoteRepository {
     );
 
     final db = await _db();
-    if (db.isClosed) {
+    if (!db.isOpen) {
       throw Exception('[NoteRepository] Isar database is closed');
     }
     
@@ -112,7 +112,7 @@ class NoteRepository {
 
   Future<void> archive(String noteId) async {
     final db = await _db();
-    if (db.isClosed) throw Exception('[NoteRepository] Isar closed');
+    if (!db.isOpen) throw Exception('[NoteRepository] Isar closed');
     
     final note = await _findById(db, noteId);
     if (note == null) return;
@@ -141,7 +141,7 @@ class NoteRepository {
 
   Future<void> cyclePriority(String noteId) async {
     final db = await _db();
-    if (db.isClosed) throw Exception('[NoteRepository] Isar closed');
+    if (!db.isOpen) throw Exception('[NoteRepository] Isar closed');
     
     final note = await _findById(db, noteId);
     if (note == null) return;

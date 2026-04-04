@@ -93,7 +93,7 @@ class CaptureService {
         syncedAt: null,
       );
 
-      if (db.isClosed) {
+      if (!db.isOpen) {
         throw Exception('[CaptureService] Isar database is closed or not initialized');
       }
 
