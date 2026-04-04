@@ -43,3 +43,62 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+.env.secret
+
+# Firebase configuration files (auto-generated, contains credentials)
+android/app/google-services.json
+ios/GoogleService-Info.plist
+lib/firebase_options.dart
+
+# API Keys and credentials
+.api_keys
+*.key
+*.pem
+private_key.json
+
+# IDE and editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependency directories
+functions/node_modules/
+node_modules/
+
+# Generated files that shouldn't be committed
+.dart_tool/generated/
+pubspec.lock
+ios/Podfile.lock
+
+# Platform-specific build files
+build/
+.gradle/
+.gradle/
+*.xcworkspace/
+ios/Pods/
+
+# Local development files
+local.properties
+.DS_Store
+Thumbs.db
+
+# MacOS
+macos/Flutter/Flutter-Release.xcconfig
+macos/Flutter/Flutter-Debug.xcconfig
+
+# Windows
+windows/flutter/generated_plugin_registrant.cc
+windows/flutter/generated_plugins.cmake
+
+# Backup and recovery files
+*.bak
+*.backup
+*.tmp
+*.recover
