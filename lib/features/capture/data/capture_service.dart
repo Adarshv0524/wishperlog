@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:isar/isar.dart';
 import 'package:wishperlog/core/storage/isar_service.dart';
 import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
@@ -57,58 +60,27 @@ class CaptureService {
   Future<Note?> ingestRawCapture({
     required String rawTranscript,
     required CaptureSource source,
+    bool syncToCloud = true,
   }) async {
     final trimmed = rawTranscript.trim();
     if (trimmed.isEmpty) {
       return null;
     }
 
-    final db = await _isarService.init();
-    final now = DateTime.now();
-    final user = _auth?.currentUser;
-    final noteId = '${now.microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
-
     try {
-      final aiResult = await _classifier.classify(trimmed);
+      final db = await _isarService.init();
 
-      var note = Note(
-        noteId: noteId,
-        uid: user?.uid ?? 'local_anonymous',
-        rawTranscript: trimmed,
-        title: aiResult.title,
-        cleanBody: aiResult.cleanBody,
-        category: aiResult.category,
-        priority: aiResult.priority,
-        extractedDate: aiResult.extractedDate,
-        createdAt: now,
-        updatedAt: now,
-        status: NoteStatus.active,
-        aiModel: aiResult.model,
-        gcalEventId: null,
-        gtaskId: null,
-        source: source,
-        syncedAt: now,
-      );
+      final now = DateTime.now();
+      final user = _auth?.currentUser;
+      final noteId = '${now.microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
 
-      final externalSync = _externalSync;
-      if (externalSync != null) {
-        final externalResult = await externalSync.syncExternalForNote(note);
-        note = externalResult.note;
-      }
-
-      await db.writeTxn(() async {
-        await db.notes.put(note);
-      });
-      await _syncNoteToFirestore(note);
-      return note;
-    } catch (_) {
       final pending = Note(
         noteId: noteId,
         uid: user?.uid ?? 'local_anonymous',
         rawTranscript: trimmed,
         title: _fallbackTitle(trimmed),
         cleanBody: trimmed,
-        category: NoteCategory.general,
+        category: _initialCategory(trimmed),
         priority: NotePriority.medium,
         extractedDate: null,
         createdAt: now,
@@ -121,34 +93,116 @@ class CaptureService {
         syncedAt: null,
       );
 
+      debugPrint('[CaptureService] Saving note: $noteId (${trimmed.length} chars, source: $source)');
+      
       await db.writeTxn(() async {
         await db.notes.put(pending);
       });
-      await _syncNoteToFirestore(pending);
+      
+      debugPrint('[CaptureService] Note saved successfully: $noteId');
+      
+      if (syncToCloud) {
+        unawaited(_syncNoteToFirestore(pending));
+      }
+
+      unawaited(_promotePendingNote(noteId: noteId, rawTranscript: trimmed));
       return pending;
+    } catch (error, stackTrace) {
+      debugPrint('[CaptureService] ERROR during ingestRawCapture: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
     }
+  }
+
+  Future<void> _promotePendingNote({
+    required String noteId,
+    required String rawTranscript,
+  }) async {
+    try {
+      final db = await _isarService.init();
+      final matches = await db.notes.filter().noteIdEqualTo(noteId).findAll();
+      final existing = matches.isEmpty ? null : matches.first;
+      if (existing == null || existing.status == NoteStatus.archived) {
+        return;
+      }
+
+      final aiResult = await _classifier.classify(rawTranscript);
+      var next = existing.copyWith(
+        title: aiResult.title,
+        cleanBody: aiResult.cleanBody,
+        category: aiResult.category,
+        priority: aiResult.priority,
+        extractedDate: aiResult.extractedDate,
+        clearExtractedDate: aiResult.extractedDate == null,
+        status: NoteStatus.active,
+        aiModel: aiResult.model,
+        updatedAt: DateTime.now(),
+        syncedAt: DateTime.now(),
+      );
+
+      final externalSync = _externalSync;
+      if (externalSync != null) {
+        final externalResult = await externalSync.syncExternalForNote(next);
+        next = externalResult.note;
+      }
+
+      await db.writeTxn(() async {
+        await db.notes.put(next);
+      });
+      await _syncNoteToFirestore(next);
+    } catch (_) {
+      // Pending notes stay visible and will be retried by AI background service.
+    }
+  }
+
+  NoteCategory _initialCategory(String text) {
+    final lower = text.toLowerCase();
+    if (RegExp(r'\b(todo|task|finish|complete|deadline|ship|submit)\b').hasMatch(lower)) {
+      return NoteCategory.tasks;
+    }
+    if (RegExp(r'\b(remind|reminder|tomorrow|later|call|meeting|at\s+\d)\b').hasMatch(lower)) {
+      return NoteCategory.reminders;
+    }
+    if (RegExp(r'\b(idea|brainstorm|concept|maybe build)\b').hasMatch(lower)) {
+      return NoteCategory.ideas;
+    }
+    if (RegExp(r'\b(follow up|followup|ping|check back)\b').hasMatch(lower)) {
+      return NoteCategory.followUp;
+    }
+    if (RegExp(r'\b(journal|today i|felt|mood|dear diary)\b').hasMatch(lower)) {
+      return NoteCategory.journal;
+    }
+    return NoteCategory.general;
   }
 
   Future<void> _syncNoteToFirestore(Note note) async {
     final auth = _auth;
     final firestore = _firestore;
     if (auth == null || firestore == null) {
+      debugPrint('[CaptureService] Firestore sync skipped: auth or firestore null');
       return;
     }
 
     final user = auth.currentUser;
     if (user == null) {
+      debugPrint('[CaptureService] Firestore sync skipped: user not authenticated');
       return;
     }
 
     try {
+      debugPrint('[CaptureService] Syncing note to Firestore: ${note.noteId}');
+      
       await firestore
           .collection('users')
           .doc(user.uid)
           .collection('notes')
           .doc(note.noteId)
           .set(note.toFirestoreJson(), SetOptions(merge: true));
-    } catch (_) {
+      
+      debugPrint('[CaptureService] Successfully synced to Firestore: ${note.noteId}');
+    } catch (e, st) {
+      debugPrint('[CaptureService] ERROR syncing to Firestore: ${note.noteId}: $e');
+      debugPrintStack(stackTrace: st);
       // Firestore sync will be retried via existing sync flow.
     }
   }

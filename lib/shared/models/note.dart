@@ -5,7 +5,7 @@ import 'note_helpers.dart';
 part 'note.g.dart';
 
 int fastHash(String string) {
-  var hash = 0xcbf29ce484222325;
+  var hash = 0xcbf29ce484222000;
   var i = 0;
   while (i < string.length) {
     final codeUnit = string.codeUnitAt(i++);

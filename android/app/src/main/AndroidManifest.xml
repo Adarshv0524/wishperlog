@@ -4,19 +4,20 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:label="wishperlog"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="true"
+        android:enableOnBackInvokedCallback="true"
         android:theme="@style/NormalTheme">
         <activity
-            android:name=".MainActivity"
+            android:name="com.adarshkumarverma.wishperlog.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
@@ -45,17 +46,8 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="whisperlog_overlay_capture" />
+                android:value="floating_capture_overlay" />
         </service>
-
-        <receiver
-            android:name=".VolumeDownLongPressReceiver"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.adarshkumarverma.wishperlog.ACTION_VOLUME_DOWN_LONG_PRESS" />
-            </intent-filter>
-        </receiver>
     </application>
 
 </manifest>

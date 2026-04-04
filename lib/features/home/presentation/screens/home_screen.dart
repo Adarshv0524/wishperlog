@@ -153,7 +153,9 @@ class _HomeScreenState extends State<HomeScreen>
             rawTranscript: captured,
             source: CaptureSource.homeWritingBox,
           );
-        } catch (_) {
+        } catch (error, stackTrace) {
+          debugPrint('[HomeScreen] Error saving dictated note: $error');
+          debugPrintStack(stackTrace: stackTrace);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Unable to save voice capture.')),
@@ -208,7 +210,9 @@ class _HomeScreenState extends State<HomeScreen>
         rawTranscript: _writingController.text,
         source: CaptureSource.homeWritingBox,
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('[HomeScreen] Error saving note: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Unable to save note.')),
@@ -409,7 +413,6 @@ class _HomeScreenState extends State<HomeScreen>
                                     onLongPressEnd: (_) async {
                                       await _stopDictation(submitCaptured: true);
                                     },
-                                    onTap: _toggleDictation,
                                     child: AnimatedBuilder(
                                       animation: _micGlowController,
                                       builder: (context, child) {
@@ -540,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        '$count active',
+                                        '$count notes',
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: secondaryText,
@@ -570,13 +573,5 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
     );
-  }
-
-  Future<void> _toggleDictation() async {
-    if (_isDictating) {
-      await _stopDictation(submitCaptured: true);
-      return;
-    }
-    await _startDictation();
   }
 }

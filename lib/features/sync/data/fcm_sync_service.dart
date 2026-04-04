@@ -7,6 +7,16 @@ import 'package:wishperlog/features/auth/data/repositories/user_repository.dart'
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
 import 'package:wishperlog/firebase_options.dart';
 
+bool _fcmBackgroundHandlerRegistered = false;
+
+void ensureFcmBackgroundHandlerRegistered() {
+  if (_fcmBackgroundHandlerRegistered) {
+    return;
+  }
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  _fcmBackgroundHandlerRegistered = true;
+}
+
 class FcmSyncService {
   FcmSyncService({
     FirebaseMessaging? messaging,
@@ -20,15 +30,40 @@ class FcmSyncService {
   final UserRepository _users;
   final FirestoreNoteSyncService _noteSync;
 
+  bool _initialized = false;
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<RemoteMessage>? _messageSub;
+  StreamSubscription<RemoteMessage>? _messageOpenedSub;
 
   Future<void> initialize() async {
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    ensureFcmBackgroundHandlerRegistered();
 
-    final token = await _messaging.getToken();
-    if (token != null && token.isNotEmpty) {
-      await _users.updateFcmToken(token);
+    if (_initialized) {
+      return;
+    }
+    _initialized = true;
+
+    try {
+      debugPrint('[FcmSyncService] Getting FCM token...');
+      final token = await _messaging.getToken().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('[FcmSyncService] Token retrieval timed out');
+          return null;
+        },
+      );
+      if (token != null && token.isNotEmpty) {
+        debugPrint('[FcmSyncService] Got token, updating user...');
+        await _users.updateFcmToken(token).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('[FcmSyncService] Token update timed out');
+            return;
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('[FcmSyncService] Error getting token: $e');
     }
 
     _tokenRefreshSub ??= _messaging.onTokenRefresh.listen((token) async {
@@ -36,7 +71,9 @@ class FcmSyncService {
     });
 
     _messageSub ??= FirebaseMessaging.onMessage.listen(_handleRemoteMessage);
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteMessage);
+    _messageOpenedSub ??= FirebaseMessaging.onMessageOpenedApp.listen(
+      _handleRemoteMessage,
+    );
   }
 
   Future<NotificationSettings> requestPermission() {
@@ -58,8 +95,11 @@ class FcmSyncService {
   Future<void> dispose() async {
     await _tokenRefreshSub?.cancel();
     await _messageSub?.cancel();
+    await _messageOpenedSub?.cancel();
     _tokenRefreshSub = null;
     _messageSub = null;
+    _messageOpenedSub = null;
+    _initialized = false;
   }
 
   Future<void> _handleRemoteMessage(RemoteMessage message) async {

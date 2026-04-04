@@ -10,6 +10,8 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
+import 'package:wishperlog/features/overlay_v1/overlay_coordinator.dart';
+import 'package:wishperlog/features/overlay_v1/presentation/widgets/overlay_permission_explainer_dialog.dart';
 import 'package:wishperlog/features/sync/data/fcm_sync_service.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
@@ -27,11 +29,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AppPreferencesRepository _prefs = sl<AppPreferencesRepository>();
   final ExternalSyncService _sync = sl<ExternalSyncService>();
   final FcmSyncService _fcm = sl<FcmSyncService>();
+  final OverlayCoordinator _overlayCoordinator = sl<OverlayCoordinator>();
 
-  bool _volumeShortcut = true;
   TimeOfDay _digestTime = const TimeOfDay(hour: 9, minute: 0);
   DateTime? _lastSyncedAt;
   bool _syncingNow = false;
+  bool _updatingOverlayToggle = false;
+  bool _floatingCaptureEnabled = false;
   NotificationSettings? _notificationSettings;
 
   void _goBack() {
@@ -47,17 +51,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _hydrateLocalPrefs();
     _hydrateNotificationPermission();
+    _hydrateOverlayToggle();
+  }
+
+  Future<void> _hydrateOverlayToggle() async {
+    await _overlayCoordinator.hydrate();
+    if (!mounted) {
+      return;
+    }
+    
+    // Check actual OS permission state, not just local coordinator state
+    final osPermissionGranted = await _overlayCoordinator.isPermissionGranted();
+    final isVisible = _overlayCoordinator.state.value.isVisible;
+    
+    // If OS says permission is granted but coordinator says not visible, 
+    // sync by showing the bubble
+    final shouldBeVisible = osPermissionGranted || isVisible;
+    if (osPermissionGranted && !isVisible) {
+      debugPrint('[Settings] OS permission is granted but overlay hidden. Auto-booting...');
+      await _overlayCoordinator.showIdleBubble();
+    }
+    
+    setState(() {
+      _floatingCaptureEnabled = shouldBeVisible;
+    });
   }
 
   Future<void> _hydrateLocalPrefs() async {
-    final volume = await _prefs.isVolumeShortcutEnabled();
     final digest = await _prefs.getDigestTime();
 
     if (!mounted) {
       return;
     }
     setState(() {
-      _volumeShortcut = volume;
       _digestTime = digest;
     });
   }
@@ -69,15 +95,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     setState(() {
       _notificationSettings = settings;
-    });
-  }
-
-  Future<void> _setVolumeShortcut(bool value) async {
-    await HapticFeedback.lightImpact();
-    await _prefs.setVolumeShortcutEnabled(value);
-    if (!mounted) return;
-    setState(() {
-      _volumeShortcut = value;
     });
   }
 
@@ -122,6 +139,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  Future<void> _setFloatingCapture(bool value) async {
+    if (_updatingOverlayToggle) {
+      return;
+    }
+
+    await HapticFeedback.lightImpact();
+    setState(() {
+      _updatingOverlayToggle = true;
+    });
+
+    bool success = false;
+    if (value) {
+      success = await _enableFloatingCapture();
+    } else {
+      await _overlayCoordinator.hideOverlay();
+      success = true;
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _updatingOverlayToggle = false;
+      _floatingCaptureEnabled =
+          success && value ? _overlayCoordinator.state.value.isVisible : false;
+    });
+  }
+
+  void _openOverlayCustomization() {
+    context.push('/settings/overlay-customization');
+  }
+
+  Future<bool> _enableFloatingCapture() async {
+    final granted = await _overlayCoordinator.isPermissionGranted();
+    var hasPermission = granted;
+
+    if (!hasPermission) {
+      if (!mounted) {
+        return false;
+      }
+      final proceed = await showOverlayPermissionExplainerDialog(context);
+      if (!proceed) {
+        return false;
+      }
+      hasPermission = await _overlayCoordinator.requestPermission();
+    }
+
+    if (!hasPermission) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Floating Capture permission was not granted. You can keep using the app normally.',
+            ),
+          ),
+        );
+      }
+      return false;
+    }
+
+    final shown = await _overlayCoordinator.showIdleBubble();
+    if (!shown && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Floating Capture could not start right now and has been disabled safely.',
+          ),
+        ),
+      );
+    }
+    return shown;
+  }
+
   Future<void> _syncNow() async {
     if (_syncingNow) {
       return;
@@ -151,6 +241,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _connectTelegram() async {
     await HapticFeedback.lightImpact();
     final bot = AppEnv.telegramBotUsername;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
     if (bot.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -161,13 +253,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    final uri = Uri.parse('tg://resolve?domain=$bot');
+    if (uid == null || uid.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in first to connect Telegram.')),
+      );
+      return;
+    }
+
+    final shouldLaunch = await _showTelegramConnectSheet(bot: bot, uid: uid);
+    if (shouldLaunch != true) {
+      return;
+    }
+
+    final uri = Uri(
+      scheme: 'tg',
+      host: 'resolve',
+      queryParameters: {
+        'domain': bot,
+        'start': uid,
+      },
+    );
     final launched = await launchUrl(uri);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Telegram app not available on device.')),
       );
     }
+  }
+
+  Future<bool?> _showTelegramConnectSheet({
+    required String bot,
+    required String uid,
+  }) {
+    return showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 20),
+          child: GlassContainer(
+            borderRadius: BorderRadius.circular(22),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Connect Telegram',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'You will be redirected to @$bot. Tap Start in Telegram to link your account and enable digest delivery.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Open Telegram'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _pickDigestTime() async {
@@ -232,7 +401,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 radius: 22,
                 backgroundColor: const Color(0xFFE5E7EB),
                 backgroundImage: (authUser?.photoURL?.isNotEmpty ?? false)
-                    ? NetworkImage(authUser!.photoURL!)
+                  ? NetworkImage(authUser?.photoURL ?? '')
                     : null,
                 child: (authUser?.photoURL?.isNotEmpty ?? false)
                     ? null
@@ -364,25 +533,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       borderRadius: BorderRadius.circular(16),
       child: Column(
         children: [
-          ListTile(
-            title: const Text('Overlay Settings & Behavior'),
-            subtitle: const Text(
-              'Bubble opacity, snap physics, and banner behavior.',
-            ),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              context.push('/settings/overlay-customization');
-            },
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-          const Divider(height: 1),
-          SwitchListTile.adaptive(
-            value: _volumeShortcut,
-            onChanged: _setVolumeShortcut,
-            title: const Text('Volume Button Shortcut'),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-          const Divider(height: 1),
           BlocBuilder<ThemeCubit, ThemeMode>(
             builder: (context, mode) {
               return SwitchListTile.adaptive(
@@ -397,6 +547,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               );
             },
+          ),
+          ListTile(
+            onTap: _openOverlayCustomization,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            title: const Text('Floating Capture'),
+            subtitle: Text(
+              _floatingCaptureEnabled
+                  ? 'Enabled'
+                  : 'Off (requires Display over other apps permission)',
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Customize overlay',
+                  onPressed: _openOverlayCustomization,
+                  icon: const Icon(Icons.tune_rounded),
+                ),
+                Switch.adaptive(
+                  value: _floatingCaptureEnabled,
+                  onChanged: _updatingOverlayToggle
+                      ? null
+                      : _setFloatingCapture,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -435,14 +611,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _syncCard() {
+    final syncedAt = _lastSyncedAt;
     final last = _lastSyncedAt == null
         ? 'Never'
-        : _lastSyncedAt!
-              .toLocal()
+        : syncedAt
+              ?.toLocal()
               .toIso8601String()
               .replaceFirst('T', ' ')
               .split('.')
-              .first;
+              .first ??
+            'Never';
 
     return GlassContainer(
       padding: const EdgeInsets.all(12),

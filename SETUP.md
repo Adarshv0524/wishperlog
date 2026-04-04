@@ -14,7 +14,7 @@ Fix any missing Android SDK or platform tools issues.
 
 ## 2) Firebase project and app
 1. Create Firebase project: wishperlog.
-2. Register Android app with your package name.
+2. Register Android app with package name `com.adarshkumarverma.wishperlog`.
 3. Add SHA-1 for debug keystore.
 4. Download google-services.json to android/app/google-services.json.
 5. Keep lib/firebase_options.dart in sync with your Firebase project.

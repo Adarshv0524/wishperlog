@@ -65,6 +65,8 @@ class AiProcessingService {
       for (final note in pending) {
         await _processOne(db, note);
       }
+    } catch (_) {
+      // Avoid crashing the UI if Isar is temporarily unavailable during startup.
     } finally {
       _running = false;
     }

@@ -4,7 +4,8 @@ import 'package:wishperlog/features/home/presentation/screens/home_screen.dart';
 import 'package:wishperlog/features/notes/presentation/screens/folder_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/permissions_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/sign_in_screen.dart';
-import 'package:wishperlog/features/settings/presentation/screens/overlay_customization_screen.dart';
+import 'package:wishperlog/features/onboarding/presentation/screens/telegram_screen.dart';
+import 'package:wishperlog/features/overlay_v1/presentation/screens/overlay_customization_screen.dart';
 import 'package:wishperlog/features/settings/presentation/screens/settings_screen.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
@@ -19,7 +20,7 @@ final GoRouter router = GoRouter(
     ),
     GoRoute(
       path: '/telegram',
-      builder: (context, state) => const PermissionsScreen(),
+      builder: (context, state) => const TelegramScreen(),
     ),
     GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
     GoRoute(
@@ -46,20 +47,26 @@ final GoRouter router = GoRouter(
     ),
   ],
   redirect: (context, state) {
-    final user = FirebaseAuth.instance.currentUser;
-    final isAuthenticated = user != null;
-    final isOnboarding =
-        state.matchedLocation == '/' ||
-        state.matchedLocation == '/signin' ||
-        state.matchedLocation == '/permissions' ||
-        state.matchedLocation == '/telegram';
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final isAuthenticated = user != null;
+      final isOnboarding =
+          state.matchedLocation == '/' ||
+          state.matchedLocation == '/signin' ||
+          state.matchedLocation == '/permissions' ||
+          state.matchedLocation == '/telegram';
 
-    if (!isAuthenticated && !isOnboarding) {
-      return '/';
+      if (!isAuthenticated && !isOnboarding) {
+        return '/';
+      }
+      if (isAuthenticated && isOnboarding) {
+        return '/home';
+      }
+      return null;
+    } catch (e) {
+      // If Firebase auth check fails during initialization, stay on current route
+      print('[Router] Auth check error: $e');
+      return null;
     }
-    if (isAuthenticated && isOnboarding) {
-      return '/home';
-    }
-    return null;
   },
 );

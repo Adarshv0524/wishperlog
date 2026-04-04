@@ -1,122 +1,139 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:wishperlog/app/router.dart';
 import 'package:wishperlog/core/background/work_manager_service.dart';
 import 'package:wishperlog/core/config/app_env.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/background/connectivity_sync_coordinator.dart';
-import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/storage/isar_service.dart';
 import 'package:wishperlog/core/theme/app_theme.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_processing_service.dart';
-import 'package:wishperlog/features/capture/overlay/overlay_capture_app.dart';
-import 'package:wishperlog/features/capture/overlay/overlay_window_controller.dart';
+import 'package:wishperlog/features/overlay_v1/overlay_coordinator.dart';
+import 'package:wishperlog/features/overlay_v1/presentation/overlay_entrypoint.dart';
 import 'package:wishperlog/features/sync/data/fcm_sync_service.dart';
 import 'firebase_options.dart';
 
-const MethodChannel _hardwareChannel = MethodChannel('wishperlog/hardware');
-StreamSubscription<dynamic>? _overlayBridgeSub;
-bool _overlaySurfaceReady = false;
-bool _pendingHardwareStart = false;
-
-@pragma('vm:entry-point')
-void overlayMain() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await IsarService.instance.init();
-  runApp(const OverlayCaptureApp());
-}
+final _overlayEntrypointReference = overlayMain;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppEnv.load();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await WorkManagerService.initialize();
-  await WorkManagerService.registerPeriodicGoogleTasksSync();
-  await IsarService.instance.init();
-  await init();
-  await sl<ThemeCubit>().hydrate();
-  sl<AiProcessingService>().start();
-  await sl<ConnectivitySyncCoordinator>().start();
-  await sl<FcmSyncService>().initialize();
-  _setupOverlayBridgeListener();
-  _setupHardwareBridge();
+  debugPrint('[Main] === APP STARTUP ===');
+  
+  try {
+    ensureFcmBackgroundHandlerRegistered();
+    debugPrint('[Main] FCM background handler registered');
+  } catch (e, st) {
+    debugPrint('[Main] FCM handler error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Loading .env...');
+    await AppEnv.load();
+    debugPrint('[Main] .env loaded');
+  } catch (e, st) {
+    debugPrint('[Main] .env error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Initializing Firebase...');
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    debugPrint('[Main] Firebase initialized');
+  } catch (e, st) {
+    debugPrint('[Main] Firebase error: $e');
+    debugPrintStack(stackTrace: st);
+    rethrow;
+  }
+
+  try {
+    debugPrint('[Main] Initializing Isar database...');
+    await IsarService.instance.init();
+    debugPrint('[Main] Isar initialized');
+  } catch (error, stackTrace) {
+    debugPrint('[Main] Isar init failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
+  try {
+    debugPrint('[Main] Initializing WorkManager...');
+    await WorkManagerService.initialize();
+    debugPrint('[Main] WorkManager initialized');
+  } catch (e, st) {
+    debugPrint('[Main] WorkManager error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Registering periodic sync...');
+    await WorkManagerService.registerPeriodicGoogleTasksSync();
+    debugPrint('[Main] Periodic sync registered');
+  } catch (e, st) {
+    debugPrint('[Main] Periodic sync error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Setting up dependency injection...');
+    await init();
+    debugPrint('[Main] DI container initialized');
+  } catch (e, st) {
+    debugPrint('[Main] DI setup error: $e');
+    debugPrintStack(stackTrace: st);
+    rethrow;
+  }
+
+  _overlayEntrypointReference;
+
+  try {
+    debugPrint('[Main] Hydrating theme...');
+    await sl<ThemeCubit>().hydrate();
+    debugPrint('[Main] Theme hydrated');
+  } catch (e, st) {
+    debugPrint('[Main] Theme hydration error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Hydrating and restoring overlay...');
+    await sl<OverlayCoordinator>().hydrateAndRestore();
+    debugPrint('[Main] Overlay hydrated and restored');
+  } catch (e, st) {
+    debugPrint('[Main] Overlay hydration error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Starting AI service...');
+    sl<AiProcessingService>().start();
+    debugPrint('[Main] AI service started');
+  } catch (e, st) {
+    debugPrint('[Main] AI service error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Starting connectivity coordinator...');
+    await sl<ConnectivitySyncCoordinator>().start();
+    debugPrint('[Main] Connectivity coordinator started');
+  } catch (e, st) {
+    debugPrint('[Main] Connectivity coordinator error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Initializing FCM sync service...');
+    await sl<FcmSyncService>().initialize();
+    debugPrint('[Main] FCM sync service initialized');
+  } catch (e, st) {
+    debugPrint('[Main] FCM sync service error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  debugPrint('[Main] === STARTUP COMPLETE, RUNNING APP ===');
   runApp(const MyApp());
-}
-
-void _setupOverlayBridgeListener() {
-  _overlayBridgeSub?.cancel();
-  _overlayBridgeSub = FlutterOverlayWindow.overlayListener.listen((raw) async {
-    if (raw is! Map) {
-      return;
-    }
-
-    final type = raw['type'];
-    if (type != 'overlay_surface_ready') {
-      return;
-    }
-
-    _overlaySurfaceReady = true;
-    if (!_pendingHardwareStart) {
-      return;
-    }
-
-    _pendingHardwareStart = false;
-    await FlutterOverlayWindow.shareData({
-      'type': 'hardware_volume_down',
-      'phase': 'start',
-    });
-  });
-}
-
-void _setupHardwareBridge() {
-  _hardwareChannel.setMethodCallHandler((call) async {
-    if (call.method != 'volumeDownLongPress') {
-      return;
-    }
-
-    final args = (call.arguments as Map?) ?? const {};
-    final phase = (args['phase'] as String?) ?? 'unknown';
-    final volumeShortcutEnabled = await sl<AppPreferencesRepository>()
-        .isVolumeShortcutEnabled();
-    if (!volumeShortcutEnabled) {
-      return;
-    }
-
-    debugPrint('Hardware volume-down long press: $phase');
-
-    if (phase == 'start') {
-      final granted = await OverlayWindowController.ensurePermission();
-      if (granted && !await FlutterOverlayWindow.isActive()) {
-        _overlaySurfaceReady = false;
-        _pendingHardwareStart = true;
-        await OverlayWindowController.showBubble();
-        await OverlayWindowController.requestSurfaceProbe();
-        return;
-      }
-
-      if (!_overlaySurfaceReady) {
-        _pendingHardwareStart = true;
-        await OverlayWindowController.requestSurfaceProbe();
-        return;
-      }
-    }
-
-    if (phase == 'end' && !_overlaySurfaceReady) {
-      _pendingHardwareStart = false;
-      return;
-    }
-
-    await FlutterOverlayWindow.shareData({
-      'type': 'hardware_volume_down',
-      'phase': phase,
-    });
-  });
 }
 
 class MyApp extends StatelessWidget {
@@ -134,6 +151,16 @@ class MyApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: mode,
             routerConfig: router,
+            builder: (context, child) {
+              // Show splash/loading screen briefly during initialization
+              return child ?? const SizedBox.expand(
+                child: Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

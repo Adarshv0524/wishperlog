@@ -15,7 +15,7 @@ extension GetNoteCollection on Isar {
 
 const NoteSchema = CollectionSchema(
   name: r'Note',
-  id: 6284318083599466921,
+  id: 6284318083599466496,
   properties: {
     r'aiModel': PropertySchema(
       id: 0,

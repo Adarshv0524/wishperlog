@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:wishperlog/core/storage/isar_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
@@ -170,14 +171,12 @@ class NoteRepository {
   }
 
   Future<List<Note>> _allActiveSorted(Isar db) async {
-    return _activeNotesSnapshot(db);
+    return _visibleNotesSnapshot(db);
   }
 
-  Future<List<Note>> _activeNotesSnapshot(Isar db) async {
-    final notes = await db.notes
-        .filter()
-        .statusEqualTo(NoteStatus.active)
-        .findAll();
+  Future<List<Note>> _visibleNotesSnapshot(Isar db) async {
+    final notes = await db.notes.where().findAll();
+    notes.removeWhere((note) => note.status == NoteStatus.archived);
     _sortNotes(notes);
     return notes;
   }
@@ -186,12 +185,12 @@ class NoteRepository {
     Isar db,
     NoteCategory category,
   ) async {
-    final notes = await _activeNotesSnapshot(db);
+    final notes = await _visibleNotesSnapshot(db);
     return notes.where((note) => note.category == category).toList();
   }
 
   Future<Map<NoteCategory, int>> _activeCountsSnapshot(Isar db) async {
-    final notes = await _activeNotesSnapshot(db);
+    final notes = await _visibleNotesSnapshot(db);
 
     final counts = <NoteCategory, int>{
       for (final category in kAllNoteCategories) category: 0,
@@ -209,17 +208,24 @@ class NoteRepository {
   Future<void> _syncNoteToFirestore(Note note) async {
     final user = _auth.currentUser;
     if (user == null) {
+      debugPrint('[NoteRepository] Firestore sync skipped: user not authenticated');
       return;
     }
 
     try {
+      debugPrint('[NoteRepository] Syncing note to Firestore: ${note.noteId}');
+      
       await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('notes')
           .doc(note.noteId)
           .set(note.toFirestoreJson(), SetOptions(merge: true));
-    } catch (_) {
+      
+      debugPrint('[NoteRepository] Successfully synced to Firestore: ${note.noteId}');
+    } catch (e, st) {
+      debugPrint('[NoteRepository] ERROR syncing to Firestore: ${note.noteId}: $e');
+      debugPrintStack(stackTrace: st);
       // Firestore sync retries are handled in later phases.
     }
   }

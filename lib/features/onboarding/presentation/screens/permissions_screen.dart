@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:wishperlog/features/capture/overlay/overlay_window_controller.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 
@@ -31,23 +30,8 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     super.dispose();
   }
 
-  Future<void> _enableOverlay() async {
+  Future<void> _continueToApp() async {
     await HapticFeedback.mediumImpact();
-    final granted = await OverlayWindowController.ensurePermission();
-    if (!mounted) {
-      return;
-    }
-
-    if (!granted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Overlay permission is required for floating capture.'),
-        ),
-      );
-      return;
-    }
-
-    await OverlayWindowController.showBubble();
     if (!mounted) {
       return;
     }
@@ -77,7 +61,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Capture thoughts from anywhere',
+                      'Finish setup',
                       style: TextStyle(
                         color: titleColor,
                         fontSize: 24,
@@ -87,8 +71,8 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Floating Capture keeps WhisperLog available over any app. '
-                      'Enable overlay access once, then long-press to talk and double-tap to type.',
+                      'You can start using WhisperLog now. Additional capture tools '
+                      'will be added in a later update.',
                       style: TextStyle(
                         color: subtitleColor,
                         fontSize: 14,
@@ -133,7 +117,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                           ),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(999),
-                            onTap: _enableOverlay,
+                            onTap: _continueToApp,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -144,7 +128,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
-                                  'Enable Floating Capture',
+                                  'Continue to Home',
                                   style: TextStyle(
                                     color: titleColor,
                                     fontSize: 14,
@@ -162,7 +146,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                       child: TextButton(
                         onPressed: () => context.go('/home'),
                         child: Text(
-                          'Skip for now',
+                          'Back',
                           style: TextStyle(
                             color: subtitleColor,
                             fontWeight: FontWeight.w600,
