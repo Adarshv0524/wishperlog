@@ -52,9 +52,25 @@ class NoteRepository {
     );
 
     final db = await _db();
-    await db.writeTxn(() async {
-      await db.notes.put(note);
-    });
+    if (db.isClosed) {
+      throw Exception('[NoteRepository] Isar database is closed');
+    }
+    
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await db.writeTxn(() async {
+          await db.notes.put(note);
+        });
+        break;
+      } catch (e) {
+        if (attempt < 2) {
+          debugPrint('[NoteRepository] Txn failed (${attempt + 1}/3): $e');
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        } else {
+          rethrow;
+        }
+      }
+    }
     await _syncNoteToFirestore(note);
   }
 
@@ -96,28 +112,39 @@ class NoteRepository {
 
   Future<void> archive(String noteId) async {
     final db = await _db();
+    if (db.isClosed) throw Exception('[NoteRepository] Isar closed');
+    
     final note = await _findById(db, noteId);
-    if (note == null) {
-      return;
-    }
+    if (note == null) return;
 
     final updated = note.copyWith(
       status: NoteStatus.archived,
       updatedAt: DateTime.now(),
     );
 
-    await db.writeTxn(() async {
-      await db.notes.put(updated);
-    });
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await db.writeTxn(() async {
+          await db.notes.put(updated);
+        });
+        break;
+      } catch (e) {
+        if (attempt < 2) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        } else {
+          rethrow;
+        }
+      }
+    }
     await _syncNoteToFirestore(updated);
   }
 
   Future<void> cyclePriority(String noteId) async {
     final db = await _db();
+    if (db.isClosed) throw Exception('[NoteRepository] Isar closed');
+    
     final note = await _findById(db, noteId);
-    if (note == null) {
-      return;
-    }
+    if (note == null) return;
 
     final next = switch (note.priority) {
       NotePriority.high => NotePriority.medium,
@@ -127,9 +154,20 @@ class NoteRepository {
 
     final updated = note.copyWith(priority: next, updatedAt: DateTime.now());
 
-    await db.writeTxn(() async {
-      await db.notes.put(updated);
-    });
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        await db.writeTxn(() async {
+          await db.notes.put(updated);
+        });
+        break;
+      } catch (e) {
+        if (attempt < 2) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        } else {
+          rethrow;
+        }
+      }
+    }
     await _syncNoteToFirestore(updated);
   }
 

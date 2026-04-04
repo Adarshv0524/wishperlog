@@ -93,11 +93,28 @@ class CaptureService {
         syncedAt: null,
       );
 
+      if (db.isClosed) {
+        throw Exception('[CaptureService] Isar database is closed or not initialized');
+      }
+
       debugPrint('[CaptureService] Saving note: $noteId (${trimmed.length} chars, source: $source)');
       
-      await db.writeTxn(() async {
-        await db.notes.put(pending);
-      });
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          await db.writeTxn(() async {
+            await db.notes.put(pending);
+          });
+          break;
+        } catch (e) {
+          if (attempt < 2) {
+            debugPrint('[CaptureService] Transaction failed (attempt ${attempt + 1}/3), retrying: $e');
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          } else {
+            debugPrint('[CaptureService] Transaction failed after 3 attempts');
+            rethrow;
+          }
+        }
+      }
       
       debugPrint('[CaptureService] Note saved successfully: $noteId');
       

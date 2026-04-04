@@ -14,8 +14,13 @@ class IsarService {
 
   Future<Isar> init() async {
     final existing = Isar.getInstance();
-    if (existing != null) {
-      return existing;
+    if (existing != null && !existing.isClosed) {
+      try {
+        _ = existing.collection<Note>();
+        return existing;
+      } catch (_) {
+        debugPrint('[IsarService] Instance exists but not fully ready, reinitializing');
+      }
     }
 
     final inFlight = _opening;
@@ -26,7 +31,21 @@ class IsarService {
     final openFuture = _openWithRecovery();
     _opening = openFuture;
     try {
-      return await openFuture;
+      final db = await openFuture;
+      for (var attempt = 0; attempt < 5; attempt++) {
+        try {
+          _ = db.collection<Note>();
+          debugPrint('[IsarService] Isar fully initialized and ready');
+          return db;
+        } catch (_) {
+          if (attempt < 4) {
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+          } else {
+            return db;
+          }
+        }
+      }
+      return db;
     } finally {
       if (identical(_opening, openFuture)) {
         _opening = null;
