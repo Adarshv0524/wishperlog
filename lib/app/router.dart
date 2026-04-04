@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/features/home/presentation/screens/home_screen.dart';
 import 'package:wishperlog/features/notes/presentation/screens/folder_screen.dart';
@@ -65,7 +66,7 @@ final GoRouter router = GoRouter(
       return null;
     } catch (e) {
       // If Firebase auth check fails during initialization, stay on current route
-      print('[Router] Auth check error: $e');
+      debugPrint('[Router] Auth check error: $e');
       return null;
     }
   },

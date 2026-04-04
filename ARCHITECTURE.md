@@ -1,101 +1,646 @@
-# WhisperLog Architecture Documentation
+# WhisperLog Architecture
 
-## Project Overview
-
-**WhisperLog** is a feature-rich voice and text logger application with AI-powered note categorization, cloud synchronization, and Google service integration. The app emphasizes local-first data storage with optional cloud backup and provides a floating overlay window for always-on voice capture on Android devices.
-
-- **Target Platforms**: Android, iOS, Web, Windows, macOS, Linux
-- **Architecture Pattern**: Clean Architecture with BLoC state management
-- **Language**: Dart/Flutter
-- **SDK Version**: ^3.11.4
+**Complete system design, data flows, database schemas, and component interactions.**
 
 ---
 
-## Core Technology Stack
-
-### Frontend & UI Framework
-- **Flutter**: Cross-platform mobile UI framework
-- **Material Design 3**: Material design system with light/dark theme support
-- **GoRouter**: Type-safe routing and navigation
-- **BLoC**: State management pattern with `flutter_bloc`
-- **GetIt**: Service locator for dependency injection
-
-### Database & Storage
-- **Isar**: Local NoSQL database for offline-first note storage
-  - Thread-safe operations with transaction support
-  - Automatic schema migration with recovery mechanism
-  - Collections: `Note` (primary model)
-- **SharedPreferences**: Key-value storage for user preferences and overlay settings
-
-### Cloud & Backend Services
-- **Firebase Core**: Base Firebase initialization
-- **Firebase Authentication**: Google Sign-In for user authentication
-- **Cloud Firestore**: Cloud database for note synchronization
-  - Collection path: `users/{uid}/notes/{noteId}`
-  - Bi-directional sync with local Isar database
-- **Firebase Cloud Messaging (FCM)**: Real-time sync triggers and notifications
-  - Token-based authentication
-  - Background message handling
-
-### AI & External Integrations
-- **Google Generative AI (Gemini)**: AI-powered note classification
-  - Extract title and clean content
-  - Categorize notes (tasks, reminders, ideas, followUp, journal, general)
-  - Priority inference
-  - Date/time extraction for calendar events
-- **Google APIs**:
-  - **Google Calendar API**: Create/sync calendar events
-  - **Google Tasks API**: Create/sync task items
-  - OAuth authentication flow
-- **Fuzzy Search**: Fuzzy string matching for external sync reconciliation
-
-### Platform & System Integration
-- **flutter_overlay_window**: Android overlay window for floating capture
-- **permission_handler**: Runtime permission management (microphone, overlay)
-- **speech_to_text**: On-device voice-to-text conversion
-- **connectivity_plus**: Network state monitoring and offline detection
-- **workmanager**: Background task scheduling and periodic sync
-
-### Development & Build
-- **flutter_lints**: Dart/Flutter linting rules
-- **build_runner**: Code generation orchestrator
-- **isar_generator**: Isar schema code generation
-- **flutter_dotenv**: Environment variable management
+## Table of Contents
+1. [System Architecture Diagram](#system-architecture)
+2. [Data Flow & Pipelines](#data-flows)
+3. [Database Schemas](#database-schemas)
+4. [Services & Components](#services--components)
+5. [Initialization Sequence](#initialization-sequence)
+6. [Tech Stack (30 Technologies)](#tech-stack)
+7. [Patterns & Best Practices](#patterns--best-practices)
 
 ---
 
-## Application Architecture
+## System Architecture
 
-### Entry Points
+### Complete Component Graph
 
-#### 1. Main Application (`lib/main.dart`)
-- **Purpose**: Primary application bootstrap
-- **Initialization Sequence**:
-  ```
-  1. WidgetsFlutterBinding.ensureInitialized()
-  2. FCM background handler registration (ensureFcmBackgroundHandlerRegistered)
-  3. Load environment variables (AppEnv.load())
-  4. Initialize Firebase (Firebase.initializeApp)
-  5. Initialize Isar local database (IsarService.instance.init)
-  6. Setup WorkManager background tasks
-  7. Initialize dependency injection (init() from injection_container)
-  8. Hydrate theme mode (sl<ThemeCubit>().hydrate())
-  9. Hydrate and restore overlay (sl<OverlayCoordinator>().hydrateAndRestore())
-  10. Start AI processing service (sl<AiProcessingService>().start())
-  11. Start connectivity sync coordinator (sl<ConnectivitySyncCoordinator>().start())
-  12. Initialize FCM (sl<FcmSyncService>().initialize())
-  13. Run main app with GoRouter
-  ```
-- **Entry Reference**: Overlay entry point stored as `_overlayEntrypointReference`
+This diagram shows all layers, services, and integrations in WhisperLog:
 
-#### 2. Overlay Isolate Entry (`lib/features/overlay_v1/presentation/overlay_entrypoint.dart`)
-- **Purpose**: Separate Flutter isolate for floating overlay window
-- **Marked with**: `@pragma('vm:entry-point')`
-- **Process**:
-  1. Initialize Flutter binding
-  2. Initialize Isar (graceful failure allowed)
-  3. Boot `OverlayV1App` → `OverlayBubbleWidget`
-  4. Runs in isolated process managed by `flutter_overlay_window`
+```mermaid
+graph TB
+    subgraph "Presentation Layer"
+        SignInScreen["SignIn Screen<br/>Google OAuth"]
+        HomeScreen["Home Screen<br/>Thought Canvas"]
+        FolderScreen["Folder Screen<br/>Category View"]
+        SettingsScreen["Settings Screen<br/>Overlay Toggle"]
+        OverlayBubble["Overlay Bubble<br/>Voice Capture"]
+    end
+
+    subgraph "State Management"
+        ThemeCubit["Theme Cubit<br/>Light/Dark/System"]
+        GoRouter["GoRouter<br/>Navigation"]
+        OverlayCoord["OverlayCoordinator<br/>State+Config"]
+    end
+
+    subgraph "Feature Layer"
+        CaptureService["CaptureService<br/>Note Ingestion"]
+        NoteRepo["NoteRepository<br/>CRUD + Streams"]
+        UserRepo["UserRepository<br/>Auth + User"]
+        AiService["AiProcessingService<br/>Background AI"]
+        ExternalSync["ExternalSyncService<br/>Google Services"]
+        FirestoreSync["FirestoreNoteSyncService<br/>Cloud Sync"]
+        FcmService["FcmSyncService<br/>Push Notifications"]
+    end
+
+    subgraph "Domain Models"
+        NoteModel["Note Model<br/>Isar Collection"]
+        Enums["Enums<br/>Category/Priority/Status"]
+        UserModel["User Model"]
+    end
+
+    subgraph "Data Persistence"
+        IsarDB["Isar Database<br/>Local NoSQL<br/>Thread-Safe"]
+        SharedPrefs["SharedPreferences<br/>Settings + Overlay"]
+    end
+
+    subgraph "External Services"
+        Firebase["Firebase<br/>Auth + Firestore"]
+        Gemini["Google Gemini<br/>AI Classification"]
+        GoogleCalendar["Google Calendar<br/>Event Sync"]
+        GoogleTasks["Google Tasks<br/>Task Sync"]
+        FCM["Firebase Cloud<br/>Messaging"]
+    end
+
+    subgraph "Platform Layer"
+        OverlayWindow["flutter_overlay_window<br/>Android Overlay"]
+        SpeechToText["speech_to_text<br/>Voice Recognition"]
+        PermHandler["permission_handler<br/>Runtime Perms"]
+        Connectivity["connectivity_plus<br/>Network State"]
+        WorkManager["workmanager<br/>Background Jobs"]
+    end
+
+    subgraph "Core Infrastructure"
+        DIContainer["GetIt<br/>Dependency Injection"]
+        AppEnv["AppEnv<br/>Config + Env Vars"]
+        WorkService["WorkManagerService<br/>Task Scheduling"]
+        ConnectivityCoord["ConnectivitySyncCoordinator<br/>Network Triggers"]
+    end
+
+    SignInScreen --> UserRepo
+    HomeScreen --> CaptureService
+    HomeScreen --> NoteRepo
+    FolderScreen --> NoteRepo
+    SettingsScreen --> OverlayCoord
+    OverlayBubble --> CaptureService
+    OverlayBubble --> SpeechToText
+    
+    CaptureService --> IsarDB
+    NoteRepo --> IsarDB
+    AiService --> IsarDB
+    FirestoreSync --> IsarDB
+    
+    CaptureService --> NoteModel
+    NoteRepo --> NoteModel
+    
+    AiService --> Gemini
+    ExternalSync --> GoogleCalendar
+    ExternalSync --> GoogleTasks
+    FirestoreSync --> Firebase
+    FcmService --> FCM
+    UserRepo --> Firebase
+    
+    DIContainer --> CaptureService
+    DIContainer --> NoteRepo
+    DIContainer --> AiService
+    DIContainer --> FirestoreSync
+    DIContainer --> FcmService
+    
+    Connectivity --> ConnectivityCoord
+    WorkManager --> WorkService
+    
+    classDef presentation fill:#FF6B6B,stroke:#C92A2A,color:#fff
+    classDef state fill:#4ECDC4,stroke:#1B998B,color:#fff
+    classDef feature fill:#45B7D1,stroke:#0984E3,color:#fff
+    classDef domain fill:#96CEB4,stroke:#52B788,color:#fff
+    classDef persistence fill:#FFE66D,stroke:#FFA502,color:#000
+    classDef external fill:#DDA15E,stroke:#BC6C25,color:#fff
+    classDef platform fill:#D4A5A5,stroke:#9A6C6C,color:#fff
+    classDef core fill:#C1A3E8,stroke:#8B5CF6,color:#fff
+    
+    class SignInScreen,HomeScreen,FolderScreen,SettingsScreen,OverlayBubble presentation
+    class ThemeCubit,GoRouter,OverlayCoord state
+    class CaptureService,NoteRepo,UserRepo,AiService,ExternalSync,FirestoreSync,FcmService feature
+    class NoteModel,Enums,UserModel domain
+    class IsarDB,SharedPrefs persistence
+    class Firebase,Gemini,GoogleCalendar,GoogleTasks,FCM external
+    class OverlayWindow,SpeechToText,PermHandler,Connectivity,WorkManager platform
+    class DIContainer,AppEnv,WorkService,ConnectivityCoord core
+```
+
+---
+
+## Data Flows
+
+### 1. Save Flow: Capture → Isar → Firestore
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as HomeScreen
+    participant Capture as CaptureService
+    participant Isar as IsarDB
+    participant AI as AiProcessing
+    participant Firestore as Firestore
+    participant ExtSync as ExternalSync
+
+    User->>UI: Click "Save" button
+    UI->>Capture: ingestRawCapture(transcript, source)
+    
+    Capture->>Capture: Validate & trim text
+    Capture->>Capture: Generate noteId (timestamp+random)
+    Capture->>Capture: Create Note(status=pendingAi)
+    
+    Capture->>Isar: writeTxn() → put(note)
+    Isar-->>Capture: ✓ Saved locally
+    
+    Capture-->>UI: Return Note object
+    UI->>User: Show Toast "Saved"
+    
+    Note over Capture,UI: Async background processing starts
+    
+    Capture->>AI: _promotePendingNote(noteId, transcript)
+    
+    loop Every 8 seconds
+        AI->>Isar: Find notes.status==pendingAi
+        AI->>AI: Gemini.classify(transcript)
+        AI->>Isar: writeTxn() → update to active
+        Isar-->>AI: ✓ Updated
+        AI->>Firestore: _syncNoteToFirestore(note)
+        Firestore-->>AI: ✓ Synced
+        AI->>ExtSync: syncExternalForNote(note)
+        ExtSync->>GoogleCalendar: Create event (if date)
+        ExtSync->>GoogleTasks: Create task (if task category)
+    end
+    
+    Note over Firestore: Note now searchable and accessible from any device
+```
+
+### 2. View Flow: Stream-Based Rendering
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as FolderScreen
+    participant Repo as NoteRepository
+    participant Isar as IsarDB
+    participant Listener as StreamListener
+
+    User->>UI: Navigate to category folder
+    
+    UI->>Repo: watchActiveByCategory(category)
+    Repo->>Isar: Query notes.where().status!=archived.filter(category)
+    Isar-->>Repo: Return List<Note>
+    Repo-->>UI: StreamBuilder emits first value
+    
+    UI->>UI: Build ListView with notes
+    User->>User: See notes instantly
+    
+    Note over Isar,Listener: User creates new note in background
+    
+    Isar->>Listener: Trigger watchLazy() event
+    Listener-->>Repo: Stream emits
+    Repo->>Isar: Query again
+    Isar-->>Repo: Updated List<Note>
+    Repo-->>UI: StreamBuilder rebuilds
+    UI->>UI: New note appears in list (animated)
+```
+
+### 3. Edit Flow: Local Update + Cloud Merge
+
+```mermaid
+graph TD
+    Start["User taps note to edit"]
+    Open["Open edit bottom sheet<br/>with current values"]
+    Modify["User modifies:<br/>title, body,<br/>category, priority"]
+    TapSave["Tap Save button"]
+    
+    TapSave --> UpdateLocal["NoteRepository.<br/>updateEditedNote()"]
+    UpdateLocal --> FindNote["Query Isar<br/>for existing note"]
+    FindNote --> CopyWith["note.copyWith(<br/>title, body,<br/>updatedAt=now())"]
+    CopyWith --> IsarTxn["Isar.writeTxn()<br/>→ put(updated)"]
+    IsarTxn --> IsarOK["✓ Local update<br/>instant"]
+    
+    IsarOK --> FsSync["_syncNoteToFirestore()<br/>with merge:true"]
+    FsSync --> FsSet["Firestore.set({<br/>title, body,<br/>updatedAt,<br/>...}, merge:true)"]
+    FsSet --> FsConflict["Server merges<br/>by updatedAt<br/>timestamp"]
+    FsConflict --> FsOK["✓ Cloud synced"]
+    
+    FsOK --> UIUpdate["StreamBuilder rebuilds<br/>in folder/home"]
+    UIUpdate --> Done["Note reflects<br/>edits everywhere"]
+    
+    style Start fill:#FF6B6B,stroke:#C92A2A,color:#fff
+    style IsarOK fill:#52B788,stroke:#2B6A4F,color:#fff
+    style FsOK fill:#52B788,stroke:#2B6A4F,color:#fff
+    style Done fill:#52B788,stroke:#2B6A4F,color:#fff
+```
+
+### 4. Search Flow: Fuzzy Matching
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant SearchModal as SearchNotesModal
+    participant Repo as NoteRepository
+    participant Isar as IsarDB
+    participant Fuzzy as FuzzyLibrary
+
+    User->>SearchModal: Open search modal
+    SearchModal->>Repo: watchAllActive()
+    Repo->>Isar: Query all notes
+    Isar-->>Repo: Return List<Note>
+    Repo-->>SearchModal: StreamBuilder emits
+    
+    SearchModal->>SearchModal: Render empty search
+    
+    User->>SearchModal: Type "meet"
+    SearchModal->>SearchModal: _debounce(300ms)
+    
+    SearchModal->>Fuzzy: Fuzzy<Note>({...}, options)
+    Fuzzy->>Fuzzy: Search across<br/>title + cleanBody<br/>with threshold=0.45
+    Fuzzy-->>SearchModal: Return sorted matches
+    
+    SearchModal->>SearchModal: Rebuild ListView<br/>with results
+    User->>User: See matching notes instantly
+    
+    User->>SearchModal: Tap result
+    SearchModal->>Repo: context.go('/folder', extra: note.category)
+    SearchModal-->>User: Close + navigate
+```
+
+---
+
+## Database Schemas
+
+### Isar Local Database: Note Collection
+
+```dart
+@collection
+class Note {
+  /// Hash of noteId (unique primary key)
+  Id get isarId => fastHash(noteId);
+
+  /// Unique identifier (timestamp_microseconds + random)
+  final String noteId;
+
+  /// Firebase user UID
+  final String uid;
+
+  /// Original raw input (voice transcript or pasted text)
+  final String rawTranscript;
+
+  /// AI-extracted or user-provided title (max 60 chars, truncated)
+  final String title;
+
+  /// AI-enhanced clean body text (for display and search)
+  final String cleanBody;
+
+  /// Note category (tasks, reminders, ideas, followUp, journal, general)
+  @enumerated
+  final NoteCategory category;
+
+  /// Priority level (high, medium, low)
+  @enumerated
+  final NotePriority priority;
+
+  /// Extracted date/time if calendar-relevant
+  final DateTime? extractedDate;
+
+  /// UTC timestamp when note was created
+  final DateTime createdAt;
+
+  /// UTC timestamp of last modification
+  final DateTime updatedAt;
+
+  /// Current status (active, pendingAi, archived)
+  @enumerated
+  final NoteStatus status;
+
+  /// AI model name used (e.g., "gemini-2.0-flash")
+  final String aiModel;
+
+  /// Link to Google Calendar event (if synced)
+  final String? gcalEventId;
+
+  /// Link to Google Tasks item (if synced)
+  final String? gtaskId;
+
+  /// Source of capture (homeWritingBox, voiceOverlay, textOverlay)
+  @enumerated
+  final CaptureSource source;
+
+  /// Last successful Firestore sync timestamp
+  final DateTime? syncedAt;
+}
+```
+
+### Firestore Cloud Database Structure
+
+```
+firestore/
+├── users/{uid}
+│   ├── email: string
+│   ├── displayName: string
+│   ├── photoUrl: string
+│   ├── fcmToken: string                    # For push notifications
+│   ├── createdAt: timestamp
+│   └── notes/{noteId}                      # Subcollection
+│       ├── note_id: string
+│       ├── uid: string
+│       ├── raw_transcript: string
+│       ├── title: string
+│       ├── clean_body: string
+│       ├── category: string               # tasks, reminders, ideas, etc.
+│       ├── priority: string               # high, medium, low
+│       ├── extracted_date: timestamp
+│       ├── created_at: timestamp
+│       ├── updated_at: timestamp
+│       ├── status: string                 # active, pendingAi, archived
+│       ├── ai_model: string
+│       ├── gcal_event_id: string
+│       ├── gtask_id: string
+│       ├── source: string
+│       └── synced_at: timestamp
+```
+
+### Security Rules (Firestore)
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User documents (read only for self, write restricted)
+    match /users/{uid} {
+      allow read, write: if request.auth.uid == uid;
+      
+      // Notes subcollection (full CRUD for user's notes)
+      match /notes/{noteId} {
+        allow read, write: if request.auth.uid == uid;
+      }
+    }
+  }
+}
+```
+
+---
+
+## Services & Components
+
+### CaptureService
+**File**: `lib/features/capture/data/capture_service.dart`
+
+Ingests raw transcripts and creates Note objects. Handles:
+- Text validation and trimming
+- Note ID generation (timestamp + random)
+- Isar transaction wrapper
+- Background AI promotion
+- Firestore async sync
+
+```dart
+Future<Note?> ingestRawCapture({
+  required String rawTranscript,
+  required CaptureSource source,
+  bool syncToCloud = true,
+})
+```
+
+**Key Property**: Local save always succeeds, even if Firebase is offline.
+
+### NoteRepository
+**File**: `lib/features/notes/data/note_repository.dart`
+
+Central CRUD interface with streams for reactive updates:
+```dart
+Future<void> savePendingFromHome(String rawText)
+Stream<Map<NoteCategory, int>> watchActiveCounts()
+Stream<List<Note>> watchActiveByCategory(NoteCategory category)
+Stream<List<Note>> watchAllActive()
+Future<void> updateEditedNote({...})
+Future<void> archive(String noteId)
+Future<void> cyclePriority(String noteId)
+```
+
+All operations are local-first with async Firestore sync.
+
+### AiProcessingService
+**File**: `lib/features/ai/data/ai_processing_service.dart`
+
+Runs background polling every 8 seconds:
+1. Query Isar for notes with `status == pendingAi`
+2. Call GeminiNoteClassifier for each note
+3. Extract title, category, priority, date
+4. Update note to `status: active`
+5. Trigger Firestore sync
+
+**Non-blocking**: If Gemini API fails, note stays `pendingAi` for retry.
+
+### FirestoreNoteSyncService
+**File**: `lib/features/sync/data/firestore_note_sync_service.dart`
+
+Bi-directional cloud sync:
+- Push updated notes to Firestore with `merge: true`
+- Pull changes via FCM push notifications
+- Merge strategy: Server-side timestamp wins
+- Error handling: Log + retry on next opportunity
+
+### OverlayCoordinator
+**File**: `lib/features/overlay_v1/overlay_coordinator.dart`
+
+Manages Android floating bubble state:
+- Permission request flow (flutter_overlay_window →  fallback to permission_handler)
+- Isolate lifecycle management
+- State persistence (SharedPreferences)
+- Bubble config (opacity, size, snap position)
+
+### FcmSyncService
+**File**: `lib/features/sync/data/fcm_sync_service.dart`
+
+Firebase Cloud Messaging integration:
+- FCM token registration in user document
+- Foreground message handling
+- Background message processing via `ensureFcmBackgroundHandlerRegistered`
+- Triggers cloud-to-local sync when remote note changes detected
+
+### ExternalSyncService
+**File**: `lib/features/sync/data/external_sync_service.dart`
+
+Google Calendar & Tasks sync:
+- Extract calendar dates → create Google Calendar events
+- Detect task category → create Google Tasks items
+- Fuzzy match existing events to prevent duplicates
+- OAuth flow for Google API access
+
+---
+
+## Initialization Sequence
+
+App startup follows a strict 13-step initialization sequence in `main.dart`:
+
+```
+1. WidgetsFlutterBinding.ensureInitialized()
+   └─ Initialize Flutter engine binding
+   
+2. Register FCM background handler
+   └─ Enable background message processing
+   
+3. Load .env file (AppEnv.load())
+   └─ Set GOOGLE_GEMINI_API_KEY, TELEGRAM_BOT_USERNAME, etc.
+   
+4. Firebase.initializeApp(DefaultFirebaseOptions.currentPlatform)
+   └─ Initialize Firebase SDK with platform-specific config
+   
+5. IsarService.instance.init()
+   └─ Open local database with schema recovery
+   
+6. WorkManager.initialize()
+   └─ Setup background task scheduler
+   
+7. RegisterPeriodicGoogleTasksSync()
+   └─ Register Google Tasks sync task (4-hour interval)
+   
+8. init() from injection_container
+   └─ Register 12+ services in GetIt
+   
+9. sl<ThemeCubit>().hydrate()
+   └─ Load saved theme preference from SharedPreferences
+   
+10. sl<OverlayCoordinator>().hydrateAndRestore()
+    └─ Restore overlay state if user had it visible before app closed
+    
+11. sl<AiProcessingService>().start()
+    └─ Start 8-second polling loop for pendingAi notes
+    
+12. sl<ConnectivitySyncCoordinator>().start()
+    └─ Monitor network state, trigger sync when online
+    
+13. sl<FcmSyncService>().initialize()
+    └─ Setup FCM listeners and fetch initial token
+    
+14. runApp(MyApp())
+    └─ Launch Flutter app with GoRouter-based navigation
+```
+
+---
+
+## Tech Stack (30 Technologies)
+
+### Frontend & UI (4)
+| # | Technology | Version | Purpose |
+|---|------------|---------|---------|
+| 1 | Flutter | 3.11.4+ | Cross-platform mobile framework |
+| 2 | Material Design 3 | native | Modern UI system with themes |
+| 3 | GoRouter | 17.2.0 | Type-safe navigation |
+| 4 | Flutter BLoC | 9.1.1 | State management pattern |
+
+### State & DI (3)
+| # | Technology | Version | Purpose |
+|---|------------|---------|---------|
+| 5 | GetIt | 9.2.1 | Service locator for DI |
+| 6 | ValueNotifier | native | Reactive state (overlay) |
+| 7 | Streams | native | Async data flows |
+
+### Storage (2)
+| # | Technology | Version | Purpose |
+|---|------------|---------|---------|
+| 8 | Isar | 3.1.0+1 | Local NoSQL database |
+| 9 | SharedPreferences | 2.5.3 | Key-value store for prefs |
+
+### Firebase (4)
+| # | Technology | Version | Purpose |
+|---|------------|---------|---------|
+| 10 | Firebase Core | 4.6.0 | SDK initialization |
+| 11 | Firebase Auth | 6.3.0 | Google OAuth sign-in |
+| 12 | Cloud Firestore | 6.2.0 | Cloud database + sync |
+| 13 | Firebase Cloud Messaging | 16.0.2 | Push notifications |
+
+### AI & APIs (3)
+| # | Technology | Version | Purpose |
+|---|------------|---------|---------|
+| 14 | Google Generative AI | 0.4.7 | Gemini classification |
+| 15 | Google APIs for Dart | 14.0.0 | Calendar + Tasks APIs |
+| 16 | Fuzzy | 0.5.1 | Fuzzy string matching |
+
+### Platform Integrations (5)
+| # | Technology | Version | Purpose |
+|---|------------|---------|---------|
+| 17 | flutter_overlay_window | 0.5.0 | Android floating bubble |
+| 18 | speech_to_text | 7.0.0 | Voice-to-text |
+| 19 | permission_handler | 11.3.1+ | Runtime permissions |
+| 20 | connectivity_plus | 6.1.5 | Network monitoring |
+| 21 | workmanager | 0.6.0 | Background task scheduling |
+
+### Utilities & Helpers (5)
+| # | Technology | Version | Purpose |
+|---|------------|---------|---------|
+| 22 | url_launcher | 6.3.2 | Open URLs/apps |
+| 23 | http | 1.5.0 | HTTP client |
+| 24 | flutter_dotenv | 5.2.1 | Environment variables |
+| 25 | flutter_svg | 2.2.0 | SVG rendering |
+| 26 | path_provider | 2.1.5 | Platform directories |
+
+### Development & Build (3)
+| # | Technology | Version | Purpose |
+|---|------------|---------|---------|
+| 27 | flutter_lints | 6.0.0 | Dart linting |
+| 28 | build_runner | 2.4.6 | Code generation |
+| 29 | isar_generator | 3.0.5 | Isar schema generation |
+| 30 | Google Sign-In | 6.1.5 | OAuth provider |
+
+---
+
+## Patterns & Best Practices
+
+### 1. Clean Architecture
+```
+Presentation ← Feature ← Data ← External Services
+```
+Each layer has clear responsibilities and dependencies flow downward only.
+
+### 2. Repository Pattern
+- `NoteRepository`: Abstracts local Isar + cloud Firestore
+- `UserRepository`: Abstracts Firebase auth
+- Single point of truth for data access
+
+### 3. Service Locator Pattern
+GetIt manages all singletons centrally—no manual dependency passing required.
+
+### 4. Local-First with Async Cloud Sync
+- Save always succeeds locally (< 50ms)
+- Cloud sync happens asynchronously in background
+- No blocked UI on network latency
+
+### 5. Stream-Based Reactivity
+```dart
+StreamBuilder(
+  stream: noteRepository.watchActiveByCategory(category),
+  builder: (context, snapshot) {
+    final notes = snapshot.data ?? [];
+    return ListView(...);
+  }
+)
+```
+Automatic rebuilds when Isar database changes.
+
+### 6. Error Handling & Recovery
+- Try-catch wrappers on all async operations
+- Detailed debug logging with context prefixes (`[Main]`, `[CaptureService]`, etc.)
+- Graceful fallbacks (Isar schema recovery, Firebase init timeout, etc.)
+
+### 7. Background Processing
+- 8-second polling loop for AI (non-blocking)
+- 4-hour WorkManager task for Google Tasks sync
+- Network-aware sync via ConnectivitySyncCoordinator
+
+---
+
+## Conclusion
+
+WhisperLog combines **local-first architecture** with **cloud-first convenience**, ensuring notes are instantly saved and accessible offline while syncing seamlessly to the cloud when available. The modular service-oriented design makes the system maintainable, testable, and extensible for future features.
 
 ---
 
