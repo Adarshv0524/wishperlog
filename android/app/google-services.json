@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "982731246537",
+    "project_id": "wishperlog",
+    "storage_bucket": "wishperlog.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:982731246537:android:bff1e21915bd4c632cf618",
+        "android_client_info": {
+          "package_name": "com.adarshkumarverma.wishperlog"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "982731246537-6a8ov59qm6n6f6v7rakq4su2eje8g9au.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adarshkumarverma.wishperlog",
+            "certificate_hash": "960d45abe3206d7a99c20065c59a2168fef1c9f3"
+          }
+        },
+        {
+          "client_id": "982731246537-pk0h1lp6sco8h474t1sqbmehj8aj0g65.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-0jX3pPJ-8iBDMlSW1W19ih_XkqtqH4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "982731246537-pk0h1lp6sco8h474t1sqbmehj8aj0g65.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "982731246537-ds47rpj0jsvqqoo62ej105n5i0l12u7k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.adarshkumarverma.wishperlog"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
