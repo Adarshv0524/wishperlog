@@ -111,6 +111,7 @@ class OverlayCoordinator {
     try {
       final granted = await isPermissionGranted();
       if (!granted) {
+        debugPrint('[OverlayCoordinator] Permission not granted, cannot show overlay');
         await _setDisabledState();
         return false;
       }
@@ -118,18 +119,29 @@ class OverlayCoordinator {
       final position = await _prefs.getPosition();
       final config = bubbleConfig.value;
       final bubbleWindowSize = (config.size + 16).round();
-      await FlutterOverlayWindow.showOverlay(
-        width: bubbleWindowSize,
-        height: bubbleWindowSize,
-        alignment: OverlayAlignment.center,
-        flag: OverlayFlag.defaultFlag,
-        enableDrag: false,
-        overlayTitle: 'Wishperlog Floating Capture',
-        overlayContent: 'Floating capture enabled',
-        positionGravity: PositionGravity.none,
-        startPosition: OverlayPosition(position.dx, position.dy),
-      );
 
+      debugPrint('[OverlayCoordinator] Attempting to show overlay at position $position...');
+
+      try {
+        await FlutterOverlayWindow.showOverlay(
+          width: bubbleWindowSize,
+          height: bubbleWindowSize,
+          alignment: OverlayAlignment.center,
+          flag: OverlayFlag.defaultFlag,
+          enableDrag: false,
+          overlayTitle: 'Wishperlog Floating Capture',
+          overlayContent: 'Floating capture enabled',
+          positionGravity: PositionGravity.none,
+          startPosition: OverlayPosition(position.dx, position.dy),
+        );
+      } catch (showError) {
+        // If showOverlay fails, ensure state is clean
+        debugPrint('[OverlayCoordinator] showOverlay threw exception: $showError');
+        await _setDisabledState();
+        rethrow;
+      }
+
+      // Update state only after successful show
       await _prefs.setVisible(true);
       state.value = state.value.copyWith(
         mode: OverlayV1Mode.idle,
@@ -138,11 +150,16 @@ class OverlayCoordinator {
 
       OverlayV1Logger.event('overlay_open');
       _startOverlayListener();
-  await _broadcastBubbleConfig();
+      await _broadcastBubbleConfig();
+
+      debugPrint('[OverlayCoordinator] Overlay shown successfully');
       return true;
     } catch (error, stackTrace) {
+      debugPrint('[OverlayCoordinator] Overlay show failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
       OverlayV1Logger.event('overlay_show_failure', {'error': '$error'});
-      debugPrint('Overlay Boot Error: $error\nStackTrace: $stackTrace');
+
+      // Force disabled state on failure
       await _setDisabledState();
       return false;
     }

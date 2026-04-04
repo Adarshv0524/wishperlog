@@ -1,8 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:isar/isar.dart';
-import 'package:wishperlog/core/storage/isar_service.dart';
+import 'package:wishperlog/core/storage/sqlite_note_store.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 
@@ -10,14 +9,14 @@ class FirestoreNoteSyncService {
   FirestoreNoteSyncService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    IsarService? isarService,
+     SqliteNoteStore? noteStore,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _isarService = isarService ?? IsarService.instance;
+       _noteStore = noteStore ?? SqliteNoteStore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final IsarService _isarService;
+  final SqliteNoteStore _noteStore;
 
   Future<void> syncNoteById(String noteId, {String? uid}) async {
     final resolvedUid = uid ?? _auth.currentUser?.uid;
@@ -50,10 +49,7 @@ class FirestoreNoteSyncService {
       debugPrint('[FirestoreNoteSyncService] Downloaded note from Firestore: $noteId');
       
       final parsed = Note.fromFirestoreJson(data, uid: resolvedUid, noteId: noteId);
-      final db = await _isarService.init();
-      await db.writeTxn(() async {
-        await db.notes.put(parsed);
-      });
+      await _noteStore.upsert(parsed);
       
       debugPrint('[FirestoreNoteSyncService] Saved note to local database: $noteId');
     } catch (e, st) {
@@ -75,8 +71,7 @@ class FirestoreNoteSyncService {
       debugPrint('[FirestoreNoteSyncService] Applying status "$status" to note: $noteId');
       
       final nextStatus = _parseStatus(status);
-      final db = await _isarService.init();
-      final existing = await db.notes.filter().noteIdEqualTo(noteId).findFirst();
+      final existing = await _noteStore.getByNoteId(noteId);
       if (existing == null) {
         debugPrint('[FirestoreNoteSyncService] Note not found in local database: $noteId');
         return;
@@ -88,9 +83,7 @@ class FirestoreNoteSyncService {
         syncedAt: DateTime.now(),
       );
 
-      await db.writeTxn(() async {
-        await db.notes.put(updated);
-      });
+      await _noteStore.upsert(updated);
       
       debugPrint('[FirestoreNoteSyncService] Applied status change: $noteId → $nextStatus');
     } catch (e, st) {

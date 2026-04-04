@@ -1,11 +1,162 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest } = require('firebase-functions/v2/https');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 admin.initializeApp();
 
 const db = admin.firestore();
+
+// ============================================================================
+// AI ENRICHMENT: Enrich pendingAi notes with Gemini API
+// ============================================================================
+
+const GEMINI_SYSTEM_PROMPT =
+  'You are a personal note classifier. Return JSON with title, category, priority, clean_body, extracted_date. ' +
+  'Return ONLY valid JSON with these exact keys: "title", "category", "priority", "clean_body", "extracted_date". ' +
+  'Allowed category values: Tasks, Reminders, Ideas, Follow-up, Journal, General. ' +
+  'Allowed priority values: high, medium, low. ' +
+  'Use null when extracted_date is unknown. No markdown, no extra keys.';
+
+function extractJsonFromResponse(text) {
+  if (!text) return null;
+  // Try to extract JSON code block
+  const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    return codeBlockMatch[1].trim();
+  }
+  // Try to find JSON object in the text
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return jsonMatch[0];
+  }
+  return null;
+}
+
+function parseExtractedDate(dateValue) {
+  if (!dateValue) return null;
+  try {
+    const parsed = new Date(dateValue);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  } catch (_) {
+    // Ignore
+  }
+  return null;
+}
+
+function mapCategory(categoryStr) {
+  if (!categoryStr) return 'general';
+  const normalized = categoryStr.toLowerCase().trim();
+  const categoryMap = {
+    'tasks': 'tasks',
+    'task': 'tasks',
+    'reminders': 'reminders',
+    'reminder': 'reminders',
+    'ideas': 'ideas',
+    'idea': 'ideas',
+    'follow-up': 'follow-up',
+    'followup': 'follow-up',
+    'follow_up': 'follow-up',
+    'journal': 'journal',
+    'journaling': 'journal',
+    'general': 'general',
+  };
+  return categoryMap[normalized] || 'general';
+}
+
+function mapPriority(priorityStr) {
+  if (!priorityStr) return 'medium';
+  const normalized = priorityStr.toLowerCase().trim();
+  if (normalized.includes('high')) return 'high';
+  if (normalized.includes('low')) return 'low';
+  return 'medium';
+}
+
+exports.enrichPendingAiNote = onDocumentCreated(
+  { document: 'users/{uid}/notes/{noteId}' },
+  async (event) => {
+    const noteData = event.data.data();
+    if (noteData.status !== 'pendingAi') {
+      return;
+    }
+
+    const uid = event.params.uid;
+    const noteId = event.params.noteId;
+    const rawTranscript = (noteData.raw_transcript || '').trim();
+
+    if (!rawTranscript) {
+      logger.warn(`[enrichPendingAiNote] Empty raw_transcript for note ${noteId}`, { uid });
+      return;
+    }
+
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      logger.warn(`[enrichPendingAiNote] GEMINI_API_KEY not configured; skipping enrichment`);
+      return;
+    }
+
+    try {
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+
+      const response = await model.generateContent([
+        { text: GEMINI_SYSTEM_PROMPT },
+        { text: `Raw input: ${rawTranscript}` },
+      ]);
+
+      const responseText = response.response.text();
+      if (!responseText) {
+        logger.warn(`[enrichPendingAiNote] Empty response from Gemini for note ${noteId}`);
+        return;
+      }
+
+      const jsonStr = extractJsonFromResponse(responseText);
+      if (!jsonStr) {
+        logger.warn(`[enrichPendingAiNote] Could not extract JSON from Gemini response for note ${noteId}`);
+        return;
+      }
+
+      const enriched = JSON.parse(jsonStr);
+      const enrichedTitle = (enriched.title || '').trim() || rawTranscript.substring(0, 100).trim();
+      const enrichedCleanBody = (enriched.clean_body || '').trim() || rawTranscript.trim();
+      const enrichedCategory = mapCategory(enriched.category);
+      const enrichedPriority = mapPriority(enriched.priority);
+      const enrichedExtractedDate = parseExtractedDate(enriched.extracted_date);
+
+      const now = new Date().toISOString();
+      const updatePayload = {
+        title: enrichedTitle,
+        clean_body: enrichedCleanBody,
+        category: enrichedCategory,
+        priority: enrichedPriority,
+        extracted_date: enrichedExtractedDate || null,
+        ai_model: 'gemini-2.5-flash-lite',
+        status: 'active',
+        updated_at: now,
+        synced_at: now,
+      };
+
+      await db
+        .collection('users')
+        .doc(uid)
+        .collection('notes')
+        .doc(noteId)
+        .update(updatePayload);
+
+      logger.info(
+        `[enrichPendingAiNote] Successfully enriched note ${noteId} for user ${uid}`,
+        { enriched: JSON.stringify(updatePayload) },
+      );
+    } catch (error) {
+      logger.error(`[enrichPendingAiNote] Error enriching note ${noteId} for user ${uid}:`, error);
+      // Don't update the note; let client retry or manual processing handle it
+    }
+  },
+);
 
 function parseDigestTime(raw) {
   if (!raw || typeof raw !== 'string') {

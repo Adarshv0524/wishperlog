@@ -1,0 +1,458 @@
+
+Launching lib/main.dart on I2223 in debug mode...
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+Note: /home/veerbhadra/.pub-cache/hosted/pub.dev/flutter_overlay_window-0.5.0/android/src/main/java/flutter/overlay/window/flutter_overlay_window/OverlayService.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+3 warnings
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+Running Gradle task 'assembleDebug'...                             90.7s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk...           6.7s
+D/FlutterJNI(25341): Beginning load of flutter...
+D/FlutterJNI(25341): flutter (null) was loaded normally!
+I/flutter (25341): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+I/flutter (25341): [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+I/flutter (25341): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+I/flutter (25341): [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+E/flutter (25341): [ERROR:flutter/runtime/dart_isolate.cc(886)] Could not resolve main entrypoint function.
+E/flutter (25341): [ERROR:flutter/runtime/dart_isolate.cc(177)] Could not run the run main Dart entrypoint.
+E/flutter (25341): [ERROR:flutter/runtime/runtime_controller.cc(567)] Could not create root isolate.
+E/flutter (25341): [ERROR:flutter/shell/common/shell.cc(799)] Could not launch engine with configuration.
+D/FlutterRenderer(25341): Width is zero. 0,0
+I/flutter (25341): [Main] === APP STARTUP ===
+I/flutter (25341): [Main] FCM background handler registered
+I/flutter (25341): [Main] Loading .env...
+I/flutter (25341): [Main] .env loaded
+I/flutter (25341): [Main] Initializing Firebase...
+D/FlutterRenderer(25341): Width is zero. 0,0
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/flutter (25341): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+I/flutter (25341): [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/Choreographer(25341): Skipped 36 frames!  The application may be doing too much work on its main thread.
+I/flutter (25341): [Main] Firebase initialized
+I/flutter (25341): [Main] Initializing WorkManager...
+I/FLTFireMsgService(25341): FlutterFirebaseMessagingBackgroundService started!
+I/flutter (25341): [Main] WorkManager initialized
+I/flutter (25341): [Main] Registering periodic sync...
+I/flutter (25341): [Main] Periodic sync registered
+I/flutter (25341): [Main] Setting up dependency injection...
+I/flutter (25341): [Main] DI container initialized
+I/flutter (25341): [Main] Hydrating theme...
+I/flutter (25341): [Main] Theme hydrated
+I/flutter (25341): [Main] Hydrating and restoring overlay...
+I/flutter (25341): [OverlayCoordinator] Starting hydration...
+I/flutter (25341): [OverlayCoordinator] Hydration complete
+I/flutter (25341): [OverlayCoordinator] Skipping overlay visual restoration (user will enable manually)
+I/flutter (25341): [Main] Overlay hydrated and restored
+I/flutter (25341): [Main] Starting AI service...
+I/flutter (25341): [Main] AI service started
+I/flutter (25341): [Main] Starting connectivity coordinator...
+I/flutter (25341): [Main] Connectivity coordinator started
+I/flutter (25341): [Main] Initializing FCM sync service...
+I/flutter (25341): [FcmSyncService] Getting FCM token...
+I/flutter (25341): [FcmSyncService] Got token, updating user...
+I/flutter (25341): [SqliteNoteStore] Ready at /data/user/0/com.adarshkumarverma.wishperlog/databases/wishperlog_notes.db
+W/System  (25341): Ignoring header X-Firebase-Locale because its value was null.
+W/DynamiteModule(25341): Local module descriptor class for com.google.android.gms.providerinstaller.dynamite not found.
+I/DynamiteModule(25341): Considering local module com.google.android.gms.providerinstaller.dynamite:0 and remote module com.google.android.gms.providerinstaller.dynamite:0
+W/ProviderInstaller(25341): Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+D/ApplicationLoaders(25341): Returning zygote-cached class loader: /system/framework/org.apache.http.legacy.jar
+W/erma.wishperlog(25341): Loading /data/misc/apexdata/com.android.art/dalvik-cache/arm64/system@framework@com.android.location.provider.jar@classes.odex non-executable as it requires an image which we failed to load
+D/nativeloader(25341): Configuring clns-8 for other apk /system/framework/com.android.location.provider.jar. target_sdk_version=37, uses_libraries=ALL, library_path=/data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/lib/arm64:/data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms
+D/nativeloader(25341): Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:librealm-jni.vivo.so:libupdateprof.qti.so:libthermalclient.qti.so:libdiag_system.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so
+D/nativeloader(25341): Configuring clns-9 for other apk /system/framework/com.android.media.remotedisplay.jar. target_sdk_version=37, uses_libraries=ALL, library_path=/data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/lib/arm64:/data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms
+D/nativeloader(25341): Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:librealm-jni.vivo.so:libupdateprof.qti.so:libthermalclient.qti.so:libdiag_system.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so
+D/ApplicationLoaders(25341): Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+D/ApplicationLoaders(25341): Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+W/erma.wishperlog(25341): Loading /data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/oat/arm64/base.odex non-executable as it requires an image which we failed to load
+D/nativeloader(25341): Configuring clns-10 for other apk /data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/base.apk. target_sdk_version=37, uses_libraries=, library_path=/data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/lib/arm64:/data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms
+D/nativeloader(25341): Load /data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/base.apk!/lib/arm64-v8a/libconscrypt_gmscore_jni.so using class loader ns clns-10 (caller=/data/app/~~HAOiN4pKYitZ46F2mjbZ5g==/com.google.android.gms-DToRLR__FdkPWjX6mqCsXA==/base.apk): ok
+V/NativeCrypto(25341): Registering com/google/android/gms/org/conscrypt/NativeCrypto's 334 native methods...
+I/erma.wishperlog(25341): hiddenapi: Accessing hidden method Ljava/security/spec/ECParameterSpec;->getCurveName()Ljava/lang/String; (runtime_flags=0, domain=core-platform, api=unsupported) from Lcom/google/android/gms/org/conscrypt/Platform; (domain=app, TargetSdkVersion=36) using reflection: allowed
+I/erma.wishperlog(25341): hiddenapi: Accessing hidden method Ldalvik/system/VMStack;->getStackClass2()Ljava/lang/Class; (runtime_flags=0, domain=core-platform, api=unsupported) from Lhatg; (domain=app, TargetSdkVersion=36) using reflection: allowed
+E/GoogleApiManager(25341): Failed to get service from broker.
+E/GoogleApiManager(25341): java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+E/GoogleApiManager(25341):      at android.os.Parcel.createExceptionOrNull(Parcel.java:3255)
+E/GoogleApiManager(25341):      at android.os.Parcel.createException(Parcel.java:3239)
+E/GoogleApiManager(25341):      at android.os.Parcel.readException(Parcel.java:3222)
+E/GoogleApiManager(25341):      at android.os.Parcel.readException(Parcel.java:3164)
+E/GoogleApiManager(25341):      at bhqm.a(:com.google.android.gms@261133035@26.11.33 (260400-887465546):36)
+E/GoogleApiManager(25341):      at bhon.z(:com.google.android.gms@261133035@26.11.33 (260400-887465546):143)
+E/GoogleApiManager(25341):      at bgup.run(:com.google.android.gms@261133035@26.11.33 (260400-887465546):42)
+E/GoogleApiManager(25341):      at android.os.Handler.handleCallback(Handler.java:1014)
+E/GoogleApiManager(25341):      at android.os.Handler.dispatchMessage(Handler.java:102)
+E/GoogleApiManager(25341):      at cwvx.mr(:com.google.android.gms@261133035@26.11.33 (260400-887465546):1)
+E/GoogleApiManager(25341):      at cwvx.dispatchMessage(:com.google.android.gms@261133035@26.11.33 (260400-887465546):5)
+E/GoogleApiManager(25341):      at android.os.Looper.loopOnce(Looper.java:250)
+E/GoogleApiManager(25341):      at android.os.Looper.loop(Looper.java:340)
+E/GoogleApiManager(25341):      at android.os.HandlerThread.run(HandlerThread.java:107)
+W/GoogleApiManager(25341): Not showing notification since connectionResult is not user-facing: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+I/ProviderInstaller(25341): Installed default security provider GmsCore_OpenSSL
+W/FlagRegistrar(25341): Failed to register com.google.android.gms.providerinstaller#com.adarshkumarverma.wishperlog
+W/FlagRegistrar(25341): ggtn: 17: 17: API: Phenotype.API is not available on this device. Connection failed with: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/FlagRegistrar(25341):         at ggtp.a(:com.google.android.gms@261133035@26.11.33 (260400-887465546):13)
+W/FlagRegistrar(25341):         at hgfx.d(:com.google.android.gms@261133035@26.11.33 (260400-887465546):3)
+W/FlagRegistrar(25341):         at hgfz.run(:com.google.android.gms@261133035@26.11.33 (260400-887465546):130)
+W/FlagRegistrar(25341):         at hgig.execute(:com.google.android.gms@261133035@26.11.33 (260400-887465546):1)
+W/FlagRegistrar(25341):         at hggh.f(:com.google.android.gms@261133035@26.11.33 (260400-887465546):1)
+W/FlagRegistrar(25341):         at hggh.m(:com.google.android.gms@261133035@26.11.33 (260400-887465546):99)
+W/FlagRegistrar(25341):         at hggh.r(:com.google.android.gms@261133035@26.11.33 (260400-887465546):17)
+W/FlagRegistrar(25341):         at fylu.hB(:com.google.android.gms@261133035@26.11.33 (260400-887465546):35)
+W/FlagRegistrar(25341):         at fkzv.run(:com.google.android.gms@261133035@26.11.33 (260400-887465546):12)
+W/FlagRegistrar(25341):         at hgig.execute(:com.google.android.gms@261133035@26.11.33 (260400-887465546):1)
+W/FlagRegistrar(25341):         at fkzw.b(:com.google.android.gms@261133035@26.11.33 (260400-887465546):18)
+W/FlagRegistrar(25341):         at flal.b(:com.google.android.gms@261133035@26.11.33 (260400-887465546):34)
+W/FlagRegistrar(25341):         at flan.d(:com.google.android.gms@261133035@26.11.33 (260400-887465546):25)
+W/FlagRegistrar(25341):         at bgry.c(:com.google.android.gms@261133035@26.11.33 (260400-887465546):9)
+W/FlagRegistrar(25341):         at bgun.q(:com.google.android.gms@261133035@26.11.33 (260400-887465546):48)
+W/FlagRegistrar(25341):         at bgun.d(:com.google.android.gms@261133035@26.11.33 (260400-887465546):10)
+W/FlagRegistrar(25341):         at bgun.g(:com.google.android.gms@261133035@26.11.33 (260400-887465546):191)
+W/FlagRegistrar(25341):         at bgun.onConnectionFailed(:com.google.android.gms@261133035@26.11.33 (260400-887465546):2)
+W/FlagRegistrar(25341):         at bgup.run(:com.google.android.gms@261133035@26.11.33 (260400-887465546):70)
+W/FlagRegistrar(25341):         at android.os.Handler.handleCallback(Handler.java:1014)
+W/FlagRegistrar(25341):         at android.os.Handler.dispatchMessage(Handler.java:102)
+W/FlagRegistrar(25341):         at cwvx.mr(:com.google.android.gms@261133035@26.11.33 (260400-887465546):1)
+W/FlagRegistrar(25341):         at cwvx.dispatchMessage(:com.google.android.gms@261133035@26.11.33 (260400-887465546):5)
+W/FlagRegistrar(25341):         at android.os.Looper.loopOnce(Looper.java:250)
+W/FlagRegistrar(25341):         at android.os.Looper.loop(Looper.java:340)
+W/FlagRegistrar(25341):         at android.os.HandlerThread.run(HandlerThread.java:107)
+W/FlagRegistrar(25341): Caused by: bgqf: 17: API: Phenotype.API is not available on this device. Connection failed with: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/FlagRegistrar(25341):         at bhnz.a(:com.google.android.gms@261133035@26.11.33 (260400-887465546):15)
+W/FlagRegistrar(25341):         at bgsb.a(:com.google.android.gms@261133035@26.11.33 (260400-887465546):1)
+W/FlagRegistrar(25341):         at bgry.c(:com.google.android.gms@261133035@26.11.33 (260400-887465546):5)
+W/FlagRegistrar(25341):         ... 12 more
+I/erma.wishperlog(25341): hiddenapi: Accessing hidden method Ljava/security/spec/ECParameterSpec;->setCurveName(Ljava/lang/String;)V (runtime_flags=0, domain=core-platform, api=unsupported) from Lcom/google/android/gms/org/conscrypt/Platform; (domain=app, TargetSdkVersion=36) using reflection: allowed
+D/FirebaseAuth(25341): Notifying id token listeners about user ( wnQlqX15pYTdpDOuC8AZguWIS3h2 ).
+Syncing files to device I2223...                                 2,304ms
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on I2223 is available at: http://127.0.0.1:36399/68zaP02Lo34=/
+The Flutter DevTools debugger and profiler on I2223 is available at: http://127.0.0.1:36399/68zaP02Lo34=/devtools/?uri=ws://127.0.0.1:36399/68zaP02Lo34=/ws
+I/erma.wishperlog(25341): hiddenapi: Accessing hidden field Ljava/net/Socket;->impl:Ljava/net/SocketImpl; (runtime_flags=0, domain=core-platform, api=unsupported) from Lcom/google/android/gms/org/conscrypt/Platform; (domain=app, TargetSdkVersion=36) using reflection: allowed
+D/ProfileInstaller(25341): Installing profile for com.adarshkumarverma.wishperlog
+I/flutter (25341): [Main] FCM sync service initialized
+I/flutter (25341): [Main] === STARTUP COMPLETE, RUNNING APP ===
+I/erma.wishperlog(25341): Background concurrent copying GC freed 13MB AllocSpace bytes, 28(1296KB) LOS objects, 54% free, 5191KB/11MB, paused 71us,33us total 103.603ms
+W/FinalizerDaemon(25341): type=1400 audit(0.0:495886): avc:  denied  { getopt } for  path="/dev/socket/usap_pool_primary" scontext=u:r:untrusted_app:s0:c130,c257,c512,c768 tcontext=u:r:zygote:s0 tclass=unix_stream_socket permissive=0 app=com.adarshkumarverma.wishperlog
+I/Choreographer(25341): Skipped 155 frames!  The application may be doing too much work on its main thread.
+I/Choreographer(25341): Skipped 39 frames!  The application may be doing too much work on its main thread.
+I/HWUI    (25341): Davey! duration=749ms; Flags=1, FrameTimelineVsyncId=20663265, IntendedVsync=94144074321526, Vsync=94144724352271, InputEventId=0, HandleInputStart=94144738929761, AnimationStart=94144738948250, PerformTraversalsStart=94144738959136, DrawStart=94144749164761, FrameDeadline=94144090988192, FrameInterval=94144730673303, FrameStartTime=16667455, SyncQueued=94144750285125, SyncStart=94144750658875, IssueDrawCommandsStart=94144755288459, SwapBuffers=94144822692261, FrameCompleted=94144823936948, DequeueBufferDuration=4913020, QueueBufferDuration=952604, GpuCompleted=94144822785177, SwapBuffersCompleted=94144823936948, DisplayPresentTime=0, CommandSubmissionCompleted=94144822692261,
+V/ImeFocusController(25341): onWindowFocus: com.android.internal.policy.DecorView{17092e0 V.E...... R....... 0,0-1080,2400}[MainActivity] softInputMode=STATE_UNSPECIFIED|ADJUST_RESIZE|IS_FORWARD_NAVIGATION
+E/GoogleApiManager(25341): Failed to get service from broker.
+E/GoogleApiManager(25341): java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+E/GoogleApiManager(25341):      at android.os.Parcel.createExceptionOrNull(Parcel.java:3255)
+E/GoogleApiManager(25341):      at android.os.Parcel.createException(Parcel.java:3239)
+E/GoogleApiManager(25341):      at android.os.Parcel.readException(Parcel.java:3222)
+E/GoogleApiManager(25341):      at android.os.Parcel.readException(Parcel.java:3164)
+E/GoogleApiManager(25341):      at bhqm.a(:com.google.android.gms@261133035@26.11.33 (260400-887465546):36)
+E/GoogleApiManager(25341):      at bhon.z(:com.google.android.gms@261133035@26.11.33 (260400-887465546):143)
+E/GoogleApiManager(25341):      at bgup.run(:com.google.android.gms@261133035@26.11.33 (260400-887465546):42)
+E/GoogleApiManager(25341):      at android.os.Handler.handleCallback(Handler.java:1014)
+E/GoogleApiManager(25341):      at android.os.Handler.dispatchMessage(Handler.java:102)
+E/GoogleApiManager(25341):      at cwvx.mr(:com.google.android.gms@261133035@26.11.33 (260400-887465546):1)
+E/GoogleApiManager(25341):      at cwvx.dispatchMessage(:com.google.android.gms@261133035@26.11.33 (260400-887465546):5)
+E/GoogleApiManager(25341):      at android.os.Looper.loopOnce(Looper.java:250)
+E/GoogleApiManager(25341):      at android.os.Looper.loop(Looper.java:340)
+E/GoogleApiManager(25341):      at android.os.HandlerThread.run(HandlerThread.java:107)
+W/GoogleApiManager(25341): Not showing notification since connectionResult is not user-facing: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:b355a707: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+I/AssistStructure(25341): Flattened final assist data: 572 bytes, containing 1 windows, 3 views
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring on
+D/InsetsController(25341): show(ime(), fromIme=true)
+W/InteractionJankMonitor(25341): Initializing without READ_DEVICE_CONFIG permission. enabled=false, interval=1, missedFrameThreshold=3, frameTimeThreshold=64, package=com.adarshkumarverma.wishperlog
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:b355a707: onShown
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring off
+D/InsetsController(25341): hide(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=ImeCallback=ImeOnBackInvokedCallback@84590814 Callback=android.window.IOnBackInvokedCallback$Stub$Proxy@f1d8f7d
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:c829d4bc: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED fromUser false
+I/ImeTracker(25341): com.google.android.inputmethod.latin:1cc9e26a: onHidden
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/flutter (25341): [NoteSaveService] Starting save: CaptureSource.homeWritingBox
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:1833e2ec: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:e5aedc36: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring on
+D/InsetsController(25341): show(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:e5aedc36: onShown
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/flutter (25341): [NoteSaveService] Starting save: CaptureSource.homeWritingBox
+D/InsetsController(25341): hide(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring off
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=ImeCallback=ImeOnBackInvokedCallback@84590814 Callback=android.window.IOnBackInvokedCallback$Stub$Proxy@9af2070
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:f43ec43: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED fromUser false
+I/ImeTracker(25341): com.google.android.inputmethod.latin:46ffd1ba: onHidden
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:d61ea197: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:d49def4e: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring on
+D/InsetsController(25341): show(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:d49def4e: onShown
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/flutter (25341): [NoteSaveService] Starting save: CaptureSource.homeWritingBox
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring off
+D/InsetsController(25341): hide(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=ImeCallback=ImeOnBackInvokedCallback@84590814 Callback=android.window.IOnBackInvokedCallback$Stub$Proxy@96fa34
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:c73c5f9d: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED fromUser false
+I/ImeTracker(25341): com.google.android.inputmethod.latin:811038a6: onHidden
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:f0b403db: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:86656397: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring on
+D/InsetsController(25341): show(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:86656397: onShown
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/flutter (25341): [NoteSaveService] Starting save: CaptureSource.homeWritingBox
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring off
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=ImeCallback=ImeOnBackInvokedCallback@84590814 Callback=android.window.IOnBackInvokedCallback$Stub$Proxy@b5cd691
+D/InsetsController(25341): hide(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:e2ea0dec: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED fromUser false
+I/ImeTracker(25341): com.google.android.inputmethod.latin:37ae1a83: onHidden
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:91439e99: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+I/flutter (25341): [NoteRepository] Syncing note to Firestore: 1775311965678695_461487
+I/flutter (25341): [NoteRepository] Successfully synced to Firestore: 1775311965678695_461487
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:c4f81204: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring on
+D/InsetsController(25341): show(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:c4f81204: onShown
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:800e9633: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring off
+D/InsetsController(25341): hide(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:2e2292d7: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED fromUser false
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:800e9633: onHidden
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:d2b9ad8f: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring on
+D/InsetsController(25341): show(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:d2b9ad8f: onShown
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:c15da140: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring off
+D/InsetsController(25341): hide(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:d2eae580: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED fromUser false
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:c15da140: onHidden
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:386de6ac: onRequestShow at ORIGIN_CLIENT reason SHOW_SOFT_INPUT fromUser false
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring on
+D/InsetsController(25341): show(ime(), fromIme=true)
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:386de6ac: onShown
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:74c0d1e7: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT fromUser false
+D/InputConnectionAdaptor(25341): The input method toggled cursor monitoring off
+D/InsetsController(25341): hide(ime(), fromIme=true)
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:b221e164: onRequestHide at ORIGIN_CLIENT reason HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED fromUser false
+I/ImeTracker(25341): com.adarshkumarverma.wishperlog:74c0d1e7: onHidden
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+D/FlutterJNI(25341): Sending viewport metrics to the engine.
+I/flutter (25341): [NoteRepository] Syncing note to Firestore: 1775311934274712_791697
+I/flutter (25341): [NoteRepository] Successfully synced to Firestore: 1775311934274712_791697
+W/WindowOnBackDispatcher(25341): sendCancelIfRunning: isInProgress=false callback=io.flutter.embedding.android.FlutterActivity$1@478a679

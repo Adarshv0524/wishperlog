@@ -6,7 +6,6 @@ import 'package:wishperlog/core/background/work_manager_service.dart';
 import 'package:wishperlog/core/config/app_env.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/background/connectivity_sync_coordinator.dart';
-import 'package:wishperlog/core/storage/isar_service.dart';
 import 'package:wishperlog/core/theme/app_theme.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_processing_service.dart';
@@ -49,15 +48,6 @@ void main() async {
   }
 
   try {
-    debugPrint('[Main] Initializing Isar database...');
-    await IsarService.instance.init();
-    debugPrint('[Main] Isar initialized');
-  } catch (error, stackTrace) {
-    debugPrint('[Main] Isar init failed: $error');
-    debugPrintStack(stackTrace: stackTrace);
-  }
-
-  try {
     debugPrint('[Main] Initializing WorkManager...');
     await WorkManagerService.initialize();
     debugPrint('[Main] WorkManager initialized');
@@ -72,6 +62,15 @@ void main() async {
     debugPrint('[Main] Periodic sync registered');
   } catch (e, st) {
     debugPrint('[Main] Periodic sync error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  try {
+    debugPrint('[Main] Registering Telegram digest worker...');
+    await WorkManagerService.registerTelegramDailyDigest();
+    debugPrint('[Main] Telegram digest worker registered');
+  } catch (e, st) {
+    debugPrint('[Main] Telegram digest worker error: $e');
     debugPrintStack(stackTrace: st);
   }
 

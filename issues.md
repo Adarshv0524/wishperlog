@@ -7,213 +7,37 @@
 
 ## Active Investigation
 
-### [Critical] AI Polling Loop Architecture Violation (Timer.periodic Every 8s)
-
-**Severity**: Critical  
-**Status**: Open  
-**Type**: Architecture Violation  
-**Affected Files**: 
-- lib/features/ai/data/ai_processing_service.dart
-- lib/main.dart
-
-#### Description
-- The codebase currently runs AI processing using `Timer.periodic(const Duration(seconds: 8), ...)`.
-- This violates the blueprint requirement for event-driven processing and introduces constant background wakeups.
-
-#### Evidence
-- `AiProcessingService.start()` creates an 8-second periodic timer.
-- App startup invokes `sl<AiProcessingService>().start()`.
-
-#### Expected Behavior
-- AI processing must trigger from a `NoteSaved` event stream immediately after successful local Isar save.
-- No perpetual polling loop should exist for AI classification.
-
-#### Proposed Fix
-1. Introduce a `NoteSaved` event stream in the domain layer.
-2. Emit `NoteSaved(noteId)` after successful `writeTxn` local commit.
-3. Refactor `AiProcessingService` to subscribe to event stream and process targeted note IDs.
-4. Remove `Timer.periodic` logic entirely.
-
-### [High] Missing Telegram Daily Digest WorkManager Worker (9 AM Client-Side)
-
-**Severity**: High  
-**Status**: Open  
-**Type**: Missing Feature  
-**Affected Files**:
-- lib/core/background/work_manager_service.dart
-- lib/main.dart
-- lib/features/settings/presentation/screens/settings_screen.dart
-
-#### Description
-- Blueprint requires a client-side WorkManager task to deliver Telegram daily digest at 9:00 AM local time.
-- Current `WorkManagerService` schedules Google task completion sync and pending AI flush only.
-- Telegram digest configuration UI exists, but no corresponding digest worker exists in Dart runtime.
-
-#### Expected Behavior
-- A dedicated daily local-time WorkManager task should:
-   1. query active notes from Isar,
-   2. format digest summary,
-   3. send to Telegram Bot API.
-
-#### Proposed Fix
-1. Add `telegram_daily_digest` unique work registration with local-time 09:00 scheduling strategy.
-2. Implement worker branch in callback dispatcher for digest generation/sending.
-3. Reuse digest time from settings and user timezone offset data.
-4. Add retry/backoff plus idempotency guard for same-day sends.
-
-### [Critical] Isar Half-Initialized Instance Crash (LateInitializationError: _collections)
-
-**Severity**: Critical  
-**Status**: Open / Reproducible under startup race conditions  
-**Frequency**: Intermittent but high-impact  
-**Reported by**: Runtime crash logs (April 2026)
-
-#### Symptoms
-- App throws unhandled exception while reading notes stream.
-- Crash signature:
-  - `LateInitializationError: Field '_collections@...' has not been initialized`
-  - Stack includes `Isar.collection -> GetNoteCollection.notes -> NoteRepository._visibleNotesSnapshot`
-- Logs repeatedly show:
-  - `[IsarService] Instance exists but not fully ready, reinitializing`
-
-#### Impact
-- Note streams can fail during app boot or service reattachment.
-- Home/folder note counts and lists may crash before first render.
-- Violates reliability requirement for local-first capture and retrieval.
-
-#### Technical Diagnosis
-- The app can obtain an Isar instance handle from `Isar.getInstance()` before internal collections are fully initialized.
-- Current readiness probing attempts to call `collection<Note>()`, but a race window still exists where downstream repositories begin querying before the instance is fully usable.
-- The failure manifests in read-path calls (`db.notes.where()/findAll`) from stream builders, not only write transactions.
-
-#### Evidence (from reported stack trace)
-- `Isar._collections (package:isar/src/isar.dart)`
-- `Isar.collection (package:isar/src/isar.dart:190)`
-- `GetNoteCollection.notes (shared/models/note.g.dart:13)`
-- `NoteRepository._visibleNotesSnapshot (features/notes/data/note_repository.dart:216)`
-- `NoteRepository.watchActiveCounts (features/notes/data/note_repository.dart:79)`
-
-#### Expected Behavior
-- `IsarService.init()` must return only a fully initialized, query-safe instance.
-- Repository streams should never crash due to Isar internal late initialization races.
-
-#### Proposed Fix
-1. Harden Isar readiness gate:
-   - Add a definitive warm-up/readiness check before returning from `init()`.
-   - Treat any collection access `LateInitializationError` as non-ready and retry bounded times.
-2. Serialize initialization and consumers:
-   - Ensure all repository stream entry points await the same in-flight init barrier.
-   - Prevent parallel init/reinit attempts from exposing partially ready handles.
-3. Add repository-level defensive fallback:
-   - In watch stream snapshots, catch initialization-race exceptions and retry after short backoff instead of crashing the stream.
-4. Add instrumentation:
-   - Log init attempt id, elapsed time, and readiness probe outcome.
-   - Emit a distinct metric for "isar_half_initialized_detected".
-5. Regression tests:
-   - Cold start with simultaneous stream subscriptions.
-   - Rapid app foreground/background transitions.
-   - Simulated delayed Isar open and repeated `getInstance()` races.
-
-### [Investigation] "Unable to save note" Error (Intermittent)
-
-**Severity**: Medium  
-**Status**: Investigating  
-**Frequency**: Rare / Edge case  
-**Reported by**: User feedback  
-
-#### Symptoms
-- UI shows error message: "Unable to save note"
-- Note does not appear in Home Screen or Folder Screen
-- Error occurs sporadically, not reproducible consistently
-
-#### Root Cause Analysis
-
-Based on code audit, potential root causes:
-
-1. **Isar Transaction Failure** (Low Probability)
-   - `CaptureService.ingestRawCapture()` wraps in Isar `writeTxn()`
-   - If database is corrupted, transaction could fail
-   - IsarService has auto-recovery (schema mismatch → purge & reinit)
-
-2. **Firebase Initialization Timing** (Medium Probability)
-   - CaptureService calls `_auth.currentUser` which may be null if Firebase init incomplete
-   - Downstream `_syncNoteToFirestore()` would catch exception but log as error
-   - Does NOT block local Isar save (good)
-
-3. **Exception During ingestRawCapture** (Medium Probability)
-   - Line: `await db.notes.put(pending);`
-   - If Note model has missing required field → Isar throws
-   - Exception is caught, logged, and rethrown to HomeScreen
-
-#### Current Code Flow Analysis
-
-**File**: `lib/features/capture/data/capture_service.dart`
-
-```dart
-Future<Note?> ingestRawCapture({...}) async {
-  try {
-    final db = await _isarService.init();  // ← Can this fail silently?
-    final note = Note(...);                 // ← All fields required
-    await db.writeTxn(() async {
-      await db.notes.put(note);              // ← Only place transaction fails
-    });
-    return note;
-  } catch (error, stackTrace) {
-    rethrow;  // ← Propagates to HomeScreen which shows error
-  }
-}
-```
-
-**File**: `lib/features/home/presentation/screens/home_screen.dart`
-
-```dart
-Future<void> _saveWritingBox() async {
-  try {
-    await _captureService.ingestRawCapture(...);
-  } catch (error, stackTrace) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Unable to save note.')),
-    );
-  }
-}
-```
-
-#### Fix Strategy (Phase 5+)
-
-1. **Add Detailed Logging Before Transaction**
-   ```dart
-   debugPrint('[CaptureService] db=$db,.isClosed=${db.isClosed}');
-   debugPrint('[CaptureService] note=$pending');
-   ```
-
-2. **Ensure Isar Initialization**
-   ```dart
-   if (db.isClosed) {
-     throw Exception('Isar database is closed');
-   }
-   ```
-
-3. **Optional: Add Retry Logic**
-   ```dart
-   for (var attempt = 0; attempt < 3; attempt++) {
-     try {
-       await db.writeTxn(() => db.notes.put(note));
-       return note;
-     } catch (e) {
-       if (attempt < 2) await Future.delayed(Duration(ms: 100));
-     }
-   }
-   ```
-
-4. **Test Manually**
-   - Save note while WiFi toggled off
-   - Force app close during save
-   - Save 100+ rapid notes
-   - Verify error details in logcat
+No open issues currently under active investigation.
 
 ---
 
 ## Resolved Issues
+
+### ✅ Missing Telegram Daily Digest WorkManager Worker (FIXED - Phase 6)
+**Severity**: High
+**Resolution**: Added client-side daily digest worker with local-time gate, retry, and idempotency.
+
+**Changes**:
+- `lib/core/background/work_manager_service.dart`: Added `telegram_daily_digest` periodic task, digest generation from local active notes, Telegram API send, retry, and same-day guard.
+- `lib/main.dart`: Registered Telegram digest worker at startup.
+- `lib/features/settings/presentation/screens/settings_screen.dart`: Re-registered digest worker when digest time changes.
+- `lib/core/config/app_env.dart`: Added `telegramBotToken` getter.
+
+**Verification**: Worker is registered on startup and executes digest branch in callback dispatcher.
+
+---
+
+### ✅ "Unable to save note" Error (Intermittent) (FIXED - Phase 6)
+**Severity**: Medium
+**Resolution**: Made local save authoritative and cloud sync best-effort.
+
+**Changes**:
+- `lib/features/capture/data/note_save_service.dart`: Added explicit SQLite open check before upsert and kept retry loop.
+- `lib/features/capture/data/note_save_service.dart`: Stopped rethrowing cloud sync exceptions so local saves do not fail when network/Firebase is flaky.
+
+**Verification**: Local note persistence path no longer surfaces cloud-sync failures as save failures.
+
+---
 
 ### ✅ Black Screen on App Startup (FIXED - Phase 4)
 **Severity**: Critical  
@@ -273,7 +97,7 @@ Future<void> _saveWritingBox() async {
    - Future: Pagination / lazy loading for 10,000+ notes
 
 2. **No Local Encryption**
-   - Notes stored unencrypted in Isar
+   - Notes stored unencrypted in SQLite
    - Future: Chacha20-Poly1305 encryption at rest
 
 3. **No Note Sharing**
@@ -292,7 +116,7 @@ Future<void> _saveWritingBox() async {
 **Cause**: StreamBuilder error in watch stream  
 **Debug Steps**:
 1. Check logcat for `[NoteRepository]` stream errors
-2. Verify Isar database is initialized properly
+2. Verify SQLite database is initialized properly
 3. Check if database file is corrupted
 
 **Fix**:
@@ -374,19 +198,19 @@ flutter logs | grep CaptureService
 flutter logs > logs.txt
 ```
 
-### Inspect SQLite Database (Isar)
+### Inspect SQLite Database
 ```bash
 # SSH into Android emulator
 adb shell
 
-# Navigate to app data
-cd /data/data/com.adarshkumarverma.wishperlog/app_flutter
+# Navigate to app databases
+cd /data/data/com.adarshkumarverma.wishperlog/databases
 
-# List Isar files
+# List SQLite files
 ls -la
 
 # Pull database to desktop for inspection
-adb pull /data/data/com.adarshkumarverma.wishperlog/app_flutter/
+adb pull /data/data/com.adarshkumarverma.wishperlog/databases/wishperlog_notes.db
 ```
 
 ### View Firestore (Cloud Console)
@@ -421,7 +245,7 @@ flutter clean && flutter run
 **Measurement**: Check `[AiProcessingService]` logs
 
 ### Search Responsiveness
-**Expected**: < 200ms for fuzzy search on 1000 notes  
+**Expected**: < 200ms for semantic-pragmatic ranked search on 1000 notes  
 **Measurement**: Time between keystroke and results displayed
 
 ---

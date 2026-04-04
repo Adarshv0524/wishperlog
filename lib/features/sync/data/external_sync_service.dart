@@ -6,8 +6,7 @@ import 'package:fuzzy/fuzzy.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as gcal;
 import 'package:googleapis/tasks/v1.dart' as gtasks;
-import 'package:isar/isar.dart';
-import 'package:wishperlog/core/storage/isar_service.dart';
+import 'package:wishperlog/core/storage/sqlite_note_store.dart';
 import 'package:wishperlog/features/sync/data/google_api_client.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
@@ -23,11 +22,11 @@ class ExternalSyncService {
   ExternalSyncService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    IsarService? isarService,
+    SqliteNoteStore? noteStore,
     GoogleSignIn? googleSignIn,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _isarService = isarService ?? IsarService.instance,
+       _noteStore = noteStore ?? SqliteNoteStore.instance,
        _googleSignIn =
            googleSignIn ??
            GoogleSignIn(
@@ -40,7 +39,7 @@ class ExternalSyncService {
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final IsarService _isarService;
+  final SqliteNoteStore _noteStore;
   final GoogleSignIn _googleSignIn;
 
   Future<bool> ensureGoogleConnected() async {
@@ -62,19 +61,13 @@ class ExternalSyncService {
   }
 
   Future<SyncRunResult> syncNow() async {
-    final db = await _isarService.init();
-    final active = await db.notes
-        .filter()
-        .statusEqualTo(NoteStatus.active)
-        .findAll();
+    final active = await _noteStore.getActiveNotes();
 
     var updated = 0;
     for (final note in active) {
       final result = await syncExternalForNote(note);
       if (result.noteChanged) {
-        await db.writeTxn(() async {
-          await db.notes.put(result.note);
-        });
+        await _noteStore.upsert(result.note);
         await _syncNoteToFirestore(result.note);
         updated += 1;
       }
@@ -110,12 +103,9 @@ class ExternalSyncService {
         return 0;
       }
 
-      final db = await _isarService.init();
-      final linkedTaskNotes = await db.notes
-          .filter()
-          .statusEqualTo(NoteStatus.active)
-          .gtaskIdIsNotNull()
-          .findAll();
+      final linkedTaskNotes = (await _noteStore.getActiveNotes())
+          .where((note) => note.gtaskId != null)
+          .toList();
 
       var archivedCount = 0;
       for (final note in linkedTaskNotes) {
@@ -130,9 +120,7 @@ class ExternalSyncService {
           syncedAt: DateTime.now(),
         );
 
-        await db.writeTxn(() async {
-          await db.notes.put(archived);
-        });
+        await _noteStore.upsert(archived);
         await _syncNoteToFirestore(archived);
         archivedCount += 1;
       }

@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:isar/isar.dart';
-import 'package:wishperlog/core/storage/isar_service.dart';
+import 'package:wishperlog/core/storage/sqlite_note_store.dart';
 import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
+import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 
@@ -14,66 +14,75 @@ class AiProcessingService {
     GeminiNoteClassifier? classifier,
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    IsarService? isarService,
+     SqliteNoteStore? noteStore,
     ExternalSyncService? externalSync,
+     NoteEventBus? noteEventBus,
   }) : _classifier = classifier ?? GeminiNoteClassifier(),
        _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _isarService = isarService ?? IsarService.instance,
-       _externalSync = externalSync ?? ExternalSyncService();
+       _noteStore = noteStore ?? SqliteNoteStore.instance,
+       _externalSync = externalSync ?? ExternalSyncService(),
+       _noteEventBus = noteEventBus ?? NoteEventBus.instance;
 
   final GeminiNoteClassifier _classifier;
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final IsarService _isarService;
+  final SqliteNoteStore _noteStore;
   final ExternalSyncService _externalSync;
+  final NoteEventBus _noteEventBus;
 
-  Timer? _timer;
-  bool _running = false;
+  StreamSubscription<String>? _noteSavedSubscription;
+  final Set<String> _inFlightNoteIds = <String>{};
+  bool _sweepRunning = false;
 
   void start() {
-    _timer ??= Timer.periodic(const Duration(seconds: 8), (_) {
-      _processPending();
+    unawaited(_sweepPendingOnce());
+    _noteSavedSubscription ??= _noteEventBus.onNoteSaved.listen((noteId) {
+      unawaited(processNoteById(noteId));
     });
-    _processPending();
   }
 
   Future<void> flushPendingQueue() async {
-    await _processPending();
+    await _sweepPendingOnce();
   }
 
   void dispose() {
-    _timer?.cancel();
-    _timer = null;
+    _noteSavedSubscription?.cancel();
+    _noteSavedSubscription = null;
   }
 
-  Future<void> _processPending() async {
-    if (_running) {
+  Future<void> _sweepPendingOnce() async {
+    if (_sweepRunning) {
       return;
     }
-    _running = true;
+    _sweepRunning = true;
 
     try {
-      final db = await _isarService.init();
-      final pending = await db.notes
-          .filter()
-          .statusEqualTo(NoteStatus.pendingAi)
-          .findAll();
-
-      pending.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final pending = await _noteStore.getPendingAiNotes();
 
       for (final note in pending) {
-        await _processOne(db, note);
+        await processNoteById(note.noteId);
       }
     } catch (_) {
-      // Avoid crashing the UI if Isar is temporarily unavailable during startup.
+      // Avoid crashing the UI if SQLite is temporarily unavailable during startup.
     } finally {
-      _running = false;
+      _sweepRunning = false;
     }
   }
 
-  Future<void> _processOne(Isar db, Note note) async {
+  Future<void> processNoteById(String noteId) async {
+    final trimmedId = noteId.trim();
+    if (trimmedId.isEmpty || _inFlightNoteIds.contains(trimmedId)) {
+      return;
+    }
+
+    _inFlightNoteIds.add(trimmedId);
     try {
+      final note = await _noteStore.getByNoteId(trimmedId);
+      if (note == null || note.status != NoteStatus.pendingAi) {
+        return;
+      }
+
       final result = await _classifier.classify(note.rawTranscript);
       final now = DateTime.now();
 
@@ -95,13 +104,13 @@ class AiProcessingService {
       );
       final externallySyncedNote = externalResult.note;
 
-      await db.writeTxn(() async {
-        await db.notes.put(externallySyncedNote);
-      });
+      await _noteStore.upsert(externallySyncedNote);
 
       await _syncToFirestore(externallySyncedNote);
     } catch (_) {
-      // Keep note pending_ai. Background retries continue on next ticks.
+      // Keep note as pendingAi and let future events/sweeps retry.
+    } finally {
+      _inFlightNoteIds.remove(trimmedId);
     }
   }
 

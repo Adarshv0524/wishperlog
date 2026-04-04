@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/top_notch_message.dart';
 
 class FolderScreen extends StatefulWidget {
   const FolderScreen({required this.category, super.key});
@@ -51,210 +53,104 @@ class _FolderScreenState extends State<FolderScreen> {
         title: Text(categoryLabel(widget.category)),
       ),
       body: GlassPageBackground(
-        child: StreamBuilder<int>(
-          stream: _notes.watchPendingAiCount(),
-          builder: (context, pendingSnapshot) {
-            final pendingAiCount = pendingSnapshot.data ?? 0;
+        child: StreamBuilder<List<Note>>(
+          stream: _notes.watchActiveByCategory(widget.category),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Unable to load notes right now.',
+                  style: TextStyle(
+                    color: secondaryText,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
+                    fontSize: 13.5,
+                  ),
+                ),
+              );
+            }
 
-            return StreamBuilder<List<Note>>(
-              stream: _notes.watchActiveByCategory(widget.category),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Unable to load notes right now.',
-                      style: TextStyle(
-                        color: secondaryText,
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.1,
-                        fontSize: 13.5,
+            if (!snapshot.hasData &&
+                snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              );
+            }
+
+            final notes = snapshot.data ?? const <Note>[];
+
+            if (notes.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 56),
+                    child: Center(
+                      child: Text(
+                        'No notes here yet.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: secondaryText,
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.1,
+                          fontSize: 13.5,
+                        ),
                       ),
                     ),
-                  );
-                }
+                  ),
+                ],
+              );
+            }
 
-                if (!snapshot.hasData &&
-                    snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  );
-                }
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
+              itemCount: notes.length,
+              itemBuilder: (context, index) {
+                final note = notes[index];
 
-                final notes = snapshot.data ?? const <Note>[];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == notes.length - 1 ? 0 : 10,
+                  ),
+                  child: Dismissible(
+                    key: ValueKey(note.noteId),
+                    confirmDismiss: (direction) async {
+                      if (direction == DismissDirection.startToEnd) {
+                        await _notes.archive(note.noteId);
+                        await HapticFeedback.lightImpact();
+                        return true;
+                      }
 
-                if (notes.isEmpty) {
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
-                    children: [
-                      if (kDebugMode) ...[
-                        _debugBanner(
-                          category: widget.category,
-                          activeCount: notes.length,
-                          pendingAiCount: pendingAiCount,
-                          secondaryText: secondaryText,
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                      if (pendingAiCount > 0) ...[
-                        _processingBanner(
-                          count: pendingAiCount,
-                          secondaryText: secondaryText,
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                      Padding(
-                        padding: const EdgeInsets.only(top: 56),
-                        child: Center(
-                          child: Text(
-                            pendingAiCount > 0
-                                ? 'AI is still organizing your note.'
-                                : 'No notes here yet.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: secondaryText,
-                              fontStyle: FontStyle.italic,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 0.1,
-                              fontSize: 13.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
-                  itemCount: notes.length +
-                      (pendingAiCount > 0 ? 1 : 0) +
-                      (kDebugMode ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (kDebugMode && index == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _debugBanner(
-                          category: widget.category,
-                          activeCount: notes.length,
-                          pendingAiCount: pendingAiCount,
-                          secondaryText: secondaryText,
-                        ),
-                      );
-                    }
-
-                    final shiftedIndex = kDebugMode ? index - 1 : index;
-
-                    if (pendingAiCount > 0 && shiftedIndex == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _processingBanner(
-                          count: pendingAiCount,
-                          secondaryText: secondaryText,
-                        ),
-                      );
-                    }
-
-                    final noteIndex = pendingAiCount > 0
-                      ? shiftedIndex - 1
-                      : shiftedIndex;
-                    final note = notes[noteIndex];
-
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        bottom: noteIndex == notes.length - 1 ? 0 : 10,
-                      ),
-                      child: Dismissible(
-                        key: ValueKey(note.noteId),
-                        confirmDismiss: (direction) async {
-                          if (direction == DismissDirection.startToEnd) {
-                            await _notes.archive(note.noteId);
-                            await HapticFeedback.lightImpact();
-                            return true;
-                          }
-
-                          await _notes.cyclePriority(note.noteId);
-                          await HapticFeedback.lightImpact();
-                          return false;
-                        },
-                        background: _swipeBackground(
-                          alignment: Alignment.centerLeft,
-                          color: const Color(0xFFE8F5E9),
-                          icon: Icons.archive_outlined,
-                          label: 'Archive',
-                        ),
-                        secondaryBackground: _swipeBackground(
-                          alignment: Alignment.centerRight,
-                          color: const Color(0xFFFFF8E1),
-                          icon: Icons.swap_horiz_rounded,
-                          label: 'Priority',
-                        ),
-                        child: GlassNoteCard(
-                          note: note,
-                          onTap: () async {
-                            await HapticFeedback.lightImpact();
-                            await _openEditSheet(note);
-                          },
-                        ),
-                      ),
-                    );
-                  },
+                      await _notes.cyclePriority(note.noteId);
+                      await HapticFeedback.lightImpact();
+                      return false;
+                    },
+                    background: _swipeBackground(
+                      alignment: Alignment.centerLeft,
+                      color: const Color(0xFFE8F5E9),
+                      icon: Icons.archive_outlined,
+                      label: 'Archive',
+                    ),
+                    secondaryBackground: _swipeBackground(
+                      alignment: Alignment.centerRight,
+                      color: const Color(0xFFFFF8E1),
+                      icon: Icons.swap_horiz_rounded,
+                      label: 'Priority',
+                    ),
+                    child: GlassNoteCard(
+                      note: note,
+                      onTap: () async {
+                        await HapticFeedback.lightImpact();
+                        await _openEditSheet(note);
+                      },
+                    ),
+                  ),
                 );
               },
             );
           },
-        ),
-      ),
-    );
-  }
-
-  Widget _processingBanner({
-    required int count,
-    required Color secondaryText,
-  }) {
-    return GlassContainer(
-      borderRadius: BorderRadius.circular(18),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 1.8),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              count == 1
-                  ? 'AI is processing 1 note in the background.'
-                  : 'AI is processing $count notes in the background.',
-              style: TextStyle(
-                color: secondaryText,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _debugBanner({
-    required NoteCategory category,
-    required int activeCount,
-    required int pendingAiCount,
-    required Color secondaryText,
-  }) {
-    return GlassContainer(
-      borderRadius: BorderRadius.circular(14),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-      child: Text(
-        'DEBUG category=${category.name} active=$activeCount pendingAi=$pendingAiCount',
-        style: TextStyle(
-          color: secondaryText,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -451,6 +347,21 @@ class _FolderScreenState extends State<FolderScreen> {
                             );
                             await HapticFeedback.lightImpact();
                             if (context.mounted) {
+                              final displayTitle =
+                                  titleController.text.trim().isNotEmpty
+                                  ? titleController.text.trim()
+                                  : bodyController.text.trim();
+                              unawaited(
+                                showTopNotchSavedMessage(
+                                  context: context,
+                                  title: displayTitle.isNotEmpty
+                                      ? displayTitle
+                                      : 'Note updated',
+                                  categoryLabel: categoryLabel(selectedCategory),
+                                  subtitle:
+                                      'Priority: ${selectedPriority.name}',
+                                ),
+                              );
                               Navigator.of(context).pop();
                             }
                           },

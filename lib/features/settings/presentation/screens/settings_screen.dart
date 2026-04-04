@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wishperlog/core/config/app_env.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/background/work_manager_service.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
@@ -102,6 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await HapticFeedback.lightImpact();
     await _prefs.setDigestTime(value);
     await _users.updateDigestTime(_formatTime(value));
+    await WorkManagerService.registerTelegramDailyDigest();
 
     if (!mounted) return;
     setState(() {
@@ -150,11 +152,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     bool success = false;
-    if (value) {
-      success = await _enableFloatingCapture();
-    } else {
-      await _overlayCoordinator.hideOverlay();
-      success = true;
+    try {
+      if (value) {
+        success = await _enableFloatingCapture();
+      } else {
+        await _overlayCoordinator.hideOverlay();
+        success = true;
+      }
+    } catch (e) {
+      debugPrint('[Settings] Error setting floating capture: $e');
+      success = false;
     }
 
     if (!mounted) {
@@ -162,8 +169,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     setState(() {
       _updatingOverlayToggle = false;
-      _floatingCaptureEnabled =
-          success && value ? _overlayCoordinator.state.value.isVisible : false;
+      // Only set toggle ON if both conditions are true:
+      // 1. We successfully completed the operation
+      // 2. The coordinator reports that overlay is visible
+      _floatingCaptureEnabled = (success && value && _overlayCoordinator.state.value.isVisible) || (!value && !success);
     });
   }
 
@@ -172,44 +181,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<bool> _enableFloatingCapture() async {
-    final granted = await _overlayCoordinator.isPermissionGranted();
-    var hasPermission = granted;
+    try {
+      // Step 1: Check OS permission state
+      debugPrint('[Settings] Checking OS overlay permission...');
+      var granted = await _overlayCoordinator.isPermissionGranted();
 
-    if (!hasPermission) {
-      if (!mounted) {
+      if (!granted) {
+        debugPrint('[Settings] OS permission not granted, requesting...');
+        if (!mounted) {
+          return false;
+        }
+
+        final proceed = await showOverlayPermissionExplainerDialog(context);
+        if (!proceed) {
+          debugPrint('[Settings] User declined permission request');
+          return false;
+        }
+
+        granted = await _overlayCoordinator.requestPermission();
+
+        if (!granted) {
+          debugPrint('[Settings] Permission request failed');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Floating Capture permission was not granted. You can keep using the app normally.',
+                ),
+              ),
+            );
+          }
+          return false;
+        }
+      }
+
+      // Step 2: OS permission is confirmed granted - now boot the overlay
+      debugPrint('[Settings] OS permission granted, starting overlay...');
+      final shown = await _overlayCoordinator.showIdleBubble();
+
+      if (!shown) {
+        debugPrint('[Settings] Failed to show overlay bubble');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Floating Capture could not start right now and has been disabled safely.',
+              ),
+            ),
+          );
+        }
         return false;
       }
-      final proceed = await showOverlayPermissionExplainerDialog(context);
-      if (!proceed) {
-        return false;
-      }
-      hasPermission = await _overlayCoordinator.requestPermission();
-    }
 
-    if (!hasPermission) {
+      debugPrint('[Settings] Overlay started successfully');
+      return true;
+    } catch (e, st) {
+      debugPrint('[Settings] Exception in _enableFloatingCapture: $e');
+      debugPrintStack(stackTrace: st);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Floating Capture permission was not granted. You can keep using the app normally.',
+              'An error occurred while enabling Floating Capture.',
             ),
           ),
         );
       }
       return false;
     }
-
-    final shown = await _overlayCoordinator.showIdleBubble();
-    if (!shown && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Floating Capture could not start right now and has been disabled safely.',
-          ),
-        ),
-      );
-    }
-    return shown;
   }
 
   Future<void> _syncNow() async {

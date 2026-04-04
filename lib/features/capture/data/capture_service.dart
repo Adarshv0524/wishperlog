@@ -4,34 +4,27 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:isar/isar.dart';
-import 'package:wishperlog/core/storage/isar_service.dart';
-import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
-import 'package:wishperlog/features/sync/data/external_sync_service.dart';
+import 'package:wishperlog/core/storage/sqlite_note_store.dart';
+import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 
 class CaptureService {
   CaptureService({
-    GeminiNoteClassifier? classifier,
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    IsarService? isarService,
-    ExternalSyncService? externalSync,
+    SqliteNoteStore? noteStore,
+    NoteEventBus? noteEventBus,
     bool enableExternalSync = true,
-  }) : _classifier = classifier ?? GeminiNoteClassifier(),
-       _auth = auth ?? _safeFirebaseAuth(),
+  }) : _auth = auth ?? _safeFirebaseAuth(),
        _firestore = firestore ?? _safeFirestore(),
-       _isarService = isarService ?? IsarService.instance,
-       _externalSync = enableExternalSync
-           ? (externalSync ?? _safeExternalSync())
-           : null;
+       _noteStore = noteStore ?? SqliteNoteStore.instance,
+       _noteEventBus = noteEventBus ?? NoteEventBus.instance;
 
-  final GeminiNoteClassifier _classifier;
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
-  final IsarService _isarService;
-  final ExternalSyncService? _externalSync;
+  final SqliteNoteStore _noteStore;
+  final NoteEventBus _noteEventBus;
 
   static FirebaseAuth? _safeFirebaseAuth() {
     try {
@@ -49,14 +42,6 @@ class CaptureService {
     }
   }
 
-  static ExternalSyncService? _safeExternalSync() {
-    try {
-      return ExternalSyncService();
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<Note?> ingestRawCapture({
     required String rawTranscript,
     required CaptureSource source,
@@ -68,8 +53,6 @@ class CaptureService {
     }
 
     try {
-      final db = await _isarService.init();
-
       final now = DateTime.now();
       final user = _auth?.currentUser;
       final noteId = '${now.microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
@@ -93,17 +76,12 @@ class CaptureService {
         syncedAt: null,
       );
 
-      if (!db.isOpen) {
-        throw Exception('[CaptureService] Isar database is closed or not initialized');
-      }
 
       debugPrint('[CaptureService] Saving note: $noteId (${trimmed.length} chars, source: $source)');
       
       for (var attempt = 0; attempt < 3; attempt++) {
         try {
-          await db.writeTxn(() async {
-            await db.notes.put(pending);
-          });
+          await _noteStore.upsert(pending);
           break;
         } catch (e) {
           if (attempt < 2) {
@@ -115,60 +93,20 @@ class CaptureService {
           }
         }
       }
+
+      // Emit immediately after local commit to trigger event-driven AI processing.
+      _noteEventBus.emitNoteSaved(pending.noteId);
       
       debugPrint('[CaptureService] Note saved successfully: $noteId');
       
       if (syncToCloud) {
         unawaited(_syncNoteToFirestore(pending));
       }
-
-      unawaited(_promotePendingNote(noteId: noteId, rawTranscript: trimmed));
       return pending;
     } catch (error, stackTrace) {
       debugPrint('[CaptureService] ERROR during ingestRawCapture: $error');
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
-    }
-  }
-
-  Future<void> _promotePendingNote({
-    required String noteId,
-    required String rawTranscript,
-  }) async {
-    try {
-      final db = await _isarService.init();
-      final matches = await db.notes.filter().noteIdEqualTo(noteId).findAll();
-      final existing = matches.isEmpty ? null : matches.first;
-      if (existing == null || existing.status == NoteStatus.archived) {
-        return;
-      }
-
-      final aiResult = await _classifier.classify(rawTranscript);
-      var next = existing.copyWith(
-        title: aiResult.title,
-        cleanBody: aiResult.cleanBody,
-        category: aiResult.category,
-        priority: aiResult.priority,
-        extractedDate: aiResult.extractedDate,
-        clearExtractedDate: aiResult.extractedDate == null,
-        status: NoteStatus.active,
-        aiModel: aiResult.model,
-        updatedAt: DateTime.now(),
-        syncedAt: DateTime.now(),
-      );
-
-      final externalSync = _externalSync;
-      if (externalSync != null) {
-        final externalResult = await externalSync.syncExternalForNote(next);
-        next = externalResult.note;
-      }
-
-      await db.writeTxn(() async {
-        await db.notes.put(next);
-      });
-      await _syncNoteToFirestore(next);
-    } catch (_) {
-      // Pending notes stay visible and will be retried by AI background service.
     }
   }
 

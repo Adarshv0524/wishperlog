@@ -1,8 +1,5 @@
-import 'package:isar/isar.dart';
 import 'enums.dart';
 import 'note_helpers.dart';
-
-part 'note.g.dart';
 
 int fastHash(String string) {
   var hash = 0xcbf29ce484222000;
@@ -17,28 +14,21 @@ int fastHash(String string) {
   return hash;
 }
 
-@collection
 class Note {
-  Id get isarId => fastHash(noteId);
-
   final String noteId;
   final String uid;
   final String rawTranscript;
   final String title;
   final String cleanBody;
-  @enumerated
   final NoteCategory category;
-  @enumerated
   final NotePriority priority;
   final DateTime? extractedDate;
   final DateTime createdAt;
   final DateTime updatedAt;
-  @enumerated
   final NoteStatus status;
   final String aiModel;
   final String? gcalEventId;
   final String? gtaskId;
-  @enumerated
   final CaptureSource source;
   final DateTime? syncedAt;
 
@@ -126,6 +116,48 @@ class Note {
     };
   }
 
+  Map<String, Object?> toSqliteMap() {
+    return {
+      'note_id': noteId,
+      'uid': uid,
+      'raw_transcript': rawTranscript,
+      'title': title,
+      'clean_body': cleanBody,
+      'category': category.name,
+      'priority': priority.name,
+      'extracted_date': extractedDate?.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'status': status.name,
+      'ai_model': aiModel,
+      'gcal_event_id': gcalEventId,
+      'gtask_id': gtaskId,
+      'source': source.name,
+      'synced_at': syncedAt?.toIso8601String(),
+    };
+  }
+
+  factory Note.fromSqliteMap(Map<String, Object?> row) {
+    return Note(
+      noteId: _readString(row, 'note_id'),
+      uid: _readString(row, 'uid'),
+      rawTranscript: _readString(row, 'raw_transcript'),
+      title: _readString(row, 'title'),
+      cleanBody: _readString(row, 'clean_body'),
+      category: parseCategory(_readString(row, 'category')),
+      priority: parsePriority(_readString(row, 'priority')),
+      extractedDate: _readDate(row['extracted_date']),
+      createdAt: _readDate(row['created_at']) ?? DateTime.now(),
+      updatedAt: _readDate(row['updated_at']) ?? DateTime.now(),
+      status: _parseStatus(_readString(row, 'status')),
+      aiModel: _readString(row, 'ai_model'),
+      gcalEventId: row['gcal_event_id']?.toString(),
+      gtaskId: row['gtask_id']?.toString(),
+      source: _parseSource(_readString(row, 'source')),
+      syncedAt: _readDate(row['synced_at']),
+    );
+  }
+
   factory Note.fromFirestoreJson(
     Map<String, dynamic> json, {
     required String uid,
@@ -183,5 +215,16 @@ class Note {
       default:
         return CaptureSource.homeWritingBox;
     }
+  }
+
+  static String _readString(Map<String, Object?> row, String key) {
+    return row[key]?.toString() ?? '';
+  }
+
+  static DateTime? _readDate(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    return DateTime.tryParse(value.toString());
   }
 }

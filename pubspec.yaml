@@ -42,8 +42,8 @@ dependencies:
   firebase_auth: ^6.3.0
   google_sign_in: ^6.1.5
   cloud_firestore: ^6.2.0
-  isar: ^3.1.0+1
-  isar_flutter_libs: ^3.1.0+1
+  sqflite: ^2.4.1
+  path: ^1.9.1
   path_provider: ^2.1.5
   speech_to_text: ^7.0.0
   shared_preferences: ^2.5.3
@@ -72,7 +72,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   build_runner: ^2.4.6
-  isar_generator: ^3.0.5
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

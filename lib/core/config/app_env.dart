@@ -21,6 +21,11 @@ class AppEnv {
     return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
   }
 
+  static String get telegramBotToken {
+    final fromEnv = dotenv.maybeGet('TELEGRAM_BOT_TOKEN')?.trim();
+    return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
+  }
+
   static String get googleWebClientId {
     final fromEnv = dotenv.maybeGet('GOOGLE_WEB_CLIENT_ID')?.trim();
     return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;

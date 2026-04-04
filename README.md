@@ -13,7 +13,7 @@
 ### 📝 Note Capture
 - **Voice Capture**: Long-press Android floating bubble for instant voice-to-text capture
 - **Text Input**: Write directly in the app's thought canvas or overlay text panel
-- **Offline-First**: Save instantly to local Isar database—no internet required
+- **Offline-First**: Save instantly to local SQLite database—no internet required
 - **Real-Time Sync**: Notes automatically sync to Firestore when network available
 
 ### 🤖 AI-Powered Classification
@@ -25,7 +25,7 @@
 
 ### 📂 Organization & Search
 - **Smart Folders**: Browse notes by category with real-time count badges
-- **Fuzzy Search**: Full-text search across titles and note bodies
+- **Semantic + Pragmatic Search**: Ranked matching across title/body/raw text/category with token intent expansion
 - **Edit & Update**: Modify notes inline with Firestore sync
 - **Status Tracking**: Active, Pending AI, or Archived states
 
@@ -43,6 +43,7 @@
 ### 🎨 User Experience
 - **Theme Support**: Light/Dark/System theme with persistent preference
 - **Glass UI**: Modern glassmorphic design using Material Design 3
+- **Gentle Save Notch**: Top-center confirmation notch (`60vw`, `5-20vh`) stays visible for ~2.6s
 - **Android Overlay**: Floating bubble with draggable positioning and edge-snap physics
 - **Permission Handling**: Graceful flows for microphone and overlay permissions
 
@@ -95,10 +96,71 @@
 
 WhisperLog follows **Clean Architecture** with layers for Presentation, Features, and Data. See [ARCHITECTURE.md](ARCHITECTURE.md) for:
 - Complete system diagrams (Mermaid)
-- Database schemas (Isar + Firestore)
+- Database schemas (SQLite + Firestore)
 - Data pipeline flows
 - Service descriptions
 - 30-item tech stack reference
+
+## UX Audit Implementation
+
+WhisperLog UI is now implemented from the dual-mode audit (`whisperlog_ux_audit_dual_mode.html`) as a production token-driven component architecture.
+
+### Design System Layers
+
+1. **Theme Tokens (`lib/core/theme/`)**
+- `app_colors.dart`: dual-mode semantic color tokens via `ThemeExtension`.
+- `app_typography.dart`: audit typography roles mapped to reusable Flutter `TextStyle` contracts.
+- `app_theme.dart`: light/dark `ThemeData` with semantic `ColorScheme` mapping.
+
+2. **Layout Primitives (`lib/shared/widgets/layout/`)**
+- `glass_card.dart`: reusable translucent/blur surface.
+- `responsive_grid.dart`: adaptive grid abstraction for `.g2/.g3/.g6` style layouts.
+
+3. **Atomic Components (`lib/shared/widgets/atoms/`)**
+- `status_dot.dart`: status indicator atom.
+- `waveform_bars.dart`: recording waveform atom.
+- `shimmer_layer.dart`: processing shimmer atom.
+- `category_badge.dart`: category pill atom.
+
+4. **Molecules + Organisms**
+- `dynamic_notch_pill.dart`: state-driven notch molecule.
+- `thought_canvas.dart`: top capture organism.
+- `folder_grid_view.dart`: category-folder organism.
+- `home_screen_layout.dart`: composed home surface.
+
+### Capture UX State Machine (UI-Only Mock)
+
+Under `lib/features/capture/presentation/state/`:
+
+1. `capture_state.dart` defines `idle`, `recording`, `processing`, `saved`.
+2. `capture_ui_controller.dart` manages deterministic transitions and mock timing.
+
+Flow contract:
+
+1. `idle -> recording` on hold gesture.
+2. `recording -> processing` after release/manual stop.
+3. `processing -> saved` after 2-second mock AI delay.
+4. `saved -> idle` after 1.5-second confirmation window.
+
+This keeps UI behavior deterministic while backend wiring (SQLite/Firestore/AI orchestration) remains decoupled.
+
+## UI Structure
+
+Current high-level home composition:
+
+1. Mesh-gradient atmospheric background.
+2. Thought Canvas (35vh glass card) with borderless multiline input.
+3. Dynamic Notch Pill pinned bottom-left in the canvas.
+4. Folder Grid with six semantic categories and mock active-note counts.
+
+### Notch State Rendering
+
+1. **Idle**: compact pill, neutral status dot, helper text.
+2. **Recording**: expanded pill, pulsing status dot + waveform bars.
+3. **Processing**: medium pill with shimmer + Gemini sublabel.
+4. **Saved**: confirmation pill with parsed title + category badge.
+
+All transitions use implicit animations (`AnimatedContainer`, `AnimatedSize`, `AnimatedSwitcher`) for smooth state morphing and non-jarring content swaps.
 
 ---
 
@@ -107,8 +169,8 @@ WhisperLog follows **Clean Architecture** with layers for Presentation, Features
 ### Save Flow (Local-First, Async Cloud)
 1. User enters text/voice in Home Canvas or overlay bubble
 2. CaptureService validates and creates Note with `status: pendingAi`
-3. Note saved to **Isar database** instantly (< 50ms)
-4. User sees "Saved" toast immediately
+3. Note saved to **SQLite database** instantly (< 50ms)
+4. User sees a top-center glass notch confirmation for ~2.6s
 5. Background: event-driven AI orchestration invokes Gemini classification per newly saved note and updates status to `active`
 6. Background: FirestoreNoteSyncService → pushes to `users/{uid}/notes/{noteId}`
 
@@ -117,11 +179,11 @@ WhisperLog follows **Clean Architecture** with layers for Presentation, Features
 ### View & Search
 - **Home Screen**: StreamBuilder on category counts (real-time updates)
 - **Folder Screen**: StreamBuilder on filtered notes by category
-- **Search**: Fuzzy matching across title + cleanBody fields
+- **Search**: Glassmorphic full-screen search with ranked semantic-pragmatic matching across title + cleanBody + raw transcript + category
 
 ### Edit & Sync
 - Modify note fields → NoteRepository.updateEditedNote()
-- Isar transaction updates locally
+- SQLite transaction updates locally
 - Firestore sync with `merge: true` (server timestamp conflict resolution)
 
 ---
@@ -165,7 +227,7 @@ lib/
 
 **Frontend**: Flutter 3.11.4 • Material Design 3 • GoRouter • BLoC  
 **State**: GetIt • Streams • ValueNotifier  
-**Storage**: Isar (local) • Firestore (cloud)  
+**Storage**: SQLite (local) • Firestore (cloud)  
 **AI**: Google Gemini • Google Calendar/Tasks APIs  
 **Platform**: flutter_overlay_window • speech_to_text • permission_handler  
 **Utilities**: connectivity_plus • workmanager • flutter_dotenv  

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,13 +9,14 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
-import 'package:wishperlog/features/capture/data/capture_service.dart';
+import 'package:wishperlog/features/capture/data/note_save_service.dart';
 import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/features/notes/presentation/widgets/search_notes_modal.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/top_notch_message.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,7 +28,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
   with SingleTickerProviderStateMixin {
   final NoteRepository _notes = sl<NoteRepository>();
-  final CaptureService _captureService = sl<CaptureService>();
+  late final NoteSaveService _saveService;
   final SpeechToText _speech = SpeechToText();
   final TextEditingController _writingController = TextEditingController();
   final FocusNode _canvasFocusNode = FocusNode();
@@ -41,6 +44,9 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _saveService = sl.isRegistered<NoteSaveService>()
+        ? sl<NoteSaveService>()
+        : NoteSaveService();
     _micGlowController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 780),
@@ -149,12 +155,23 @@ class _HomeScreenState extends State<HomeScreen>
       final captured = _writingController.text.trim();
       if (captured.isNotEmpty) {
         try {
-          await _captureService.ingestRawCapture(
+          final savedNote = await _saveService.saveNote(
             rawTranscript: captured,
             source: CaptureSource.homeWritingBox,
+            syncToCloud: true,
           );
+          if (mounted) {
+            unawaited(
+              showTopNotchSavedMessage(
+                context: context,
+                title: savedNote.title,
+                categoryLabel: categoryLabel(savedNote.category),
+                subtitle: 'AI will refine this in the background.',
+              ),
+            );
+          }
         } catch (error, stackTrace) {
-          debugPrint('[HomeScreen] Error saving dictated note: $error');
+          debugPrint('[HomeScreen] Voice save error: $error');
           debugPrintStack(stackTrace: stackTrace);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -199,34 +216,58 @@ class _HomeScreenState extends State<HomeScreen>
     if (_saving) {
       return;
     }
+    
+    // Stop dictation if active
     await _stopDictation(submitCaptured: false);
+    
+    // Get text to save
+    final textToSave = _writingController.text.trim();
+    if (textToSave.isEmpty) {
+      return;
+    }
+
     setState(() {
       _saving = true;
     });
 
     await HapticFeedback.lightImpact();
+    
     try {
-      await _captureService.ingestRawCapture(
-        rawTranscript: _writingController.text,
+      final savedNote = await _saveService.saveNote(
+        rawTranscript: textToSave,
         source: CaptureSource.homeWritingBox,
+        syncToCloud: true,
       );
+      _writingController.clear();
+      
+      if (mounted) {
+        unawaited(
+          showTopNotchSavedMessage(
+            context: context,
+            title: savedNote.title,
+            categoryLabel: categoryLabel(savedNote.category),
+            subtitle: 'Tap folders to view and edit it.',
+          ),
+        );
+      }
     } catch (error, stackTrace) {
-      debugPrint('[HomeScreen] Error saving note: $error');
+      debugPrint('[HomeScreen] Save error: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to save note.')),
+          SnackBar(
+            content: Text('Failed: ${error.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
     }
-    _writingController.clear();
-
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _saving = false;
-    });
   }
 
   @override

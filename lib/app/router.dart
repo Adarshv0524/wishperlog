@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import 'package:wishperlog/features/home/presentation/screens/home_screen.dart';
+import 'package:wishperlog/features/home/presentation/home_screen_layout.dart';
 import 'package:wishperlog/features/notes/presentation/screens/folder_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/permissions_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/sign_in_screen.dart';
@@ -23,7 +23,7 @@ final GoRouter router = GoRouter(
       path: '/telegram',
       builder: (context, state) => const TelegramScreen(),
     ),
-    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+    GoRoute(path: '/home', builder: (context, state) => const HomeScreenLayout()),
     GoRoute(
       path: '/folder',
       builder: (context, state) {

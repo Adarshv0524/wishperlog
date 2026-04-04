@@ -1,0 +1,555 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.aw{font-family:var(--font-sans);padding:0 0 2rem}
+.eyebrow{font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:.4rem}
+.sh{font-size:20px;font-weight:500;color:var(--color-text-primary);margin-bottom:.25rem}
+.ss{font-size:13px;color:var(--color-text-secondary);line-height:1.6;margin-bottom:1.25rem}
+.sect{margin:0 0 2.5rem}
+.card{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);border:.5px solid var(--color-border-tertiary);padding:1rem 1.25rem}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.g6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+
+/* ─── Mode-aware CSS properties ──────────────────────────────── */
+#mw{
+  --s-bg:#08080F; --s-bar:#08080F;
+  --g1-bg:rgba(255,255,255,.054); --g1-bd:rgba(255,255,255,.10);
+  --g2-bg:rgba(255,255,255,.035); --g2-bd:rgba(255,255,255,.07);
+  --p1:#D0CCF0; --p2:#7A7598; --p3:#504C72;
+  --tm:#C8C4E8; --ts:#56527C;
+  --nb:#14142A; --nd:rgba(255,255,255,.14);
+  --nt:#E8E4FD; --ns:#7A74A8;
+  --wc:#4DAAFF;
+  --id-bg:#0C0B16;
+  --ov:#1A1A28; --ov-t:rgba(255,255,255,.1);
+  --mic-bg:rgba(124,58,237,.22); --mic-bd:rgba(124,58,237,.38)
+}
+#mw.light{
+  --s-bg:#EEEAFB; --s-bar:#E9E5F8;
+  --g1-bg:rgba(255,255,255,.88); --g1-bd:rgba(0,0,0,.07);
+  --g2-bg:rgba(255,255,255,.60); --g2-bd:rgba(0,0,0,.05);
+  --p1:#1A1530; --p2:#6B6590; --p3:#9B97B8;
+  --tm:#1A1530; --ts:#6B6590;
+  --nb:rgba(240,238,252,.96); --nd:rgba(0,0,0,.10);
+  --nt:#1A1530; --ns:#7A74A8;
+  --wc:#3B82F6;
+  --id-bg:#FDFBF0;
+  --ov:#F0EEF8; --ov-t:rgba(0,0,0,.07);
+  --mic-bg:rgba(124,58,237,.12); --mic-bd:rgba(124,58,237,.28)
+}
+
+/* ─── Phone classes using mode variables ──────────────────────── */
+.v-scr{background:var(--s-bg);padding:6px 6px 10px;transition:background .3s}
+.v-ids{background:var(--id-bg);padding:6px 6px 10px;transition:background .3s}
+.v-ov{background:var(--ov);min-height:336px;padding:10px;position:relative;transition:background .3s}
+.v-bar{background:var(--s-bar);height:26px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;transition:background .3s}
+.v-obar{background:var(--ov);height:26px;display:flex;align-items:center;padding:0 12px;transition:background .3s}
+.v-g1{background:var(--g1-bg);border:.5px solid var(--g1-bd);border-radius:10px;transition:background .3s,border-color .3s}
+.v-g2{background:var(--g2-bg);border:.5px solid var(--g2-bd);border-radius:8px;transition:background .3s,border-color .3s}
+.v-p1{color:var(--p1);font-size:10px;font-weight:500;line-height:1.4;transition:color .3s}
+.v-p2{color:var(--p2);font-size:8.5px;line-height:1.4;transition:color .3s}
+.v-p3{color:var(--p3);font-size:8px;transition:color .3s}
+.v-tm{font-size:10px;font-weight:600;color:var(--tm);transition:color .3s}
+.v-ts{font-size:8px;color:var(--ts);display:flex;gap:3px;transition:color .3s}
+.ph{width:192px;border-radius:30px;border:7px solid #1A1A2C;overflow:hidden;flex-shrink:0}
+
+/* ─── Category vars ──────────────────────────────────────────── */
+:root{--ct:#60A5FA;--cr:#F472B6;--ci:#FBBF24;--cf:#34D399;--cj:#A78BFA;--cg:#94A3B8}
+
+/* ─── Notch ──────────────────────────────────────────────────── */
+.notch-pill{
+  background:var(--nb);border:.5px solid var(--nd);border-radius:100px;
+  display:flex;align-items:center;gap:5px;padding:0 10px;
+  height:24px;min-width:88px;
+  transition:all .5s cubic-bezier(.34,1.4,.64,1),background .3s,border-color .3s;
+  justify-content:center;overflow:hidden;position:relative
+}
+.notch-pill.recording{height:40px;min-width:190px}
+.notch-pill.processing{height:30px;min-width:156px}
+.notch-pill.saved{height:34px;min-width:172px}
+.n-txt{font-size:10.5px;font-weight:500;color:var(--nt);white-space:nowrap;transition:color .3s}
+.n-sub{font-size:8.5px;color:var(--ns);white-space:nowrap;transition:color .3s}
+.nd{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s}
+.nd-idle{background:#353360}
+.nd-rec{background:var(--wc);animation:bp 1s ease-in-out infinite}
+.nd-proc{background:#9B6FFF;animation:bp 1.4s ease-in-out infinite}
+.nd-ok{background:#32C878}
+@keyframes bp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.65)}}
+.wb{width:2.5px;border-radius:2px;background:var(--wc);animation:wa var(--d,.8s) ease-in-out infinite var(--dl,0s) alternate;height:4px;transition:background .3s}
+@keyframes wa{from{height:3px}to{height:var(--h,14px)}}
+.wf{display:flex;align-items:center;gap:2px;height:18px}
+.pshimmer{position:absolute;top:0;left:-100%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(155,111,255,.22),transparent);animation:shm 1.6s ease-in-out infinite;pointer-events:none}
+@keyframes shm{to{left:200%}}
+@keyframes bp2{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.65)}}
+@keyframes fdIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+
+/* ─── Principle cards ────────────────────────────────────────── */
+.pr{border-radius:var(--border-radius-md);border:.5px solid var(--color-border-tertiary);padding:.85rem 1rem;background:var(--color-background-secondary)}
+
+/* ─── Mode toggle ────────────────────────────────────────────── */
+.mtog{display:flex;border:.5px solid var(--color-border-secondary);border-radius:100px;overflow:hidden}
+.mbtn{padding:5px 18px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--color-text-secondary);transition:all .2s;white-space:nowrap}
+.mbtn.on{background:var(--color-background-primary);color:var(--color-text-primary);border-radius:100px;margin:2px}
+
+/* ─── Motion table ───────────────────────────────────────────── */
+.mr{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:.5px solid var(--color-border-tertiary)}
+.mn{font-size:12px;font-weight:500;color:var(--color-text-primary);min-width:130px;flex-shrink:0}
+.ms{font-size:11px;color:var(--color-text-secondary);font-family:var(--font-mono);min-width:160px;flex-shrink:0}
+.mu{font-size:11px;color:var(--color-text-tertiary)}
+
+/* ─── Colour swatches ────────────────────────────────────────── */
+.sw{height:34px;border-radius:6px;margin-bottom:4px}
+.swl{font-size:10px;color:var(--color-text-secondary);font-weight:500}
+.swh{font-size:9px;color:var(--color-text-tertiary);font-family:var(--font-mono)}
+.swi{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.swd{width:28px;height:18px;border-radius:4px;flex-shrink:0;border:.5px solid var(--color-border-tertiary)}
+</style>
+
+<div class="aw" id="mw">
+
+<!-- Header -->
+<div style="padding:1.5rem 0 1rem;border-bottom:.5px solid var(--color-border-tertiary);margin-bottom:2rem;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+  <div>
+    <div class="eyebrow">WhisperLog · Design System</div>
+    <h1 style="font-size:24px;font-weight:500;color:var(--color-text-primary);margin-bottom:.25rem">UI / UX Audit v2.1</h1>
+    <p style="font-size:13px;color:var(--color-text-secondary)">Complete dark + light specification. Glassmorphic. Android-first. Zero-friction capture.</p>
+  </div>
+  <div>
+    <div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:6px;text-align:center">Preview screens as</div>
+    <div class="mtog">
+      <button class="mbtn on" id="b-dk" onclick="setMode('dark')">Dark</button>
+      <button class="mbtn" id="b-lt" onclick="setMode('light')">Light</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRINCIPLES -->
+<div class="sect">
+  <div class="eyebrow">Design principles</div>
+  <div class="sh">Six laws of WhisperLog UX</div>
+  <div class="g3">
+    <div class="pr"><div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">01</div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Capture beats cognition drift</div><div style="font-size:11px;color:var(--color-text-secondary)">Tap to voice or type. No navigation, no modes, no modals before the thought lands.</div></div>
+    <div class="pr"><div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">02</div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Local save is the contract</div><div style="font-size:11px;color:var(--color-text-secondary)">Confirmation fires on SQLite commit. Cloud and AI are invisible enrichments.</div></div>
+    <div class="pr"><div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">03</div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Motion is state, not decoration</div><div style="font-size:11px;color:var(--color-text-secondary)">Every animation signals a status change. Nothing moves without meaning.</div></div>
+    <div class="pr"><div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">04</div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Glass breathes depth</div><div style="font-size:11px;color:var(--color-text-secondary)">Four opacity levels. Hierarchy is felt through translucency, not shadow.</div></div>
+    <div class="pr"><div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">05</div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Category colours leak</div><div style="font-size:11px;color:var(--color-text-secondary)">In a folder, the glass surface tints to that folder's colour ramp. Felt, not seen.</div></div>
+    <div class="pr"><div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">06</div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">No bottom nav. Ever.</div><div style="font-size:11px;color:var(--color-text-secondary)">Navigation lives at surface level. The canvas is always present.</div></div>
+  </div>
+</div>
+
+<!-- COLOR SYSTEM -->
+<div class="sect">
+  <div class="eyebrow">Color system</div>
+  <div class="sh">Dark + light palette reference</div>
+
+  <div class="g2" style="margin-bottom:1rem">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:.75rem">
+        <div style="width:8px;height:8px;border-radius:50%;background:#3B3060"></div>
+        <span style="font-size:12px;font-weight:500;color:var(--color-text-primary)">Dark mode</span>
+      </div>
+      <div class="swi"><div class="swd" style="background:#08080F"></div><div><div class="swl">Background base</div><div class="swh">#08080F</div></div></div>
+      <div class="swi"><div class="swd" style="background:#1A1924"></div><div><div class="swl">Glass L1 — 8% white</div><div class="swh">rgba(255,255,255,.054)</div></div></div>
+      <div class="swi"><div class="swd" style="background:#141320"></div><div><div class="swl">Glass L2 — 3.5% white</div><div class="swh">rgba(255,255,255,.035)</div></div></div>
+      <div class="swi"><div class="swd" style="background:#D0CCF0"></div><div><div class="swl">Text primary</div><div class="swh">#D0CCF0</div></div></div>
+      <div class="swi"><div class="swd" style="background:#7A7598"></div><div><div class="swl">Text secondary</div><div class="swh">#7A7598</div></div></div>
+      <div class="swi" style="margin:0"><div class="swd" style="background:#504C72"></div><div><div class="swl">Text tertiary</div><div class="swh">#504C72</div></div></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:.75rem">
+        <div style="width:8px;height:8px;border-radius:50%;background:#A8A0E0;border:.5px solid var(--color-border-secondary)"></div>
+        <span style="font-size:12px;font-weight:500;color:var(--color-text-primary)">Light mode</span>
+      </div>
+      <div class="swi"><div class="swd" style="background:#EEEAFB"></div><div><div class="swl">Background base</div><div class="swh">#EEEAFB</div></div></div>
+      <div class="swi"><div class="swd" style="background:#FFFFFF"></div><div><div class="swl">Glass L1 — 88% white</div><div class="swh">rgba(255,255,255,.88)</div></div></div>
+      <div class="swi"><div class="swd" style="background:#F0EDFB"></div><div><div class="swl">Glass L2 — 60% white</div><div class="swh">rgba(255,255,255,.60)</div></div></div>
+      <div class="swi"><div class="swd" style="background:#1A1530"></div><div><div class="swl">Text primary</div><div class="swh">#1A1530</div></div></div>
+      <div class="swi"><div class="swd" style="background:#6B6590"></div><div><div class="swl">Text secondary</div><div class="swh">#6B6590</div></div></div>
+      <div class="swi" style="margin:0"><div class="swd" style="background:#9B97B8"></div><div><div class="swl">Text tertiary</div><div class="swh">#9B97B8</div></div></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1rem">
+    <div class="g2">
+      <div>
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:.5rem">Dark glass surfaces</div>
+        <div style="background:#08080F;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.13);border-radius:7px;padding:6px 9px"><span style="font-size:9.5px;color:#D0CCF0">L1 · Primary pane (8%w) · blur 20px</span></div>
+          <div style="background:rgba(255,255,255,.054);border:.5px solid rgba(255,255,255,.09);border-radius:7px;padding:6px 9px"><span style="font-size:9.5px;color:#B0ACCC">L2 · Canvas input (5.4%w) · blur 24px</span></div>
+          <div style="background:rgba(255,255,255,.035);border:.5px solid rgba(255,255,255,.06);border-radius:7px;padding:6px 9px"><span style="font-size:9.5px;color:#8E8AAC">L3 · Card row (3.5%w) · blur 16px</span></div>
+          <div style="background:rgba(255,255,255,.02);border:.5px solid rgba(255,255,255,.04);border-radius:7px;padding:6px 9px"><span style="font-size:9.5px;color:#605C80">L4 · Meta chip (2%w) · blur 8px</span></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:.5rem">Light glass surfaces</div>
+        <div style="background:#EEEAFB;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="background:rgba(255,255,255,.88);border:.5px solid rgba(0,0,0,.07);border-radius:7px;padding:6px 9px"><span style="font-size:9.5px;color:#1A1530">L1 · Primary pane (88%w) · blur 20px</span></div>
+          <div style="background:rgba(255,255,255,.65);border:.5px solid rgba(0,0,0,.05);border-radius:7px;padding:6px 9px"><span style="font-size:9.5px;color:#2A2545">L2 · Canvas input (65%w) · blur 24px</span></div>
+          <div style="background:rgba(255,255,255,.45);border:.5px solid rgba(0,0,0,.04);border-radius:7px;padding:6px 9px"><span style="font-size:9.5px;color:#4A4570">L3 · Card row (45%w) · blur 16px</span></div>
+          <div style="background:rgba(255,255,255,.28);border:.5px solid rgba(0,0,0,.03);border-radius:7px;padding:6px 9px"><span style="font-size:9.5px;color:#6B6590">L4 · Meta chip (28%w) · blur 8px</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:.6rem">Category chromatics — same hex in both modes</div>
+  <div class="g6">
+    <div><div class="sw" style="background:#60A5FA"></div><div class="swl">Tasks</div><div class="swh">#60A5FA</div></div>
+    <div><div class="sw" style="background:#F472B6"></div><div class="swl">Reminders</div><div class="swh">#F472B6</div></div>
+    <div><div class="sw" style="background:#FBBF24"></div><div class="swl">Ideas</div><div class="swh">#FBBF24</div></div>
+    <div><div class="sw" style="background:#34D399"></div><div class="swl">Follow-up</div><div class="swh">#34D399</div></div>
+    <div><div class="sw" style="background:#A78BFA"></div><div class="swl">Journal</div><div class="swh">#A78BFA</div></div>
+    <div><div class="sw" style="background:#94A3B8"></div><div class="swl">General</div><div class="swh">#94A3B8</div></div>
+  </div>
+
+  <div style="margin-top:1rem">
+    <div style="font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:.5rem">Background mesh nodes</div>
+    <div class="g2">
+      <div class="card" style="padding:.75rem 1rem">
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:.4rem">Dark — 5 nodes drifting at 40s interval</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#08080F;border:.5px solid var(--color-border-tertiary);margin-bottom:2px"></div><div class="swh">#08080F</div></div>
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#1B0A3E;margin-bottom:2px"></div><div class="swh">#1B0A3E</div></div>
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#061A1A;margin-bottom:2px"></div><div class="swh">#061A1A</div></div>
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#0D0D1F;margin-bottom:2px"></div><div class="swh">#0D0D1F</div></div>
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#1A0A1E;margin-bottom:2px"></div><div class="swh">#1A0A1E</div></div>
+        </div>
+      </div>
+      <div class="card" style="padding:.75rem 1rem">
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:.4rem">Light — 5 nodes soft lavender field</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#EEEAFB;border:.5px solid var(--color-border-tertiary);margin-bottom:2px"></div><div class="swh">#EEEAFB</div></div>
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#E0D8FA;border:.5px solid var(--color-border-tertiary);margin-bottom:2px"></div><div class="swh">#E0D8FA</div></div>
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#D8EEF0;border:.5px solid var(--color-border-tertiary);margin-bottom:2px"></div><div class="swh">#D8EEF0</div></div>
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#EAE0F8;border:.5px solid var(--color-border-tertiary);margin-bottom:2px"></div><div class="swh">#EAE0F8</div></div>
+          <div style="text-align:center"><div style="width:32px;height:20px;border-radius:4px;background:#F5F0FF;border:.5px solid var(--color-border-tertiary);margin-bottom:2px"></div><div class="swh">#F5F0FF</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- THOUGHT NOTCH -->
+<div class="sect">
+  <div class="eyebrow">The Thought Notch</div>
+  <div class="sh">Android Dynamic Island — toggle mode above to preview</div>
+  <p class="ss">Dark mode: deep indigo glass pill with white text and glow-coloured border states. Light mode: frosted white glass pill with near-black text — same spring physics, same border state colours. Both use Spring(280, 26).</p>
+  <div class="card" style="display:flex;flex-direction:column;align-items:center;padding:2rem 1rem">
+    <div id="nlive" class="notch-pill">
+      <div id="nd0" class="nd nd-idle"></div>
+      <span class="n-txt" style="font-size:10px;opacity:.7">whisperlog</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;justify-content:center">
+      <button onclick="setN('idle')">Idle</button>
+      <button onclick="setN('recording')">Recording</button>
+      <button onclick="setN('processing')">AI processing</button>
+      <button onclick="setN('saved')">Saved</button>
+    </div>
+  </div>
+  <div class="g2" style="margin-top:.75rem;gap:10px">
+    <div class="card" style="padding:.85rem">
+      <div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:.5rem">State dimensions</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--color-border-tertiary)"><span>Idle</span><span style="font-family:var(--font-mono);color:var(--color-text-tertiary)">88 × 24dp</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--color-border-tertiary)"><span>Recording</span><span style="font-family:var(--font-mono);color:var(--color-text-tertiary)">190 × 40dp</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--color-border-tertiary)"><span>AI processing</span><span style="font-family:var(--font-mono);color:var(--color-text-tertiary)">156 × 30dp</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Saved + category</span><span style="font-family:var(--font-mono);color:var(--color-text-tertiary)">172 × 34dp</span></div>
+      </div>
+    </div>
+    <div class="card" style="padding:.85rem">
+      <div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:.5rem">Mode differences</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);display:flex;flex-direction:column;gap:6px">
+        <div style="padding:3px 0;border-bottom:.5px solid var(--color-border-tertiary)"><span style="font-weight:500;color:var(--color-text-primary)">Dark pill:</span> #14142A bg · white 14% border · white text</div>
+        <div style="padding:3px 0;border-bottom:.5px solid var(--color-border-tertiary)"><span style="font-weight:500;color:var(--color-text-primary)">Light pill:</span> rgba(240,238,252,.96) · black 10% border · dark text</div>
+        <div style="padding:3px 0"><span style="font-weight:500;color:var(--color-text-primary)">Shared:</span> Spring(280,26) · Content fades in 80ms after size starts · 2600ms auto-return to idle</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN MOCKUPS -->
+<div class="sect">
+  <div class="eyebrow">Screen designs</div>
+  <div class="sh">Four key surfaces — toggle above to switch mode</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+
+    <!-- P1: Home Canvas -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div class="ph">
+        <div class="v-bar"><span class="v-tm">9:41</span><div class="v-ts"><span>●●●</span><span>78%</span></div></div>
+        <div class="v-scr">
+          <div style="display:flex;justify-content:center;margin-bottom:6px">
+            <div style="background:var(--nb);border:.5px solid var(--nd);border-radius:100px;padding:3px 10px;display:flex;align-items:center;gap:4px;transition:background .3s,border-color .3s">
+              <div style="width:5px;height:5px;border-radius:50%;background:#32C878"></div>
+              <span class="v-p3" style="color:var(--ns);font-size:7.5px">Meeting notes · Ideas</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0 2px;margin-bottom:6px">
+            <span class="v-p1" style="font-size:10px;font-weight:300;letter-spacing:.04em;opacity:.7">whisperlog</span>
+            <div style="width:16px;height:16px;border-radius:50%;border:.5px solid var(--g1-bd);display:flex;align-items:center;justify-content:center;transition:border-color .3s">
+              <div style="width:8px;height:1px;background:var(--p2);box-shadow:0 -2.5px 0 var(--p2),0 2.5px 0 var(--p2);transition:background .3s"></div>
+            </div>
+          </div>
+          <div class="v-g1" style="padding:8px;margin-bottom:6px;min-height:96px;position:relative">
+            <span class="v-p2" style="opacity:.45">What's on your mind…</span>
+            <div style="position:absolute;bottom:6px;right:6px;width:24px;height:24px;border-radius:50%;background:var(--mic-bg);border:.5px solid var(--mic-bd);transition:background .3s,border-color .3s"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+            <div class="v-g2" style="padding:6px;border-left:2px solid var(--ct)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span class="v-p1" style="font-size:8.5px">Tasks</span><div style="background:rgba(96,165,250,.18);border-radius:100px;padding:0 4px"><span style="font-size:7px;color:var(--ct);font-weight:600">7</span></div></div><span class="v-p3" style="font-size:7px">GTask synced</span></div>
+            <div class="v-g2" style="padding:6px;border-left:2px solid var(--cr)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span class="v-p1" style="font-size:8.5px">Reminders</span><div style="background:rgba(244,114,182,.18);border-radius:100px;padding:0 4px"><span style="font-size:7px;color:var(--cr);font-weight:600">3</span></div></div><span class="v-p3" style="font-size:7px">2 upcoming</span></div>
+            <div class="v-g2" style="padding:6px;border-left:2px solid var(--ci)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span class="v-p1" style="font-size:8.5px">Ideas</span><div style="background:rgba(251,191,36,.18);border-radius:100px;padding:0 4px"><span style="font-size:7px;color:var(--ci);font-weight:600">12</span></div></div><span class="v-p3" style="font-size:7px">App redesign</span></div>
+            <div class="v-g2" style="padding:6px;border-left:2px solid var(--cf)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span class="v-p1" style="font-size:8.5px">Follow-up</span><div style="background:rgba(52,211,153,.18);border-radius:100px;padding:0 4px"><span style="font-size:7px;color:var(--cf);font-weight:600">4</span></div></div><span style="font-size:7px;color:#F43F5E">2 overdue</span></div>
+            <div class="v-g2" style="padding:6px;border-left:2px solid var(--cj)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span class="v-p1" style="font-size:8.5px">Journal</span><div style="background:rgba(167,139,250,.18);border-radius:100px;padding:0 4px"><span style="font-size:7px;color:var(--cj);font-weight:600">28</span></div></div><span class="v-p3" style="font-size:7px">6-day streak</span></div>
+            <div class="v-g2" style="padding:6px;border-left:2px solid var(--cg)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span class="v-p1" style="font-size:8.5px">General</span><div style="background:rgba(148,163,184,.18);border-radius:100px;padding:0 4px"><span style="font-size:7px;color:var(--cg);font-weight:600">9</span></div></div><span class="v-p3" style="font-size:7px">catch-all</span></div>
+          </div>
+        </div>
+      </div>
+      <span style="font-size:10px;color:var(--color-text-tertiary)">Home canvas</span>
+    </div>
+
+    <!-- P2: Ideas folder with colour leak -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div class="ph">
+        <div class="v-bar"><span class="v-tm">9:41</span><div class="v-ts"><span>●●●</span><span>78%</span></div></div>
+        <div class="v-ids">
+          <div style="padding:2px 0 7px;display:flex;align-items:center;gap:5px">
+            <div style="width:14px;height:14px;border-radius:50%;border:.5px solid var(--g1-bd);display:flex;align-items:center;justify-content:center;transition:border-color .3s">
+              <div style="width:0;height:0;border-top:3px solid transparent;border-bottom:3px solid transparent;border-right:5px solid var(--p2);margin-left:-1px;transition:border-right-color .3s"></div>
+            </div>
+            <span class="v-p1" style="color:var(--ci);font-size:10px">Ideas</span>
+            <div style="background:rgba(251,191,36,.18);border:.5px solid rgba(251,191,36,.32);border-radius:100px;padding:0 5px"><span style="font-size:7px;color:var(--ci);font-weight:600">12</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div class="v-g1" style="padding:6px;border-left:2px solid var(--ci)">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px">
+                <span class="v-p1" style="font-size:8.5px">App redesign concept</span>
+                <div style="width:5px;height:5px;border-radius:50%;background:#F43F5E;flex-shrink:0;margin-top:2px"></div>
+              </div>
+              <span class="v-p2" style="display:block;font-size:7.5px;margin-bottom:2px">Folder cards grow based on note volume...</span>
+              <div style="display:flex;gap:3px;align-items:center">
+                <div style="background:rgba(251,191,36,.16);border-radius:100px;padding:1px 4px"><span style="font-size:6.5px;color:var(--ci)">Ideas</span></div>
+                <span class="v-p3" style="font-size:7px">2m ago</span>
+              </div>
+            </div>
+            <div class="v-g1" style="padding:6px;border-left:2px solid rgba(155,111,255,.55);position:relative;overflow:hidden">
+              <div class="pshimmer"></div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px">
+                <span class="v-p1" style="font-size:8.5px;opacity:.75">Thought Notch states</span>
+                <div style="width:7px;height:7px;border-radius:50%;border:.5px solid rgba(155,111,255,.55);animation:bp2 1.4s ease-in-out infinite;flex-shrink:0"></div>
+              </div>
+              <span class="v-p2" style="display:block;font-size:7.5px;margin-bottom:2px;opacity:.6">Pending AI classification...</span>
+              <div style="background:rgba(155,111,255,.14);border-radius:100px;padding:1px 4px;width:fit-content"><span style="font-size:6.5px;color:#9B6FFF">AI pending</span></div>
+            </div>
+            <div class="v-g1" style="padding:6px;border-left:2px solid var(--ci)">
+              <span class="v-p1" style="display:block;font-size:8.5px;margin-bottom:2px">WhatsApp CRM bridge</span>
+              <span class="v-p2" style="display:block;font-size:7.5px;margin-bottom:2px">Lightweight link between tasks...</span>
+              <div style="display:flex;gap:3px;align-items:center">
+                <div style="background:rgba(251,191,36,.16);border-radius:100px;padding:1px 4px"><span style="font-size:6.5px;color:var(--ci)">Ideas</span></div>
+                <span class="v-p3" style="font-size:7px">1h ago</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:center;padding-top:8px">
+            <div style="background:rgba(251,191,36,.14);border:.5px solid rgba(251,191,36,.28);border-radius:100px;padding:4px 14px;display:flex;align-items:center;gap:3px">
+              <span style="font-size:12px;color:var(--ci);line-height:1">+</span>
+              <span class="v-p3" style="color:var(--ci);font-size:7.5px">New idea</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span style="font-size:10px;color:var(--color-text-tertiary)">Ideas · colour leak</span>
+    </div>
+
+    <!-- P3: Search -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div class="ph">
+        <div class="v-bar"><span class="v-tm">9:41</span><div class="v-ts"><span>●●●</span><span>78%</span></div></div>
+        <div class="v-scr">
+          <div class="v-g1" style="display:flex;align-items:center;gap:5px;padding:5px 7px;margin-bottom:6px">
+            <div style="width:10px;height:10px;border-radius:50%;border:1.5px solid var(--g1-bd);transition:border-color .3s"></div>
+            <span class="v-p2" style="flex:1;opacity:.5;font-size:7.5px">Search notes…</span>
+            <span class="v-p3" style="font-size:10px;opacity:.4">×</span>
+          </div>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px">
+            <div style="background:rgba(96,165,250,.16);border:.5px solid rgba(96,165,250,.28);border-radius:100px;padding:2px 5px"><span style="font-size:7px;color:var(--ct)">Tasks</span></div>
+            <div style="background:rgba(251,191,36,.16);border:.5px solid rgba(251,191,36,.28);border-radius:100px;padding:2px 5px"><span style="font-size:7px;color:var(--ci)">Ideas</span></div>
+            <div class="v-g2" style="padding:2px 5px;border-radius:100px"><span class="v-p3" style="font-size:7px">Reminders</span></div>
+            <div class="v-g2" style="padding:2px 5px;border-radius:100px"><span class="v-p3" style="font-size:7px">Journal</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div class="v-g2" style="padding:6px">
+              <div style="display:flex;gap:3px;align-items:baseline;margin-bottom:1px">
+                <span class="v-p1" style="font-size:8.5px">App redesign concept</span>
+                <div style="background:rgba(251,191,36,.18);border-radius:3px;padding:0 3px;flex-shrink:0"><span style="font-size:6px;color:var(--ci)">Ideas</span></div>
+              </div>
+              <span class="v-p2" style="font-size:7.5px">...cards grew based on <span style="color:var(--ci);font-weight:500">note volume</span>...</span>
+            </div>
+            <div class="v-g2" style="padding:6px">
+              <div style="display:flex;gap:3px;align-items:baseline;margin-bottom:1px">
+                <span class="v-p1" style="font-size:8.5px">Buy new keyboard</span>
+                <div style="background:rgba(96,165,250,.18);border-radius:3px;padding:0 3px;flex-shrink:0"><span style="font-size:6px;color:var(--ct)">Tasks</span></div>
+              </div>
+              <span class="v-p2" style="font-size:7.5px">Mechanical 65%, due Friday</span>
+            </div>
+            <div class="v-g2" style="padding:6px">
+              <div style="display:flex;gap:3px;align-items:baseline;margin-bottom:1px">
+                <span class="v-p1" style="font-size:8.5px">Voice shortcut commands</span>
+                <div style="background:rgba(251,191,36,.18);border-radius:3px;padding:0 3px;flex-shrink:0"><span style="font-size:6px;color:var(--ci)">Ideas</span></div>
+              </div>
+              <span class="v-p2" style="font-size:7.5px">"remind tomorrow" → calendar sync</span>
+            </div>
+          </div>
+          <div style="margin-top:6px;text-align:center"><span class="v-p3" style="font-size:7px;opacity:.7">Ranked by pragmatic relevance</span></div>
+        </div>
+      </div>
+      <span style="font-size:10px;color:var(--color-text-tertiary)">Full-screen search</span>
+    </div>
+
+    <!-- P4: Overlay -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div class="ph">
+        <div class="v-obar"><span class="v-tm" style="opacity:.4">Other app</span></div>
+        <div class="v-ov">
+          <span class="v-p3" style="color:var(--ov-t);font-size:7px">Another app is open here...</span>
+          <div style="position:absolute;right:8px;top:42px;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="background:rgba(124,58,237,.22);border:.5px solid rgba(124,58,237,.38);border-radius:100px;width:36px;height:36px;display:flex;align-items:center;justify-content:center">
+                <div style="width:12px;height:12px;border-radius:50%;background:rgba(124,58,237,.7)"></div>
+              </div>
+              <span class="v-p3" style="color:rgba(124,58,237,.55);font-size:6.5px">idle</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="background:rgba(13,26,46,.92);border:.5px solid rgba(77,170,255,.4);border-radius:100px;width:58px;height:28px;display:flex;align-items:center;justify-content:center;gap:2px">
+                <div style="width:2px;border-radius:1px;background:#4DAAFF;height:5px"></div>
+                <div style="width:2px;border-radius:1px;background:#4DAAFF;height:11px"></div>
+                <div style="width:2px;border-radius:1px;background:#4DAAFF;height:14px"></div>
+                <div style="width:2px;border-radius:1px;background:#4DAAFF;height:8px"></div>
+                <div style="width:2px;border-radius:1px;background:#4DAAFF;height:12px"></div>
+              </div>
+              <span class="v-p3" style="color:rgba(77,170,255,.55);font-size:6.5px">recording</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div class="v-g1" style="border-radius:12px;padding:7px;width:124px">
+                <div style="display:flex;gap:3px;margin-bottom:4px;align-items:center">
+                  <div style="width:4px;height:4px;border-radius:50%;background:var(--ci)"></div>
+                  <span class="v-p2" style="font-size:7px">Quick note</span>
+                </div>
+                <div class="v-g2" style="padding:4px 5px;margin-bottom:4px;border-radius:6px">
+                  <span class="v-p3" style="font-size:7px">Type your thought...</span>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:3px">
+                  <div class="v-g2" style="border-radius:4px;padding:2px 5px"><span class="v-p3" style="font-size:7px">×</span></div>
+                  <div style="background:rgba(124,58,237,.22);border:.5px solid rgba(124,58,237,.38);border-radius:4px;padding:2px 5px"><span style="font-size:7px;color:#A78BFA">save</span></div>
+                </div>
+              </div>
+              <span class="v-p3" style="font-size:6.5px">text panel</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span style="font-size:10px;color:var(--color-text-tertiary)">Overlay · 3 states</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- CATEGORY CHROMATICS -->
+<div class="sect">
+  <div class="eyebrow">Category chromatics</div>
+  <div class="sh">Folder colour leaks — dark and light tints specified</div>
+  <p class="ss">Entering a folder shifts the mesh gradient's dominant hue node and tints all glass surfaces. Dark: 4–6% colour on near-black. Light: 3–5% colour saturation on near-white. Felt, not seen.</p>
+  <div class="g6">
+    <div style="border-radius:10px;padding:10px;border:.5px solid rgba(96,165,250,.32);background:rgba(96,165,250,.07)"><div style="width:100%;height:3px;background:var(--ct);border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;font-weight:500;color:var(--ct);margin-bottom:3px">Tasks</div><div style="font-size:8px;color:var(--color-text-tertiary)">Dark: #060D18<br>Light: #F0F5FF</div></div>
+    <div style="border-radius:10px;padding:10px;border:.5px solid rgba(244,114,182,.32);background:rgba(244,114,182,.07)"><div style="width:100%;height:3px;background:var(--cr);border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;font-weight:500;color:var(--cr);margin-bottom:3px">Reminders</div><div style="font-size:8px;color:var(--color-text-tertiary)">Dark: #140810<br>Light: #FFF0F8</div></div>
+    <div style="border-radius:10px;padding:10px;border:.5px solid rgba(251,191,36,.32);background:rgba(251,191,36,.07)"><div style="width:100%;height:3px;background:var(--ci);border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;font-weight:500;color:var(--ci);margin-bottom:3px">Ideas</div><div style="font-size:8px;color:var(--color-text-tertiary)">Dark: #0C0B16<br>Light: #FDFBF0</div></div>
+    <div style="border-radius:10px;padding:10px;border:.5px solid rgba(52,211,153,.32);background:rgba(52,211,153,.07)"><div style="width:100%;height:3px;background:var(--cf);border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;font-weight:500;color:var(--cf);margin-bottom:3px">Follow-up</div><div style="font-size:8px;color:var(--color-text-tertiary)">Dark: #060F0C<br>Light: #EFFAF6</div></div>
+    <div style="border-radius:10px;padding:10px;border:.5px solid rgba(167,139,250,.32);background:rgba(167,139,250,.07)"><div style="width:100%;height:3px;background:var(--cj);border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;font-weight:500;color:var(--cj);margin-bottom:3px">Journal</div><div style="font-size:8px;color:var(--color-text-tertiary)">Dark: #0C0A16<br>Light: #F5F0FF</div></div>
+    <div style="border-radius:10px;padding:10px;border:.5px solid rgba(148,163,184,.32);background:rgba(148,163,184,.07)"><div style="width:100%;height:3px;background:var(--cg);border-radius:2px;margin-bottom:6px"></div><div style="font-size:10px;font-weight:500;color:var(--cg);margin-bottom:3px">General</div><div style="font-size:8px;color:var(--color-text-tertiary)">Dark: #0A0A0E<br>Light: #F4F5F8</div></div>
+  </div>
+</div>
+
+<!-- MOTION TOKENS -->
+<div class="sect">
+  <div class="eyebrow">Motion language</div>
+  <div class="sh">Every duration has a job</div>
+  <div class="card" style="padding:.85rem 1rem">
+    <div class="mr"><div class="mn">Micro-snap</div><div class="ms">120ms · ease-out</div><div class="mu">Button, chip toggle, priority dot — both modes identical</div></div>
+    <div class="mr"><div class="mn">Thought Notch</div><div class="ms">Spring(280, 26)</div><div class="mu">All morph transitions — same spring in dark and light</div></div>
+    <div class="mr"><div class="mn">Save confirm</div><div class="ms">350ms · Spring(240,22)</div><div class="mu">Notch → saved state after local SQLite commit</div></div>
+    <div class="mr"><div class="mn">Mode transition</div><div class="ms">300ms · ease-in-out</div><div class="mu">All surfaces crossfade on theme toggle, no flash</div></div>
+    <div class="mr"><div class="mn">Screen transition</div><div class="ms">380ms · Spring(260,28)</div><div class="mu">Home → Folder, any surface push/pop</div></div>
+    <div class="mr"><div class="mn">Folder stagger</div><div class="ms">60ms per card</div><div class="mu">Grid enter on first load / back nav return</div></div>
+    <div class="mr"><div class="mn">AI shimmer</div><div class="ms">1600ms loop</div><div class="mu">pendingAi border — purple in dark, lighter purple in light</div></div>
+    <div class="mr"><div class="mn">Count roll</div><div class="ms">400ms · ease-out</div><div class="mu">Folder count badge after note save (CountUp)</div></div>
+    <div class="mr" style="border:none"><div class="mn">Bubble pulse</div><div class="ms">3s ease-in-out loop</div><div class="mu">Overlay bubble 1.04× alive signal</div></div>
+  </div>
+</div>
+
+<!-- INNOVATIONS -->
+<div class="sect">
+  <div class="eyebrow">Design innovations</div>
+  <div class="sh">Ten ideas beyond the current build</div>
+  <div class="g2" style="gap:10px">
+    <div class="card" style="padding:.85rem 1rem">
+      <div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:.75rem">Visual systems</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Kinetic folder sizing</div><div style="font-size:11px;color:var(--color-text-secondary)">Cards grow up to +12dp proportional to note count. Data-ink: presence = volume.</div></div>
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Aurora AI border</div><div style="font-size:11px;color:var(--color-text-secondary)">pendingAi notes get a shimmer border that dissolves on classification. Darker in light mode.</div></div>
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Priority halo</div><div style="font-size:11px;color:var(--color-text-secondary)">High priority: 6dp rose glow ring inside border. Medium: amber micro-dot only.</div></div>
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Time-aware mesh</div><div style="font-size:11px;color:var(--color-text-secondary)">Both modes shift hue 8° across the day. Light mode is cooler at dawn, warmer at dusk.</div></div>
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Waveform in notch</div><div style="font-size:11px;color:var(--color-text-secondary)">Live animated waveform inside the Notch during voice capture. Blue in dark, deeper blue in light.</div></div>
+      </div>
+    </div>
+    <div class="card" style="padding:.85rem 1rem">
+      <div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:.75rem">Interaction patterns</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Canvas momentum</div><div style="font-size:11px;color:var(--color-text-secondary)">Canvas grows 30–45vh as text fills, folder grid compresses below elastically.</div></div>
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Swipe-to-folder</div><div style="font-size:11px;color:var(--color-text-secondary)">Left-swipe = archive. Right-swipe = category re-assign picker (glass chip row).</div></div>
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Hold-home shortcut</div><div style="font-size:11px;color:var(--color-text-secondary)">Long-press canvas immediately activates mic — gesture parity with overlay hold.</div></div>
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Streak journal badge</div><div style="font-size:11px;color:var(--color-text-secondary)">Journal shows a flame count badge when streak ≥ 3 days. Pulses on day-open.</div></div>
+        <div><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px">Pending AI count in notch</div><div style="font-size:11px;color:var(--color-text-secondary)">Idle notch shows a purple dot + queue count when notes are waiting for classification.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const NS = {
+  idle:{c:'',dot:'nd-idle',h:'<span class="n-txt" style="font-size:10px;opacity:.7">whisperlog</span>'},
+  recording:{c:'recording',dot:'nd-rec',h:`<div class="wf"><div class="wb" style="--d:.5s;--dl:0s;--h:14px"></div><div class="wb" style="--d:.7s;--dl:.1s;--h:10px"></div><div class="wb" style="--d:.4s;--dl:.05s;--h:16px"></div><div class="wb" style="--d:.6s;--dl:.15s;--h:8px"></div><div class="wb" style="--d:.5s;--dl:.2s;--h:13px"></div></div><span class="n-txt" style="margin-left:3px">Recording</span>`},
+  processing:{c:'processing',dot:'nd-proc',h:`<div class="pshimmer"></div><span class="n-txt">Classifying</span><span class="n-sub" style="margin-left:4px">Gemini</span>`},
+  saved:{c:'saved',dot:'nd-ok',h:`<span class="n-txt">Meeting notes</span><div style="background:rgba(251,191,36,.2);border-radius:100px;padding:1px 6px;margin-left:3px"><span style="font-size:8px;color:#FBBF24;font-weight:500">Ideas</span></div>`}
+};
+function setN(s){
+  const p=document.getElementById('nlive');
+  const d=document.getElementById('nd0');
+  const st=NS[s];
+  p.className='notch-pill '+(st.c||'');
+  d.className='nd '+st.dot;
+  const old=p.querySelector('.nc');
+  if(old)old.remove();
+  const c=document.createElement('div');
+  c.className='nc';
+  c.style.cssText='display:flex;align-items:center;gap:4px;animation:fdIn .2s ease';
+  c.innerHTML=st.h;
+  p.appendChild(c);
+}
+function setMode(m){
+  const w=document.getElementById('mw');
+  const bdk=document.getElementById('b-dk');
+  const blt=document.getElementById('b-lt');
+  if(m==='light'){
+    w.classList.add('light');
+    bdk.classList.remove('on');
+    blt.classList.add('on');
+  } else {
+    w.classList.remove('light');
+    bdk.classList.add('on');
+    blt.classList.remove('on');
+  }
+}
+setN('idle');
+</script>
