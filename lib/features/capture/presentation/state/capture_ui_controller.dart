@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -105,9 +106,9 @@ class CaptureUiController extends Cubit<CaptureUiState> {
 
       // ── Step 3: waveform animation timer ──────────────────────────────────
       _recordingTimer?.cancel();
-      _recordingTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      _recordingTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
         if (state is CaptureUiRecording) {
-          _recordingDurationMs += 100;
+          _recordingDurationMs += 150;
           _updateWaveform();
         }
       });
@@ -115,7 +116,7 @@ class CaptureUiController extends Cubit<CaptureUiState> {
       // ── Step 4: start listening ────────────────────────────────────────────
       await _speechToText.listen(
         onResult: _onSpeechResult,
-        listenOptions: const SpeechListenOptions(
+        listenOptions: SpeechListenOptions(
           partialResults: true,
           cancelOnError: false,
           onDevice: false, // network STT works on far more devices
@@ -190,9 +191,9 @@ class CaptureUiController extends Cubit<CaptureUiState> {
       currentTranscript: '',
     ));
     _recordingTimer?.cancel();
-    _recordingTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+    _recordingTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
       if (state is CaptureUiRecording) {
-        _recordingDurationMs += 100;
+        _recordingDurationMs += 150;
         _updateWaveform();
       }
     });
@@ -214,6 +215,17 @@ class CaptureUiController extends Cubit<CaptureUiState> {
     _recordingTimer?.cancel();
     if (state is CaptureUiRecording) {
       emit(const CaptureUiProcessing(provider: 'AI'));
+      // Safety net: if _saveOverlayNote never calls notifyExternalRecordingSaved
+      // (e.g. empty transcript), auto-return to idle after 12 seconds.
+      _autoReturnTimer?.cancel();
+      _autoReturnTimer = Timer(const Duration(seconds: 12), () {
+        if (state is CaptureUiProcessing) {
+          debugPrint(
+            '[CaptureUiController] processing timeout — returning to idle',
+          );
+          emit(const CaptureUiIdle());
+        }
+      });
     }
   }
 
@@ -256,17 +268,35 @@ class CaptureUiController extends Cubit<CaptureUiState> {
 
   void _updateWaveform() {
     if (state is! CaptureUiRecording) return;
+    final t = _recordingDurationMs / 1000.0;
+    // 5 bars with sin-wave animation at slightly different phases/frequencies.
     final newSamples = List<double>.generate(5, (i) {
-      // Simple pseudo-random bars driven by time + index
-      final t = (_recordingDurationMs % 1000) / 1000.0;
-      final phase = (t + i * 0.2) % 1.0;
-      return (0.25 + 0.75 * phase).clamp(0.0, 1.0);
+      return (0.35 + 0.65 * ((math.sin(t * 2.5 + i * 0.7) + 1) / 2)).clamp(
+        0.0,
+        1.0,
+      );
     });
+
+    // Only emit if samples changed meaningfully.
+    final current = state as CaptureUiRecording;
+    if (_wavesEqual(current.waveformSamples, newSamples) &&
+        current.durationMs == _recordingDurationMs) {
+      return;
+    }
+
     emit(CaptureUiRecording(
       durationMs: _recordingDurationMs,
       waveformSamples: newSamples,
       currentTranscript: _lastTranscript,
     ));
+  }
+
+  bool _wavesEqual(List<double> a, List<double> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if ((a[i] - b[i]).abs() > 0.05) return false;
+    }
+    return true;
   }
 
   void resetToIdle() {

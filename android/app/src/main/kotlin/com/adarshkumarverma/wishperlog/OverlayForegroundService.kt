@@ -50,6 +50,19 @@ class OverlayForegroundService : Service() {
         const val EXTRA_SOURCE = "extra_source"
         const val SOURCE_VOICE = "voice_overlay"
         const val SOURCE_TEXT = "text_overlay"
+
+        @Volatile
+        private var instance: java.lang.ref.WeakReference<OverlayForegroundService>? = null
+
+        /** Called by MainActivity when Flutter pushes a CaptureUiController state change. */
+        fun updateIsland(state: String, message: String?) {
+            instance?.get()?.handleIslandUpdate(state, message)
+        }
+
+        /** Called by Flutter after a note has been saved — shows saved pill with category. */
+        fun notifySaved(title: String, category: String) {
+            instance?.get()?.handleSavedNotification(title, category)
+        }
     }
 
     private lateinit var windowManager: WindowManager
@@ -64,6 +77,9 @@ class OverlayForegroundService : Service() {
     private var isRecording = false
     private val handler = Handler(Looper.getMainLooper())
 
+    // Safety: track whether stopListening was called so we ignore spurious onResults
+    private var stopListeningCalled = false
+
     // ─── Bubble views ───────────────────────────────────────────────────────────
     private var bubbleIcon: ImageView? = null
     private var bubbleBackground: GradientDrawable? = null
@@ -73,6 +89,7 @@ class OverlayForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         startForeground(1, createNotification())
+        instance = java.lang.ref.WeakReference(this)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createBubble()
     }
@@ -145,13 +162,11 @@ class OverlayForegroundService : Service() {
             y = prefs.getInt("overlay_y", 200)
         }
 
-        // Build bubble visuals ────────────────────────────────────────────────
         val bubble = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            // Vibrant Indigo → Deep Violet
             colors = intArrayOf(Color.parseColor("#6366F1"), Color.parseColor("#4F46E5"))
             orientation = GradientDrawable.Orientation.TL_BR
-            setStroke(dp(1.5f), Color.parseColor("#4DFFFFFF")) // Translucent white border
+            setStroke(dp(1.5f), Color.parseColor("#4DFFFFFF"))
         }
         bubbleBackground = bubble
 
@@ -212,7 +227,6 @@ class OverlayForegroundService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     longPressRunnable?.let { handler.removeCallbacks(it) }
-                    // Snap to nearest edge
                     val cx = bubbleParams.x + v.width / 2
                     if (isDragging) {
                         bubbleParams.x = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
@@ -266,22 +280,26 @@ class OverlayForegroundService : Service() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.w(TAG, "startVoiceCapture: RECORD_AUDIO missing, asking Flutter to request permission")
             FlutterEngineHolder.channel?.invokeMethod("promptMicrophonePermission", null)
-            showIsland("Microphone permission required", auto = true)
+            showPersistentIsland("Microphone permission required", Color.parseColor("#EF4444"))
+            handler.postDelayed({ dismissIsland() }, 3000)
             return
         }
 
         Log.d(TAG, "startVoiceCapture: starting recognizer")
         isRecording = true
+        stopListeningCalled = false
 
         // Tell Flutter the island should show recording state.
         FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStarted", null)
+
+        // Show "Listening..." on the native island immediately (works even when app is off-screen)
+        showPersistentIsland("🎙 Listening...", Color.parseColor("#6366F1"))
 
         // Visual: bubble pulses red
         bubbleBackground?.colors = intArrayOf(Color.parseColor("#EF4444"), Color.parseColor("#991B1B"))
         bubbleIcon?.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.presence_audio_online))
         bubbleIcon?.setColorFilter(Color.WHITE)
 
-        // Pulse Animation
         pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
             bubbleView,
             PropertyValuesHolder.ofFloat("scaleX", 1f, 1.15f),
@@ -297,6 +315,7 @@ class OverlayForegroundService : Service() {
             Log.e(TAG, "startVoiceCapture: speech recognition not available on device")
             isRecording = false
             resetBubble()
+            dismissIsland()
             return
         }
 
@@ -305,29 +324,32 @@ class OverlayForegroundService : Service() {
         Log.d(TAG, "startVoiceCapture: SpeechRecognizer created")
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
+                if (stopListeningCalled.not() && !isRecording) return // stale callback guard
                 Log.d(TAG, "onResults: received final recognition results")
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = matches?.firstOrNull()?.trim() ?: ""
                 isRecording = false
                 resetBubble()
-                Toast.makeText(this@OverlayForegroundService, "Speech captured", Toast.LENGTH_SHORT).show()
-                if (text.isNotEmpty()) {
-                    broadcastCapture(text, SOURCE_VOICE)
-                    showIsland("🎙 Saving: \"${text.take(35)}\"", auto = true)
-                }
-                // Signal Flutter to show "processing" in the island while the
-                // note is being classified; the island transitions to "saved"
-                // once Flutter's _saveOverlayNote completes.
-                FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
                 releaseSpeechRecognizer()
+                if (text.isNotEmpty()) {
+                    // Show "Classifying..." on the native island BEFORE forwarding to Flutter
+                    // This ensures the user sees processing state even when app is off-screen
+                    showPersistentIsland("⚙ Classifying...", Color.parseColor("#7C3AED"))
+                    broadcastCapture(text, SOURCE_VOICE)
+                    // Tell Flutter to update its island state too (no-op if app is off-screen)
+                    FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
+                } else {
+                    dismissIsland()
+                    FlutterEngineHolder.channel?.invokeMethod("notifyRecordingFailed", null)
+                }
             }
 
             override fun onError(error: Int) {
                 Log.e(TAG, "onError: code=$error (${recognizerErrorToString(error)})")
                 isRecording = false
                 resetBubble()
-                // Let the island return to idle on error.
-                FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
+                dismissIsland()
+                FlutterEngineHolder.channel?.invokeMethod("notifyRecordingFailed", null)
                 releaseSpeechRecognizer()
             }
 
@@ -338,11 +360,10 @@ class OverlayForegroundService : Service() {
                 Log.d(TAG, "onBeginningOfSpeech")
             }
             override fun onRmsChanged(rmsdB: Float) {
-                Log.v(TAG, "onRmsChanged: $rmsdB")
+                // Only log verbose in debug builds — this fires ~30x/second
+                // Log.v(TAG, "onRmsChanged: $rmsdB")
             }
-            override fun onBufferReceived(buffer: ByteArray?) {
-                Log.v(TAG, "onBufferReceived: size=${buffer?.size ?: 0}")
-            }
+            override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
                 Log.d(TAG, "onEndOfSpeech")
             }
@@ -351,24 +372,23 @@ class OverlayForegroundService : Service() {
                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
                     ?.take(80)
-                Log.d(TAG, "onPartialResults: ${partial ?: "<none>"}")
-                // Stream live transcript to the Flutter Dynamic Island.
                 if (!partial.isNullOrEmpty()) {
+                    // Update native island with live transcript
+                    showPersistentIsland("🎙 $partial", Color.parseColor("#6366F1"))
                     FlutterEngineHolder.channel?.invokeMethod(
                         "notifyRecordingTranscript",
                         hashMapOf("text" to partial)
                     )
                 }
             }
-            override fun onEvent(eventType: Int, params: Bundle?) {
-                Log.v(TAG, "onEvent: type=$eventType")
-            }
+            override fun onEvent(eventType: Int, params: Bundle?) {}
         })
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
         Log.d(TAG, "startVoiceCapture: startListening invoked")
         speechRecognizer?.startListening(intent)
@@ -376,10 +396,16 @@ class OverlayForegroundService : Service() {
 
     private fun stopVoiceCapture() {
         Log.d(TAG, "stopVoiceCapture: stopping current session")
-        speechRecognizer?.stopListening()
-        speechRecognizer?.cancel()
-        releaseSpeechRecognizer()
-        resetBubble()
+        stopListeningCalled = true
+        try {
+            speechRecognizer?.stopListening()
+        } catch (e: Exception) {
+            Log.w(TAG, "stopVoiceCapture: stopListening failed", e)
+            resetBubble()
+            dismissIsland()
+            releaseSpeechRecognizer()
+            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingFailed", null)
+        }
     }
 
     private fun releaseSpeechRecognizer() {
@@ -419,7 +445,7 @@ class OverlayForegroundService : Service() {
         bubbleIcon?.setColorFilter(Color.WHITE)
     }
 
-    // ─── Text Input Banner (Truecaller style) ────────────────────────────────────
+    // ─── Text Input Banner ────────────────────────────────────────────────────
 
     private fun showTextInputBanner() {
         if (bannerView != null) return
@@ -450,8 +476,6 @@ class OverlayForegroundService : Service() {
             setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
             background = bg
             elevation = dp(16f).toFloat()
-            val m = dp(12f)
-            val lp = WindowManager.LayoutParams.MATCH_PARENT
         }
 
         val header = LinearLayout(this).apply {
@@ -515,8 +539,8 @@ class OverlayForegroundService : Service() {
             setOnClickListener {
                 val text = input.text.toString().trim()
                 if (text.isNotEmpty()) {
+                    showPersistentIsland("⚙ Classifying...", Color.parseColor("#7C3AED"))
                     broadcastCapture(text, SOURCE_TEXT)
-                    showIsland("✍ Saving note...", auto = true)
                 }
                 dismissBanner()
             }
@@ -529,11 +553,9 @@ class OverlayForegroundService : Service() {
         bannerView = layout
         windowManager.addView(layout, bannerParams)
 
-        // Focus the input + show keyboard
         handler.postDelayed({
             input.requestFocus()
             val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            // For overlay, we need FLAG_NOT_FOCUSABLE removed first
             bannerParams.flags = bannerParams.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
             windowManager.updateViewLayout(bannerView, bannerParams)
             imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
@@ -549,48 +571,109 @@ class OverlayForegroundService : Service() {
 
     // ─── Dynamic Island Pill ────────────────────────────────────────────────────
 
-    private fun showIsland(message: String, auto: Boolean = false) {
-        dismissIsland()
-
-        val islandParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            overlayType(),
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = dp(4f)
-        }
-
-        val pill = TextView(this).apply {
-            text = message
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            setTypeface(null, Typeface.BOLD)
-            setPadding(dp(16f), dp(8f), dp(16f), dp(8f))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(20f).toFloat()
-                setColor(Color.parseColor("#1E1B4B"))
-                setStroke(dp(1f), Color.parseColor("#7C3AED"))
+    /**
+     * Called by Flutter via MainActivity when CaptureUiState changes.
+     * Works only when the app is in the foreground.
+     */
+    private fun handleIslandUpdate(state: String, message: String?) {
+        val (label, accent) = when (state) {
+            "recording" -> Pair(
+                "🎙 ${if (message.isNullOrEmpty()) "Listening..." else message.take(45)}",
+                Color.parseColor("#6366F1")
+            )
+            "processing" -> Pair("⚙ Classifying...", Color.parseColor("#7C3AED"))
+            "saved" -> Pair("✓ ${message?.take(45) ?: "Saved"}", Color.parseColor("#10B981"))
+            else -> {
+                dismissIsland()
+                return
             }
-            elevation = dp(12f).toFloat()
         }
 
-        islandView = pill
-        windowManager.addView(pill, islandParams)
+        showPersistentIsland(label, accent)
+        if (state == "saved") {
+            handler.postDelayed({ dismissIsland() }, 2600)
+        }
+    }
 
-        if (auto) {
-            handler.postDelayed({ dismissIsland() }, 3000)
+    /**
+     * Called directly by Flutter after background save completes.
+     * This is the key path that works even when the app is in background.
+     */
+    private fun handleSavedNotification(title: String, category: String) {
+        handler.post {
+            val categoryEmoji = when (category) {
+                "tasks" -> "✓"
+                "reminders" -> "🔔"
+                "ideas" -> "💡"
+                "followUp" -> "↩"
+                "journal" -> "📓"
+                else -> "📎"
+            }
+            val categoryLabel = when (category) {
+                "tasks" -> "Task"
+                "reminders" -> "Reminder"
+                "ideas" -> "Idea"
+                "followUp" -> "Follow-up"
+                "journal" -> "Journal"
+                else -> "Note"
+            }
+            val label = "$categoryEmoji $categoryLabel · ${title.take(32)}"
+            showPersistentIsland(label, Color.parseColor("#10B981"))
+            handler.postDelayed({ dismissIsland() }, 2800)
+        }
+    }
+
+    private fun showPersistentIsland(message: String, accentColor: Int) {
+        handler.post {
+            val existingPill = islandView as? TextView
+            if (existingPill != null) {
+                existingPill.text = message
+                (existingPill.background as? GradientDrawable)?.setStroke(dp(1f), accentColor)
+                return@post
+            }
+
+            val islandParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                overlayType(),
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                y = dp(4f)
+            }
+
+            val pill = TextView(this).apply {
+                text = message
+                setTextColor(Color.WHITE)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setTypeface(null, Typeface.BOLD)
+                setPadding(dp(16f), dp(8f), dp(16f), dp(8f))
+                background = GradientDrawable().apply {
+                    cornerRadius = dp(20f).toFloat()
+                    setColor(Color.parseColor("#1E1B4B"))
+                    setStroke(dp(1f), accentColor)
+                }
+                elevation = dp(12f).toFloat()
+            }
+
+            islandView = pill
+            try {
+                windowManager.addView(pill, islandParams)
+            } catch (e: Exception) {
+                Log.w(TAG, "showPersistentIsland: addView failed: $e")
+            }
         }
     }
 
     private fun dismissIsland() {
-        islandView?.let {
-            try { windowManager.removeView(it) } catch (_: Exception) {}
+        handler.post {
+            islandView?.let {
+                try { windowManager.removeView(it) } catch (_: Exception) {}
+            }
+            islandView = null
         }
-        islandView = null
     }
 
     // ─── Broadcast to Flutter ───────────────────────────────────────────────────
@@ -610,6 +693,7 @@ class OverlayForegroundService : Service() {
         bubbleView?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
         dismissBanner()
         dismissIsland()
+        instance = null
         super.onDestroy()
     }
 }

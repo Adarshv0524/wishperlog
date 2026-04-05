@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -155,8 +156,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (mounted) {
         sl<CaptureUiController>().notifyExternalRecordingSaved(
-          title: savedNote.title ?? 'Note saved',
-          category: savedNote.category ?? NoteCategory.general,
+          title: savedNote.title,
+          category: savedNote.category,
         );
       }
     } finally {
@@ -172,125 +173,252 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
+      resizeToAvoidBottomInset: false,
       body: GlassPageBackground(
         child: SafeArea(
-          child: StreamBuilder<Map<NoteCategory, int>>(
-            stream: _notes.watchActiveCountsLocal(),
-            builder: (context, snapshot) {
-              final counts =
-                  snapshot.data ??
-                  {for (final category in kAllNoteCategories) category: 0};
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final totalH = constraints.maxHeight;
+              final folderH = totalH * 0.42;
+              final topH = totalH - folderH;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── Top Search Bar ─────────────────────────────────
-                        GestureDetector(
-                          onTap: () => context.push('/search'),
-                          child: Container(
-                            height: 48,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: context.surface1,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: context.textSec.withValues(alpha: 0.15),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.search_rounded,
-                                  color: context.textSec,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Search notes...',
-                                  style: TextStyle(
-                                    color: context.textSec,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+              return StreamBuilder<Map<NoteCategory, int>>(
+                stream: _notes.watchActiveCountsLocal(),
+                builder: (context, snapshot) {
+                  final counts = snapshot.data ?? {
+                    for (final c in kAllNoteCategories) c: 0,
+                  };
+
+                  return Column(
+                    children: [
+                      // ── Top area: header + canvas ─────────────────────────
+                      SizedBox(
+                        height: topH,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // ── Header row ─────────────────────────────────
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'WishperLog',
+                                          style: TextStyle(
+                                            color: context.textPri,
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -1,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Jai Shree Ram',
+                                          style: TextStyle(
+                                            color: context.textSec,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
+                                  // Search pill
+                                  GestureDetector(
+                                    onTap: () => context.push('/search'),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                          sigmaX: 16,
+                                          sigmaY: 16,
+                                        ),
+                                        child: Container(
+                                          height: 38,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [
+                                                context.isDark
+                                                    ? Colors.white.withValues(
+                                                        alpha: 0.10,
+                                                      )
+                                                    : Colors.white.withValues(
+                                                        alpha: 0.52,
+                                                      ),
+                                                context.isDark
+                                                    ? Colors.white.withValues(
+                                                        alpha: 0.04,
+                                                      )
+                                                    : Colors.white.withValues(
+                                                        alpha: 0.30,
+                                                      ),
+                                              ],
+                                            ),
+                                            border: Border.all(
+                                              color: context.isDark
+                                                  ? Colors.white.withValues(
+                                                      alpha: 0.18,
+                                                    )
+                                                  : Colors.black.withValues(
+                                                      alpha: 0.06,
+                                                    ),
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: context.isDark
+                                                    ? Colors.black.withValues(
+                                                        alpha: 0.26,
+                                                      )
+                                                    : Colors.white.withValues(
+                                                        alpha: 0.40,
+                                                      ),
+                                                blurRadius: 14,
+                                                spreadRadius: -2,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.search_rounded,
+                                                color: context.textSec,
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                'Search',
+                                                style: TextStyle(
+                                                  color: context.textSec,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                        sigmaX: 16,
+                                        sigmaY: 16,
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: InkWell(
+                                          onTap: () => context.push('/settings'),
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                                colors: [
+                                                  context.isDark
+                                                      ? Colors.white.withValues(
+                                                          alpha: 0.10,
+                                                        )
+                                                      : Colors.white.withValues(
+                                                          alpha: 0.50,
+                                                        ),
+                                                  context.isDark
+                                                      ? Colors.white.withValues(
+                                                          alpha: 0.04,
+                                                        )
+                                                      : Colors.white.withValues(
+                                                          alpha: 0.28,
+                                                        ),
+                                                ],
+                                              ),
+                                              border: Border.all(
+                                                color: context.isDark
+                                                    ? Colors.white.withValues(
+                                                        alpha: 0.18,
+                                                      )
+                                                    : Colors.black.withValues(
+                                                        alpha: 0.06,
+                                                      ),
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: context.isDark
+                                                      ? Colors.black.withValues(
+                                                          alpha: 0.26,
+                                                        )
+                                                      : Colors.white.withValues(
+                                                          alpha: 0.36,
+                                                        ),
+                                                  blurRadius: 14,
+                                                  spreadRadius: -2,
+                                                  offset: const Offset(0, 3),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(10),
+                                              child: Icon(
+                                                Icons.tune_rounded,
+                                                size: 20,
+                                                color: context.textPri,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              // ── Multifunctional canvas (fills remaining space) ──
+                              Expanded(
+                                child: ThoughtCanvas(
+                                  controller: _writingController,
+                                  focusNode: _canvasFocusNode,
+                                  onSave: _saveWritingBox,
+                                  onMicPressStart: _startDictation,
+                                  onMicPressEnd: () =>
+                                      _stopDictation(submitCaptured: true),
+                                  isSaving: _saving,
+                                  isRecording: _isDictating,
                                 ),
-                                const Spacer(),
-                                Icon(
-                                  Icons.mic_none_rounded,
-                                  color: context.textSec,
-                                  size: 20,
-                                ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        // ── Branding & Menu ────────────────────────────────
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'WishperLog',
-                                  style: TextStyle(
-                                    color: context.textPri,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -1,
-                                  ),
-                                ),
-                                Text(
-                                  'Jai Shree Ram',
-                                  style: TextStyle(
-                                    color: context.textSec,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              onPressed: () => context.push('/settings'),
-                              style: IconButton.styleFrom(
-                                backgroundColor: context.surface1,
-                                padding: const EdgeInsets.all(10),
-                              ),
-                              icon: Icon(
-                                Icons.tune_rounded,
-                                size: 22,
-                                color: context.textPri,
-                              ),
-                            ),
-                          ],
+                      ),
+                      // ── Bottom area: folder grid ───────────────────────────
+                      SizedBox(
+                        height: folderH,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: FolderGrid(counts: counts),
                         ),
-                        const SizedBox(height: 16),
-                        ThoughtCanvas(
-                          controller: _writingController,
-                          focusNode: _canvasFocusNode,
-                          onSave: _saveWritingBox,
-                          onMicPressStart: _startDictation,
-                          onMicPressEnd: () =>
-                              _stopDictation(submitCaptured: true),
-                          isSaving: _saving,
-                          isRecording: _isDictating,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-                      child: FolderGrid(counts: counts),
-                    ),
-                  ),
-                ],
+                      ),
+                    ],
+                  );
+                },
               );
             },
           ),

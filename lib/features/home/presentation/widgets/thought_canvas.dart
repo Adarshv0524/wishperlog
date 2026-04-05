@@ -1,8 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class ThoughtCanvas extends StatelessWidget {
   const ThoughtCanvas({
@@ -26,72 +27,205 @@ class ThoughtCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        GlassPane(
-          level: 1,
-          radius: 28,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 120),
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              minLines: 3,
-              maxLines: 8,
-              style: TextStyle(color: context.textPri, height: 1.4),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.transparent,
-                hintText: "What's on your mind...",
-                hintStyle: TextStyle(color: context.textSec, fontSize: 16),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.only(bottom: 40),
-              ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glassColor = isDark
+      ? const Color(0x0DFFFFFF)
+      : const Color(0x55FFFFFF);
+    final borderColor = isDark
+      ? const Color(0x22FFFFFF)
+      : const Color(0x0F000000);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                glassColor,
+                (isDark
+                        ? const Color(0x18FFFFFF)
+                        : const Color(0x99FFFFFF))
+                    .withValues(alpha: isDark ? 0.08 : 0.42),
+              ],
             ),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: borderColor, width: 0.75),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.30)
+                    : Colors.white.withValues(alpha: 0.38),
+                blurRadius: 24,
+                spreadRadius: -6,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ),
-        Positioned(
-          bottom: 12,
-          right: 12,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Column(
             children: [
-              if (controller.text.trim().isNotEmpty)
-                IconButton(
-                  onPressed: isSaving ? null : onSave,
-                  icon: isSaving 
-                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                     : const Icon(Icons.send_rounded, color: AppColors.tasks),
+              Container(
+                height: 1,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.white.withValues(alpha: isDark ? 0.02 : 0.18),
+                      Colors.white.withValues(alpha: isDark ? 0.26 : 0.40),
+                      Colors.white.withValues(alpha: isDark ? 0.02 : 0.18),
+                    ],
+                  ),
                 ),
-              GestureDetector(
-                onLongPressStart: (_) => onMicPressStart(),
-                onLongPressEnd: (_) => onMicPressEnd(),
-                child: AnimatedContainer(
-                  duration: AppDurations.microSnap,
-                  width: isRecording ? 48 : 44,
-                  height: isRecording ? 48 : 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.journal.withValues(
-                      alpha: isRecording ? 0.92 : 0.72,
+              ),
+              // ── Text field ──────────────────────────────────────────────
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  style: TextStyle(
+                    color: context.textPri,
+                    fontSize: 15,
+                    height: 1.5,
+                  ),
+                  decoration: InputDecoration(
+                    filled: false,
+                    hintText: isRecording
+                        ? 'Listening...'
+                        : "What's on your mind...",
+                    hintStyle: TextStyle(
+                      color: context.textSec.withValues(alpha: 0.7),
+                      fontSize: 15,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                  ),
+                ),
+              ),
+              // ── Action bar ──────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: borderColor,
+                      width: 0.6,
                     ),
                   ),
-                  child: Icon(
-                    isRecording
-                        ? Icons.graphic_eq_rounded
-                        : Icons.mic_none_rounded,
-                    color: Colors.white,
-                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Tag
+                    _BarBtn(
+                      icon: Icons.label_outline_rounded,
+                      color: context.textSec,
+                      onTap: () {},
+                    ),
+                    const SizedBox(width: 4),
+                    // Reminder
+                    _BarBtn(
+                      icon: Icons.alarm_add_rounded,
+                      color: context.textSec,
+                      onTap: () {},
+                    ),
+                    const Spacer(),
+                    // Mic (long-press to dictate)
+                    GestureDetector(
+                      onLongPressStart: (_) => onMicPressStart(),
+                      onLongPressEnd: (_) => onMicPressEnd(),
+                      child: AnimatedContainer(
+                        duration: AppDurations.microSnap,
+                        width: isRecording ? 44 : 40,
+                        height: isRecording ? 44 : 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isRecording
+                              ? AppColors.tasks.withValues(alpha: 0.85)
+                              : (isDark
+                                  ? const Color(0x33FFFFFF)
+                                  : const Color(0x22000000)),
+                          border: Border.all(
+                            color: isRecording ? AppColors.tasks : borderColor,
+                            width: isRecording ? 1.5 : 0.8,
+                          ),
+                        ),
+                        child: Icon(
+                          isRecording
+                              ? Icons.graphic_eq_rounded
+                              : Icons.mic_none_rounded,
+                          size: 20,
+                          color: isRecording ? Colors.white : context.textSec,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Send
+                    AnimatedSwitcher(
+                      duration: AppDurations.microSnap,
+                      child: controller.text.trim().isEmpty
+                          ? const SizedBox(width: 40, height: 40)
+                          : GestureDetector(
+                              key: const ValueKey('send'),
+                              onTap: isSaving ? null : onSave,
+                              child: AnimatedContainer(
+                                duration: AppDurations.microSnap,
+                                width: 40,
+                                height: 40,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.tasks,
+                                ),
+                                child: isSaving
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(10),
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.send_rounded,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _BarBtn extends StatelessWidget {
+  const _BarBtn({required this.icon, required this.color, required this.onTap});
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(icon, size: 20, color: color),
+      ),
     );
   }
 }

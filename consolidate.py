@@ -40,6 +40,9 @@ def collect_android_files(android_dir: Path) -> list[Path]:
         # Kotlin/Java sources
         "**/*.kt",
         "**/*.java",
+        # Explicit app package sources
+        "app/src/main/kotlin/com/**/*",
+        "app/src/main/java/com/**/*",
         # Gradle and configuration
         "**/build.gradle.kts",
         "**/build.gradle",
@@ -55,13 +58,14 @@ def collect_android_files(android_dir: Path) -> list[Path]:
         "**/proguard-rules.pro",
     }
     
+    excluded_parts = {"build", ".gradle", "generated", "intermediates", "outputs", "tmp"}
     collected_files = set()
     
     for pattern in important_patterns:
         for file_path in android_dir.glob(pattern):
             if file_path.is_file():
-                # Skip build/ and generated files
-                if "build/" not in file_path.parts and ".gradle/" not in file_path.parts:
+                # Skip build and generated artifacts to keep only user-authored files.
+                if not any(part in excluded_parts for part in file_path.parts):
                     collected_files.add(file_path)
     
     return sorted(collected_files)
@@ -125,6 +129,27 @@ def main() -> int:
     print(f"✓ Consolidated {total} files:")
     print(f"  • Dart files: {dart_count}")
     print(f"  • Android files: {android_count}")
+
+    if android_files:
+        kotlin_package_files = [
+            path for path in android_files
+            if "/kotlin/com/" in path.as_posix()
+        ]
+
+        if kotlin_package_files:
+            print(f"✓ Kotlin package files included ({len(kotlin_package_files)}):")
+            for kotlin_file in kotlin_package_files:
+                rel_path = kotlin_file.relative_to(repo_root).as_posix()
+                print(f"  • {rel_path}")
+
+        print("✓ Important Android files included:")
+        for android_file in android_files:
+            rel_path = android_file.relative_to(repo_root).as_posix()
+            if android_file.suffix == ".kts":
+                print(f"  • {rel_path} (user .kts)")
+            else:
+                print(f"  • {rel_path}")
+
     print(f"✓ Output: {output_path}")
     print(f"✓ Format: JSON array with multiline code blocks")
     

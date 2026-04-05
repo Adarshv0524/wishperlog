@@ -27,6 +27,9 @@ class OverlayNotifier extends ChangeNotifier {
   bool _hydrated = false;
 
   Timer? _persistDebounce;
+  StreamSubscription<CaptureUiState>? _captureStateSub;
+  String _lastNativeState = 'idle';
+  String? _lastNativeMessage;
 
   final MethodChannel _channel = const MethodChannel('wishperlog/overlay');
   final List<VoidCallback> _openEditorCallbacks = [];
@@ -46,46 +49,60 @@ class OverlayNotifier extends ChangeNotifier {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  /// Load persisted state. Call once at startup (after runApp is safe but
-  /// we actually call it in initState of OverlayRootWrapper so the tree is up).
   Future<void> hydrate() async {
     if (_hydrated) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      _isEnabled = prefs.getBool(_kEnabled) ?? true; // Defaults to true per Phase B
+      _isEnabled = prefs.getBool(_kEnabled) ?? true;
       final x = prefs.getDouble(_kPosX) ?? 20.0;
       final y = prefs.getDouble(_kPosY) ?? 200.0;
       _position = Offset(x, y);
 
       _channel.setMethodCallHandler((call) async {
-        if (call.method == 'openEditor') {
-          // Open Truecaller-style transparent banner
-          router.push('/system_banner');
-        } else if (call.method == 'notifyRecordingStarted') {
-          // Native overlay started recording → light up the island.
-          _onNativeRecordingStarted();
-        } else if (call.method == 'notifyRecordingStopped') {
-          // Native overlay finished recognising → show brief processing.
-          _onNativeRecordingStopped();
-        } else if (call.method == 'notifyRecordingTranscript') {
-          // Native overlay sent a partial transcript → scroll in island.
-          final text = call.arguments?['text'] as String? ?? '';
-          _onNativeTranscript(text);
-        } else if (call.method == 'captureNote') {
-          // Called by NoteInputReceiver when native overlay sends a note
-          final text = call.arguments?['text'] as String? ?? '';
-          final source = call.arguments?['source'] as String? ?? 'voice_overlay';
-          if (text.isNotEmpty) {
-            await _saveOverlayNote(text, source);
-          }
-        } else if (call.method == 'promptMicrophonePermission') {
-          final granted = await requestMicrophonePermission();
-          if (granted && _isEnabled) {
-            await _restartNativeOverlay();
-          }
+        switch (call.method) {
+          case 'openEditor':
+            router.push('/system_banner');
+            break;
+          case 'notifyRecordingStarted':
+            _onNativeRecordingStarted();
+            break;
+          case 'notifyRecordingStopped':
+            _onNativeRecordingStopped();
+            break;
+          case 'notifyRecordingTranscript':
+            final text = call.arguments?['text'] as String? ?? '';
+            _onNativeTranscript(text);
+            break;
+          case 'captureNote':
+            // Called by NoteInputReceiver when native overlay sends a note.
+            // This works when Flutter engine is alive (app in foreground or
+            // kept alive). When engine is dead, the note is dropped at the
+            // Kotlin level (see NoteInputReceiver).
+            final text = call.arguments?['text'] as String? ?? '';
+            final source = call.arguments?['source'] as String? ?? 'voice_overlay';
+            if (text.isNotEmpty) {
+              await _saveOverlayNote(text, source);
+            }
+            break;
+          case 'promptMicrophonePermission':
+            final granted = await requestMicrophonePermission();
+            if (granted && _isEnabled) {
+              await _restartNativeOverlay();
+            }
+            break;
+          case 'notifyRecordingFailed':
+            _onNativeRecordingFailed();
+            break;
         }
       });
-      
+
+      try {
+        final captureCtrl = sl<CaptureUiController>();
+        _captureStateSub = captureCtrl.stream.listen(_onCaptureStateChanged);
+      } catch (e) {
+        debugPrint('[OverlayNotifier] capture state subscription error: $e');
+      }
+
       if (_isEnabled) {
         _syncNativeOverlayState();
       }
@@ -97,7 +114,6 @@ class OverlayNotifier extends ChangeNotifier {
     }
   }
 
-  /// Toggle or explicitly set the overlay on/off.
   Future<void> setEnabled(bool value) async {
     if (_isEnabled == value) return;
 
@@ -126,12 +142,11 @@ class OverlayNotifier extends ChangeNotifier {
   }
 
   Future<void> requestPermission() async {
-     await _channel.invokeMethod('requestPermission');
-     // Maybe check again
-     final hasPermission = await _channel.invokeMethod<bool>('checkPermission') ?? false;
-     if (hasPermission) {
-       await setEnabled(true);
-     }
+    await _channel.invokeMethod('requestPermission');
+    final hasPermission = await _channel.invokeMethod<bool>('checkPermission') ?? false;
+    if (hasPermission) {
+      await setEnabled(true);
+    }
   }
 
   Future<bool> checkPermission() async {
@@ -148,8 +163,6 @@ class OverlayNotifier extends ChangeNotifier {
     }
   }
 
-  /// Called while the user drags the bubble. Updates position immediately
-  /// (60 fps) and debounces the SharedPreferences write.
   void updatePosition(Offset newPosition) {
     _position = newPosition;
     notifyListeners();
@@ -161,13 +174,13 @@ class OverlayNotifier extends ChangeNotifier {
 
   Future<void> _syncNativeOverlayState() async {
     try {
-       if (_isEnabled) {
-          await _channel.invokeMethod('show');
-       } else {
-          await _channel.invokeMethod('hide');
-       }
+      if (_isEnabled) {
+        await _channel.invokeMethod('show');
+      } else {
+        await _channel.invokeMethod('hide');
+      }
     } catch (e) {
-       debugPrint('[OverlayNotifier] native sync error: $e');
+      debugPrint('[OverlayNotifier] native sync error: $e');
     }
   }
 
@@ -202,37 +215,14 @@ class OverlayNotifier extends ChangeNotifier {
   @override
   void dispose() {
     _persistDebounce?.cancel();
+    _captureStateSub?.cancel();
     _openEditorCallbacks.clear();
     super.dispose();
   }
 
-  bool _isBackgroundRecording = false;
-
-  void _startBackgroundRecording() {
-    if (_isBackgroundRecording) return;
-    _isBackgroundRecording = true;
-    
-    try {
-      final captureController = sl<CaptureUiController>();
-      captureController.startRecording();
-    } catch (e) {
-      debugPrint('[OverlayNotifier] start recording error: $e');
-    }
-  }
-
-  void _stopBackgroundRecording() {
-    if (!_isBackgroundRecording) return;
-    _isBackgroundRecording = false;
-    
-    try {
-      final captureController = sl<CaptureUiController>();
-      captureController.stopRecording();
-      // island is already globally rendered — no separate route needed
-    } catch (e) {
-      debugPrint('[OverlayNotifier] stop recording error: $e');
-    }
-  }
-
+  /// Core save method — called when native overlay broadcasts a captured note.
+  /// CRITICAL PATH: this must call _notifyNativeSaved after saving so the
+  /// native island shows the category pill even when the app is backgrounded.
   Future<void> _saveOverlayNote(String text, String source) async {
     try {
       final svc = sl.isRegistered<CaptureService>()
@@ -241,28 +231,67 @@ class OverlayNotifier extends ChangeNotifier {
       final captureSource = source == 'text_overlay'
           ? CaptureSource.textOverlay
           : CaptureSource.voiceOverlay;
+
+      // Update Flutter island to processing state (works when app is foreground)
+      try {
+        sl<CaptureUiController>().notifyExternalRecordingStopped();
+      } catch (_) {}
+
       final saved = await svc.ingestRawCapture(
         rawTranscript: text,
         source: captureSource,
         syncToCloud: true,
       );
+
       if (saved == null) {
         debugPrint('[OverlayNotifier] Overlay note ignored (empty transcript).');
+        try { sl<CaptureUiController>().resetToIdle(); } catch (_) {}
         return;
       }
+
       debugPrint('[OverlayNotifier] Note saved from overlay: $source');
-      // Tell the island to show the saved confirmation.
+
+      // 1. Update Flutter island (works when app is in foreground)
       try {
-        final captureController = sl<CaptureUiController>();
-        captureController.notifyExternalRecordingSaved(
-          title: saved.title ?? 'Voice capture',
-          category: saved.category ?? NoteCategory.general,
+        sl<CaptureUiController>().notifyExternalRecordingSaved(
+          title: saved.title,
+          category: saved.category,
         );
       } catch (e) {
         debugPrint('[OverlayNotifier] island saved-notify error: $e');
       }
+
+      // 2. Push the saved result DIRECTLY to the native overlay service.
+      //    This is the critical call that makes the island show the category
+      //    label even when the Flutter engine is backgrounded.
+      await _notifyNativeSaved(saved.title, saved.category);
     } catch (e) {
       debugPrint('[OverlayNotifier] _saveOverlayNote error: $e');
+      // Show error on native island too
+      try {
+        await _channel.invokeMethod('updateIslandState', {'state': 'idle'});
+      } catch (_) {}
+    }
+  }
+
+  /// Pushes the save result to the native OverlayForegroundService so it can
+  /// show the category pill on the native island overlay.
+  /// Uses the dedicated `notifySaved` channel method added to MainActivity.
+  Future<void> _notifyNativeSaved(String title, NoteCategory category) async {
+    try {
+      await _channel.invokeMethod('notifySaved', {
+        'title': title,
+        'category': category.name, // e.g. "tasks", "ideas", "reminders"
+      });
+    } catch (e) {
+      debugPrint('[OverlayNotifier] _notifyNativeSaved error: $e');
+      // Fallback: use the generic updateIslandState
+      try {
+        await _channel.invokeMethod('updateIslandState', {
+          'state': 'saved',
+          'message': title,
+        });
+      } catch (_) {}
     }
   }
 
@@ -270,8 +299,7 @@ class OverlayNotifier extends ChangeNotifier {
 
   void _onNativeRecordingStarted() {
     try {
-      final captureController = sl<CaptureUiController>();
-      captureController.notifyExternalRecordingStarted();
+      sl<CaptureUiController>().notifyExternalRecordingStarted();
     } catch (e) {
       debugPrint('[OverlayNotifier] _onNativeRecordingStarted error: $e');
     }
@@ -279,8 +307,7 @@ class OverlayNotifier extends ChangeNotifier {
 
   void _onNativeTranscript(String text) {
     try {
-      final captureController = sl<CaptureUiController>();
-      captureController.updateExternalTranscript(text);
+      sl<CaptureUiController>().updateExternalTranscript(text);
     } catch (e) {
       debugPrint('[OverlayNotifier] _onNativeTranscript error: $e');
     }
@@ -288,10 +315,68 @@ class OverlayNotifier extends ChangeNotifier {
 
   void _onNativeRecordingStopped() {
     try {
-      final captureController = sl<CaptureUiController>();
-      captureController.notifyExternalRecordingStopped();
+      sl<CaptureUiController>().notifyExternalRecordingStopped();
     } catch (e) {
       debugPrint('[OverlayNotifier] _onNativeRecordingStopped error: $e');
     }
+  }
+
+  void _onNativeRecordingFailed() {
+    try {
+      sl<CaptureUiController>().resetToIdle();
+    } catch (e) {
+      debugPrint('[OverlayNotifier] _onNativeRecordingFailed error: $e');
+    }
+  }
+
+  void _onCaptureStateChanged(CaptureUiState state) {
+    String stateStr;
+    String? message;
+
+    if (state is CaptureUiRecording) {
+      stateStr = 'recording';
+      if (_lastNativeState == 'recording') return;
+      final transcript = state.currentTranscript;
+      if (transcript.isEmpty) {
+        message = 'Listening...';
+      } else {
+        final end = transcript.length.clamp(0, 50).toInt();
+        message = transcript.substring(0, end);
+      }
+    } else if (state is CaptureUiProcessing) {
+      stateStr = 'processing';
+      message = 'Classifying...';
+    } else if (state is CaptureUiSaved) {
+      stateStr = 'saved';
+      // Include category name so native island can show the label
+      message = '${state.category.name}::${state.title}';
+    } else {
+      stateStr = 'idle';
+      message = null;
+    }
+
+    // While recording, forward transcript changes (not only first entry state)
+    if (_lastNativeState == stateStr) {
+      if (stateStr != 'recording' || _lastNativeMessage == message) {
+        return;
+      }
+    }
+    _lastNativeState = stateStr;
+    _lastNativeMessage = message;
+
+    // For the saved state, use notifySaved for richer category info
+    if (state is CaptureUiSaved) {
+      unawaited(_notifyNativeSaved(state.title, state.category));
+      return;
+    }
+
+    final payload = <String, Object?>{'state': stateStr};
+    if (message != null) {
+      payload['message'] = message;
+    }
+
+    unawaited(
+      _channel.invokeMethod('updateIslandState', payload),
+    );
   }
 }

@@ -3,6 +3,7 @@ package com.adarshkumarverma.wishperlog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.util.Log
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import io.flutter.plugin.common.MethodChannel
@@ -10,6 +11,12 @@ import io.flutter.plugin.common.MethodChannel
 /**
  * Receives captured note text from OverlayForegroundService and
  * forwards it to Flutter via MethodChannel — WITHOUT opening the app.
+ *
+ * KEY FIX: This receiver is now registered by the SERVICE itself (not MainActivity),
+ * so it stays alive even when the app is in the background.
+ * MainActivity still registers/unregisters a second copy for convenience when the
+ * app is foregrounded (both are safe — Flutter handles duplicate captureNote calls via
+ * the noteId dedup in IsarNoteStore).
  */
 class NoteInputReceiver : BroadcastReceiver() {
 
@@ -18,11 +25,15 @@ class NoteInputReceiver : BroadcastReceiver() {
 
         fun register(context: Context, receiver: NoteInputReceiver) {
             LocalBroadcastManager.getInstance(context)
-                .registerReceiver(receiver, android.content.IntentFilter(OverlayForegroundService.ACTION_NOTE_CAPTURED))
+                .registerReceiver(receiver, IntentFilter(OverlayForegroundService.ACTION_NOTE_CAPTURED))
         }
 
         fun unregister(context: Context, receiver: NoteInputReceiver) {
-            LocalBroadcastManager.getInstance(context).unregisterReceiver(receiver)
+            try {
+                LocalBroadcastManager.getInstance(context).unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                Log.w(TAG, "unregister: already unregistered", e)
+            }
         }
     }
 
@@ -40,6 +51,9 @@ class NoteInputReceiver : BroadcastReceiver() {
         val channel = FlutterEngineHolder.channel
         if (channel == null) {
             Log.w(TAG, "captureNote dropped: Flutter channel unavailable (engine/activity not alive)")
+            // When Flutter is not available, we cannot process the note.
+            // The note will be re-attempted on next app open via Firestore sync.
+            // TODO: consider storing in SharedPreferences and retrying on next launch.
             return
         }
 

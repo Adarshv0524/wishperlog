@@ -28,7 +28,7 @@ class MainActivity : FlutterActivity() {
 
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         
-        // Store channel globally so NoteInputReceiver can access it
+        // Store channel globally so NoteInputReceiver can access it from any context
         FlutterEngineHolder.channel = channel
 
         channel.setMethodCallHandler { call, result ->
@@ -78,11 +78,29 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                 }
+                "updateIslandState" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val args = call.arguments as? Map<String, Any?> ?: emptyMap()
+                    val state = args["state"] as? String ?: "idle"
+                    val message = args["message"] as? String
+                    OverlayForegroundService.updateIsland(state, message)
+                    result.success(null)
+                }
+                // KEY NEW METHOD: Flutter calls this after a background capture note is saved
+                // so the native island can show the category + title pill
+                "notifySaved" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val args = call.arguments as? Map<String, Any?> ?: emptyMap()
+                    val title = args["title"] as? String ?: "Saved"
+                    val category = args["category"] as? String ?: "general"
+                    OverlayForegroundService.notifySaved(title, category)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
 
-        // Register overlay note receiver
+        // Register overlay note receiver (secondary - in case service receiver misses it)
         NoteInputReceiver.register(this, noteReceiver)
     }
 

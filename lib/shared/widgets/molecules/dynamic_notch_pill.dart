@@ -65,6 +65,7 @@ class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
         return true;
       },
       builder: (context, state) {
+        final isActive = state is! CaptureUiIdle;
         final size = _sizeForState(state);
         final glowColor = state is CaptureUiRecording
             ? AppColors.tasks.withValues(alpha: 0.30)
@@ -72,39 +73,46 @@ class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
             ? categoryColor(state.category).withValues(alpha: 0.30)
             : Colors.transparent;
 
-        return AnimatedContainer(
-          duration: AppDurations.microSnap,
-          curve: Curves.easeInOut,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: glowColor == Colors.transparent
-                ? const []
-                : [
-                    BoxShadow(
-                      color: glowColor,
-                      blurRadius: 12,
-                      spreadRadius: 0,
+        return IgnorePointer(
+          ignoring: !isActive,
+          child: AnimatedOpacity(
+            duration: AppDurations.saveConfirm,
+            opacity: isActive ? 1.0 : 0.0,
+            child: AnimatedContainer(
+              duration: AppDurations.microSnap,
+              curve: Curves.easeInOut,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: glowColor == Colors.transparent
+                    ? const []
+                    : [
+                        BoxShadow(
+                          color: glowColor,
+                          blurRadius: 12,
+                          spreadRadius: 0,
+                        ),
+                      ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: GlassPane(
+                  level: 1,
+                  sigmaOverride: 28,
+                  radius: 999,
+                  tintOverride: isDark
+                      ? const Color(0xFF14142A)
+                      : const Color(0xF5F0F8FC),
+                  child: AnimatedContainer(
+                    duration: AppDurations.saveConfirm,
+                    curve: Curves.easeOutCubic,
+                    width: size.width,
+                    height: size.height,
+                    child: AnimatedOpacity(
+                      duration: AppDurations.notchContentFade,
+                      opacity: _showContent ? 1 : 0,
+                      child: Center(child: _buildStateContent(state, isDark)),
                     ),
-                  ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: GlassPane(
-              level: 1,
-              sigmaOverride: 28,
-              radius: 999,
-              tintOverride: isDark
-                  ? const Color(0xFF14142A)
-                  : const Color(0xF5F0F8FC),
-              child: AnimatedContainer(
-                duration: AppDurations.saveConfirm,
-                curve: Curves.easeOutCubic,
-                width: size.width,
-                height: size.height,
-                child: AnimatedOpacity(
-                  duration: AppDurations.notchContentFade,
-                  opacity: _showContent ? 1 : 0,
-                  child: Center(child: _buildStateContent(state, isDark)),
+                  ),
                 ),
               ),
             ),
@@ -116,7 +124,7 @@ class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
 
   Size _sizeForState(CaptureUiState state) {
     if (state is CaptureUiIdle) {
-      return const Size(132, 36);
+      return Size.zero;
     }
     return const Size(240, 40);
   }
