@@ -7,6 +7,6 @@ abstract class AppDurations {
   static const aiShimmer = Duration(milliseconds: 1600);
   static const countRoll = Duration(milliseconds: 400);
   static const bubblePulse = Duration(seconds: 3);
-  static const notchAutoReturn = Duration(milliseconds: 1500);
+  static const notchAutoReturn = Duration(milliseconds: 1000);
   static const notchContentFade = Duration(milliseconds: 80);
 }

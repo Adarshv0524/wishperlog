@@ -121,6 +121,45 @@ class MainActivity : FlutterActivity() {
                     val grow = prefs.getBoolean("overlay_bubble_grow", true)
                     result.success(mapOf("alpha" to alpha, "growOnHold" to grow))
                 }
+                "updateSpeechSettings" -> {
+                    val language = call.argument<String>("language") ?: "en-US"
+                    val preferOffline = call.argument<Boolean>("preferOffline") ?: false
+                    val prefs = getSharedPreferences(
+                        "com.adarshkumarverma.wishperlog_preferences",
+                        Context.MODE_PRIVATE
+                    )
+                    prefs.edit()
+                        .putString("overlay_stt_language", language)
+                        .putBoolean("overlay_stt_prefer_offline", preferOffline)
+                        .apply()
+                    result.success(null)
+                }
+                "getSpeechSettings" -> {
+                    val prefs = getSharedPreferences(
+                        "com.adarshkumarverma.wishperlog_preferences",
+                        Context.MODE_PRIVATE
+                    )
+                    val language = prefs.getString("overlay_stt_language", "en-US") ?: "en-US"
+                    val preferOffline = prefs.getBoolean("overlay_stt_prefer_offline", false)
+                    result.success(mapOf("language" to language, "preferOffline" to preferOffline))
+                }
+                "downloadSpeechLanguagePack" -> {
+                    try {
+                        startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        })
+                        result.success(true)
+                    } catch (_: Exception) {
+                        try {
+                            startActivity(Intent(Settings.ACTION_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            })
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("UNAVAILABLE", "Could not open speech settings", e.message)
+                        }
+                    }
+                }
                 "drainPendingNotes" -> {
                     val prefs = getSharedPreferences("wishperlog_pending_notes", Context.MODE_PRIVATE)
                     val all = prefs.all

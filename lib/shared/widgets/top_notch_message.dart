@@ -119,7 +119,7 @@ Future<void> showTopNotchSavedMessage({
 
   overlayState.insert(entry);
   _activeTopNotchEntry = entry;
-  _activeTopNotchTimer = Timer(const Duration(milliseconds: 1500), () {
+  _activeTopNotchTimer = Timer(AppDurations.notchAutoReturn, () {
     _activeTopNotchEntry?.remove();
     _activeTopNotchEntry = null;
     _activeTopNotchTimer = null;

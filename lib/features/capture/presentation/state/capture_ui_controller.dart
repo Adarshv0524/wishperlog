@@ -266,7 +266,10 @@ class CaptureUiController extends Cubit<CaptureUiState> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   void _onSpeechResult(SpeechRecognitionResult result) {
-    _lastTranscript = result.recognizedWords;
+    final next = result.recognizedWords.trim();
+    if (next.isNotEmpty) {
+      _lastTranscript = next;
+    }
     if (state is CaptureUiRecording) {
       final current = state as CaptureUiRecording;
       emit(CaptureUiRecording(

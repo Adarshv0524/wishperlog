@@ -33,13 +33,19 @@ class GeminiNoteClassifier {
         _providedModel = model;
 
   static const String systemPrompt =
-      'You are a smart personal note editor and classifier. Return JSON strictly containing title, category, priority, clean_body, extracted_date. '
-      'Your objectives: 1. Categorize exactly into (Tasks, Reminders, Ideas, Follow-up, Journal, or General). '
-      '2. Fix grammar, spelling, semantics and beautify the text as "clean_body" while keeping the original meaning. '
-      '3. Set "priority" to high, medium, or low. '
-      '4. Provide a descriptive "title". '
-      '5. Set "extracted_date" to ISO8601 if a date is mentioned, else null. '
-      'Output ONLY raw and valid JSON object payload without backticks or markdown fences!';
+      '''Output ONLY a raw, valid JSON object. NO markdown formatting, NO backticks (```), NO explanations.
+TEXT RULES:
+1. Preserve original language, tone, slang, and intent. DO NOT translate, summarize, expand, or beautify.
+2. Fix ONLY obvious typos, grammar, and punctuation.
+
+REQUIRED SCHEMA:
+{
+  "title": "<string: concise, max 8 words, original language>",
+  "clean_body": "<string: lightly edited text per rules>",
+  "category": "<string: lowercase exact match: tasks, reminders, ideas, follow-up, journal, or general>",
+  "priority": "<string: lowercase exact match: high, medium, or low (default: medium)>",
+  "extracted_date": "<string or null: ISO8601 'YYYY-MM-DD' if an action date is implied, else null>"
+}''';
 
   final String _apiKey;
   final GenerativeModel? _providedModel;

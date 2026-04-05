@@ -2,24 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:wishperlog/app/router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
+import 'package:wishperlog/features/ml/data/ml_toolkit_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 
 /// Lightweight state holder for the in-app floating overlay.
 /// Has ZERO knowledge of BuildContext or the widget tree.
 /// Persists enabled/position to SharedPreferences.
-class OverlayNotifier extends ChangeNotifier {
+class OverlayNotifier extends ChangeNotifier with WidgetsBindingObserver {
   OverlayNotifier();
 
   // ── Prefs keys ────────────────────────────────────────────────────────────
   static const _kEnabled = 'overlay_v2.enabled';
   static const _kPosX = 'overlay_v2.pos_x';
   static const _kPosY = 'overlay_v2.pos_y';
+  static const _kMlAutoLanguage = 'mlkit.auto_language_detect';
 
   // ── State ─────────────────────────────────────────────────────────────────
   bool _isEnabled = false;
@@ -27,8 +30,12 @@ class OverlayNotifier extends ChangeNotifier {
   bool _hydrated = false;
 
   Timer? _persistDebounce;
+  Timer? _mlDetectDebounce;
   StreamSubscription<CaptureUiState>? _captureStateSub;
   String _lastNativeState = 'idle';
+  bool _nativeSessionActive = false;
+  String _lastDetectedSpeechLanguage = '';
+  bool _isAppInForeground = true;
 
   final MethodChannel _channel = const MethodChannel('wishperlog/overlay');
   final List<VoidCallback> _openEditorCallbacks = [];
@@ -56,6 +63,12 @@ class OverlayNotifier extends ChangeNotifier {
       final x = prefs.getDouble(_kPosX) ?? 20.0;
       final y = prefs.getDouble(_kPosY) ?? 200.0;
       _position = Offset(x, y);
+        WidgetsBinding.instance.addObserver(this);
+        final lifecycle = WidgetsBinding.instance.lifecycleState;
+        _isAppInForeground =
+          lifecycle == null ||
+          lifecycle == AppLifecycleState.resumed ||
+          lifecycle == AppLifecycleState.inactive;
 
       _channel.setMethodCallHandler((call) async {
         switch (call.method) {
@@ -223,10 +236,18 @@ class OverlayNotifier extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _persistDebounce?.cancel();
+    _mlDetectDebounce?.cancel();
     _captureStateSub?.cancel();
     _openEditorCallbacks.clear();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isAppInForeground =
+        state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
   }
 
   /// Core save method — called when native overlay broadcasts a captured note.
@@ -299,6 +320,7 @@ class OverlayNotifier extends ChangeNotifier {
   // ── Native recording notifications ─────────────────────────────────────────
 
   void _onNativeRecordingStarted() {
+    _nativeSessionActive = true;
     try {
       sl<CaptureUiController>().notifyExternalRecordingStarted();
     } catch (e) {
@@ -309,9 +331,62 @@ class OverlayNotifier extends ChangeNotifier {
   void _onNativeTranscript(String text) {
     try {
       sl<CaptureUiController>().updateExternalTranscript(text);
+      _scheduleLanguageDetection(text);
     } catch (e) {
       debugPrint('[OverlayNotifier] _onNativeTranscript error: $e');
     }
+  }
+
+  void _scheduleLanguageDetection(String text) {
+    if (!_isAppInForeground) return;
+    final sample = text.trim();
+    if (sample.length < 20) return;
+
+    _mlDetectDebounce?.cancel();
+    _mlDetectDebounce = Timer(const Duration(milliseconds: 600), () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final enabled = prefs.getBool(_kMlAutoLanguage) ?? true;
+        if (!enabled) return;
+
+        final ml = sl<MlToolkitService>();
+        final detected = await ml.detectLanguage(sample);
+        if (detected == null) return;
+        if (detected.confidence < 0.65) return;
+
+        final speechLanguage = _toSpeechLocale(detected.languageTag);
+        if (speechLanguage == null || speechLanguage == _lastDetectedSpeechLanguage) {
+          return;
+        }
+
+        _lastDetectedSpeechLanguage = speechLanguage;
+        await _channel.invokeMethod<void>('updateSpeechSettings', {
+          'language': speechLanguage,
+          'preferOffline': prefs.getBool('overlay_stt_prefer_offline') ?? false,
+        });
+      } catch (e) {
+        debugPrint('[OverlayNotifier] auto language detect error: $e');
+      }
+    });
+  }
+
+  String? _toSpeechLocale(String languageTag) {
+    final tag = languageTag.toLowerCase();
+    if (tag.startsWith('en')) return 'en-US';
+    if (tag.startsWith('hi')) return 'hi-IN';
+    if (tag.startsWith('bn')) return 'bn-IN';
+    if (tag.startsWith('ta')) return 'ta-IN';
+    if (tag.startsWith('te')) return 'te-IN';
+    if (tag.startsWith('mr')) return 'mr-IN';
+    if (tag.startsWith('gu')) return 'gu-IN';
+    if (tag.startsWith('kn')) return 'kn-IN';
+    if (tag.startsWith('ml')) return 'ml-IN';
+    if (tag.startsWith('pa')) return 'pa-IN';
+    if (tag.startsWith('es')) return 'es-ES';
+    if (tag.startsWith('fr')) return 'fr-FR';
+    if (tag.startsWith('de')) return 'de-DE';
+    if (tag.startsWith('ja')) return 'ja-JP';
+    return null;
   }
 
   void _onNativeRecordingStopped() {
@@ -323,6 +398,7 @@ class OverlayNotifier extends ChangeNotifier {
   }
 
   void _onNativeRecordingFailed() {
+    _nativeSessionActive = false;
     try {
       sl<CaptureUiController>().resetToIdle();
     } catch (e) {
@@ -332,6 +408,11 @@ class OverlayNotifier extends ChangeNotifier {
 
   void _onCaptureStateChanged(CaptureUiState state) {
     if (state is CaptureUiIdle) {
+      if (_nativeSessionActive) {
+        _nativeSessionActive = false;
+        _lastNativeState = 'idle';
+        return;
+      }
       if (_lastNativeState == 'idle') return;
       _lastNativeState = 'idle';
       unawaited(_channel.invokeMethod('updateIslandState', {'state': 'idle'}));
@@ -339,6 +420,10 @@ class OverlayNotifier extends ChangeNotifier {
     }
 
     if (state is CaptureUiRecording) {
+      if (_nativeSessionActive) {
+        _lastNativeState = 'recording';
+        return;
+      }
       _lastNativeState = 'recording';
       final transcript = state.currentTranscript.trim();
       final msg = transcript.isEmpty ? 'Listening...' : transcript;
@@ -351,6 +436,10 @@ class OverlayNotifier extends ChangeNotifier {
     }
 
     if (state is CaptureUiProcessing) {
+      if (_nativeSessionActive) {
+        _lastNativeState = 'processing';
+        return;
+      }
       if (_lastNativeState == 'processing') return;
       _lastNativeState = 'processing';
       unawaited(_channel.invokeMethod('updateIslandState', {
@@ -361,6 +450,11 @@ class OverlayNotifier extends ChangeNotifier {
     }
 
     if (state is CaptureUiSaved) {
+      if (_nativeSessionActive) {
+        _nativeSessionActive = false;
+        _lastNativeState = 'idle';
+        return;
+      }
       // Use notifySaved path so native shows category emoji + collection.
       _lastNativeState = 'idle';
       unawaited(notifyNativeSaved(state.title, state.category));

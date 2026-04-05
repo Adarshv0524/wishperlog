@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/features/notes/data/note_repository.dart';
-import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/features/search/data/local_note_search.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
@@ -16,9 +16,8 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final NoteRepository _notes = sl<NoteRepository>();
+  final IsarNoteStore _notes = sl<IsarNoteStore>();
   final TextEditingController _queryController = TextEditingController();
-  NoteCategory? _selectedCategory;
 
   @override
   void initState() {
@@ -46,7 +45,7 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                 child: Row(
                   children: [
                     IconButton(
@@ -81,6 +80,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               child: TextField(
                                 controller: _queryController,
                                 autofocus: true,
+                                textInputAction: TextInputAction.search,
                                 style: TextStyle(
                                   color: context.textPri,
                                   fontSize: 14,
@@ -105,78 +105,37 @@ class _SearchScreenState extends State<SearchScreen> {
                   ],
                 ),
               ),
-              SizedBox(
-                height: 40,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: kAllNoteCategories.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final category = kAllNoteCategories[index];
-                    final selected = _selectedCategory == category;
-                    final color = categoryColor(category);
+              Expanded(
+                child: StreamBuilder<List<Note>>(
+                  stream: _notes.watchActive(),
+                  builder: (context, snapshot) {
+                    final all = snapshot.data ?? const <Note>[];
+                    final query = _queryController.text.trim();
+                    final ranked = LocalNoteSearch.search(all, query);
 
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedCategory = selected ? null : category;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? color.withValues(alpha: 0.15)
-                              : context.surface1,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: selected
-                                ? color.withValues(alpha: 0.5)
-                                : context.textSec.withValues(alpha: 0.1),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                    if (query.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              categoryEmoji(category),
-                              style: const TextStyle(fontSize: 14),
+                            Icon(
+                              Icons.search_off_rounded,
+                              size: 48,
+                              color: context.textSec.withValues(alpha: 0.3),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(height: 12),
                             Text(
-                              categoryLabel(category),
+                              'Search notes, tasks, and ideas',
                               style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: selected
-                                    ? FontWeight.w800
-                                    : FontWeight.w600,
-                                color: selected ? color : context.textSec,
+                                color: context.textSec,
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: StreamBuilder<List<Note>>(
-                  stream: _notes.watchAllActiveLocal(),
-                  builder: (context, snapshot) {
-                    final all = snapshot.data ?? const <Note>[];
-                    final query = _queryController.text.trim().toLowerCase();
-                    final ranked = _rankResults(query, all).where((note) {
-                      if (_selectedCategory == null) return true;
-                      return note.category == _selectedCategory;
-                    }).toList();
+                      );
+                    }
 
                     if (ranked.isEmpty) {
                       return Center(
@@ -190,7 +149,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'No matching thoughts found',
+                              'No results for "$query"',
                               style: TextStyle(
                                 color: context.textSec,
                                 fontSize: 14,
@@ -225,9 +184,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                       Text(categoryEmoji(note.category)),
                                       const SizedBox(width: 8),
                                       Expanded(
-                                        child: _HighlightedText(
-                                          text: note.title,
-                                          query: query,
+                                        child: Text(
+                                          note.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             color: context.textPri,
                                             fontSize: 16,
@@ -239,10 +199,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 6),
-                                  _HighlightedText(
-                                    text: note.cleanBody,
-                                    query: query,
+                                  Text(
+                                    note.cleanBody,
                                     maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       color: context.textSec,
                                       fontSize: 13,
@@ -269,89 +229,4 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  List<Note> _rankResults(String query, List<Note> notes) {
-    if (query.isEmpty) {
-      return notes;
-    }
-
-    final ranked = [...notes]
-      ..sort((a, b) {
-        final scoreA = _score(query, a);
-        final scoreB = _score(query, b);
-        if (scoreA == scoreB) {
-          return b.updatedAt.compareTo(a.updatedAt);
-        }
-        return scoreB.compareTo(scoreA);
-      });
-
-    return ranked.where((note) => _score(query, note) > 0).toList();
-  }
-
-  int _score(String query, Note note) {
-    final title = note.title.toLowerCase();
-    final body = note.cleanBody.toLowerCase();
-    final raw = note.rawTranscript.toLowerCase();
-    final category = categoryLabel(note.category).toLowerCase();
-
-    var score = 0;
-    if (title.contains(query)) score += 60;
-    if (title.startsWith(query)) score += 30;
-    if (body.contains(query) || raw.contains(query)) score += 35;
-    if (category.contains(query)) score += 25;
-    return score;
-  }
-}
-
-class _HighlightedText extends StatelessWidget {
-  const _HighlightedText({
-    required this.text,
-    required this.query,
-    required this.style,
-    this.maxLines = 1,
-  });
-
-  final String text;
-  final String query;
-  final TextStyle style;
-  final int maxLines;
-
-  @override
-  Widget build(BuildContext context) {
-    if (query.isEmpty) {
-      return Text(
-        text,
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      );
-    }
-
-    final lower = text.toLowerCase();
-    final start = lower.indexOf(query);
-    if (start < 0) {
-      return Text(
-        text,
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      );
-    }
-
-    final end = start + query.length;
-    return RichText(
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        style: style,
-        children: [
-          TextSpan(text: text.substring(0, start)),
-          TextSpan(
-            text: text.substring(start, end),
-            style: style.copyWith(fontWeight: FontWeight.w800),
-          ),
-          TextSpan(text: text.substring(end)),
-        ],
-      ),
-    );
-  }
 }

@@ -49,6 +49,7 @@ import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 class OverlayForegroundService : Service() {
@@ -64,6 +65,8 @@ class OverlayForegroundService : Service() {
         // Overlay user-configurable settings
         private const val PREF_BUBBLE_ALPHA = "overlay_bubble_alpha"
         private const val PREF_BUBBLE_GROW = "overlay_bubble_grow"
+        private const val PREF_STT_LANGUAGE = "overlay_stt_language"
+        private const val PREF_STT_PREFER_OFFLINE = "overlay_stt_prefer_offline"
         private const val DEFAULT_ALPHA = 0.85f
         private const val DEFAULT_GROW = true
 
@@ -474,7 +477,31 @@ class OverlayForegroundService : Service() {
                 // partial speech exists. Salvage that partial transcript.
                 val recoverableError =
                     error == SpeechRecognizer.ERROR_NO_MATCH ||
-                    error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                    error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
+                    error == SpeechRecognizer.ERROR_CLIENT
+
+                // Keep recording alive for hold-to-record if recognizer closes transiently.
+                if (isUserHolding && isRecording && !stopListeningCalled && recoverableError) {
+                    Log.w(TAG, "onError: recoverable during hold, restarting recognizer")
+                    restartListenRunnable?.let { handler.removeCallbacks(it) }
+                    restartListenRunnable = Runnable {
+                        if (!isUserHolding || !isRecording || stopListeningCalled) {
+                            return@Runnable
+                        }
+                        val restartIntent = lastRecognizerIntent ?: return@Runnable
+                        try {
+                            releaseSpeechRecognizer()
+                            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this@OverlayForegroundService)
+                            speechRecognizer?.setRecognitionListener(this)
+                            speechRecognizer?.startListening(restartIntent)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "onError: restart after recoverable error failed", e)
+                        }
+                    }
+                    handler.postDelayed(restartListenRunnable!!, 150)
+                    return
+                }
+
                 val fallbackText = lastPartialTranscript.trim()
                 if (stopListeningCalled && recoverableError && fallbackText.isNotEmpty()) {
                     Log.d(TAG, "onError: salvaging partial transcript (${fallbackText.length} chars)")
@@ -538,21 +565,23 @@ class OverlayForegroundService : Service() {
                 }
             }
             override fun onPartialResults(partialResults: Bundle?) {
-                val partial = partialResults
+                val packet = partialResults
                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
-                    ?.take(80)
-                if (!partial.isNullOrEmpty()) {
-                    lastPartialTranscript = partial
+                if (!packet.isNullOrEmpty()) {
+                    val merged = mergeTranscript(lastPartialTranscript, packet).take(240)
+                    lastPartialTranscript = merged
+                    val display = merged.takeLast(90)
+
                     // Update native island with live transcript
                     showPersistentIsland(
-                        partial,
+                        display,
                         Color.parseColor("#6366F1"),
                         android.R.drawable.ic_btn_speak_now
                     )
                     FlutterEngineHolder.channel?.invokeMethod(
                         "notifyRecordingTranscript",
-                        hashMapOf("text" to partial)
+                        hashMapOf("text" to merged)
                     )
                 }
             }
@@ -560,10 +589,18 @@ class OverlayForegroundService : Service() {
         })
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            val prefs = getSharedPreferences("com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
+            val sttLanguage = prefs.getString(PREF_STT_LANGUAGE, Locale.getDefault().toLanguageTag())
+                ?: Locale.getDefault().toLanguageTag()
+            val preferOffline = prefs.getBoolean(PREF_STT_PREFER_OFFLINE, false)
+
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, sttLanguage)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, sttLanguage)
+            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, preferOffline)
             putExtra("android.speech.extra.DICTATION_MODE", true)
             // Keep the recognizer alive longer from a background service context.
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1000L)
@@ -628,6 +665,33 @@ class OverlayForegroundService : Service() {
             SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
             else -> "UNKNOWN_ERROR"
         }
+    }
+
+    private fun mergeTranscript(existing: String, incoming: String): String {
+        val prev = existing.replace(Regex("\\s+"), " ").trim()
+        val next = incoming.replace(Regex("\\s+"), " ").trim()
+        if (next.isEmpty()) return prev
+        if (prev.isEmpty()) return next
+        if (next.equals(prev, ignoreCase = true)) return prev
+
+        if (next.startsWith(prev, ignoreCase = true)) return next
+        if (prev.startsWith(next, ignoreCase = true)) {
+            // Recognizer occasionally emits shortened packets; keep richer text.
+            return if (next.length < (prev.length * 0.65f)) prev else next
+        }
+
+        val maxOverlap = minOf(prev.length, next.length)
+        for (len in maxOverlap downTo 1) {
+            if (prev.takeLast(len).equals(next.take(len), ignoreCase = true)) {
+                return (prev + next.drop(len)).replace(Regex("\\s+"), " ").trim()
+            }
+        }
+
+        // If packet length is similar, it is likely a refreshed hypothesis.
+        val ratio = next.length.toFloat() / prev.length.toFloat()
+        if (ratio in 0.7f..1.4f) return next
+
+        return "$prev $next".replace(Regex("\\s+"), " ").trim()
     }
 
     private fun resetBubble() {
@@ -807,7 +871,7 @@ class OverlayForegroundService : Service() {
                     Color.parseColor("#10B981"),
                     android.R.drawable.checkbox_on_background
                 )
-                scheduleIslandDismiss(1500)
+                scheduleIslandDismiss(1000)
             }
             else -> {
                 dismissIsland()
@@ -841,7 +905,7 @@ class OverlayForegroundService : Service() {
             val line1 = categoryLabel
             val line2 = title
             showPersistentIslandTwoLine(line1, line2, Color.parseColor("#10B981"), categoryIcon)
-            scheduleIslandDismiss(1500)
+            scheduleIslandDismiss(1000)
         }
     }
 
