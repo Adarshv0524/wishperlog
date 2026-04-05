@@ -3,11 +3,12 @@ import 'package:wishperlog/core/theme/app_colors.dart';
 
 class AppTheme {
   static ThemeData _base(ColorScheme scheme) {
+    final isDark = scheme.brightness == Brightness.dark;
     final outline = scheme.outline.withValues(alpha: 0.65);
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.brightness == Brightness.dark
+      scaffoldBackgroundColor: isDark
           ? AppColors.darkBg
           : AppColors.lightBg,
       appBarTheme: AppBarTheme(
@@ -19,12 +20,12 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         shadowColor: Colors.transparent,
-        color: scheme.brightness == Brightness.dark
+        color: isDark
             ? AppColors.darkGlass2
             : AppColors.lightGlass2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: outline, width: 0.5),
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: outline, width: 0.7),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -48,7 +49,10 @@ class AppTheme {
       ),
       iconTheme: IconThemeData(color: scheme.onSurface),
       inputDecorationTheme: InputDecorationTheme(
-        filled: false,
+        filled: true,
+        fillColor: isDark
+            ? AppColors.darkGlass3.withValues(alpha: 0.7)
+            : AppColors.lightGlass3.withValues(alpha: 0.9),
         isDense: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -56,11 +60,32 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.primary, width: 1.2),
+          borderSide: BorderSide(color: scheme.primary, width: 1.4),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: outline),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: isDark
+            ? AppColors.darkGlass2.withValues(alpha: 0.92)
+            : AppColors.lightGlass1.withValues(alpha: 0.95),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: outline, width: 0.8),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: isDark
+            ? AppColors.darkGlass2.withValues(alpha: 0.92)
+            : AppColors.lightGlass1.withValues(alpha: 0.96),
+        modalBackgroundColor: isDark
+            ? AppColors.darkGlass2.withValues(alpha: 0.92)
+            : AppColors.lightGlass1.withValues(alpha: 0.96),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: outline, width: 0.8),
         ),
       ),
       splashColor: Colors.transparent,

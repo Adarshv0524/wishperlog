@@ -77,7 +77,7 @@ class _FolderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final catColor = categoryColor(category);
-    final emoji = categoryEmoji(category);
+    final iconData = categoryIcon(category);
     final overdue = category == NoteCategory.reminders && count > 0;
     final isDark = context.isDark;
     
@@ -128,9 +128,10 @@ class _FolderCard extends StatelessWidget {
                 if (isCompact) {
                   return Row(
                     children: [
-                      Text(
-                        emoji,
-                        style: const TextStyle(fontSize: 18),
+                      Icon(
+                        iconData,
+                        size: 18,
+                        color: catColor,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -175,9 +176,10 @@ class _FolderCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          emoji,
-                          style: const TextStyle(fontSize: 20),
+                        Icon(
+                          iconData,
+                          size: 20,
+                          color: catColor,
                         ),
                         _CountBadge(count: count, color: catColor),
                       ],

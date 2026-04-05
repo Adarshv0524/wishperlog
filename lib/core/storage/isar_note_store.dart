@@ -12,23 +12,14 @@ class IsarNoteStore {
   static final IsarNoteStore instance = IsarNoteStore._();
 
   Isar? _isar;
-  bool _initializing = false;
+  Completer<Isar>? _initCompleter;
 
   Future<Isar> init() async {
-    if (_isar != null && _isar!.isOpen) {
-      return _isar!;
-    }
+    if (_isar != null && _isar!.isOpen) return _isar!;
 
-    if (_initializing) {
-      while (_initializing) {
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
-      if (_isar != null && _isar!.isOpen) {
-        return _isar!;
-      }
-    }
+    if (_initCompleter != null) return _initCompleter!.future;
 
-    _initializing = true;
+    _initCompleter = Completer<Isar>();
     try {
       final docsDir = await getApplicationDocumentsDirectory();
       _isar = await Isar.open(
@@ -37,9 +28,12 @@ class IsarNoteStore {
         name: 'wishperlog_isar',
       );
       debugPrint('[IsarNoteStore] Ready at ${docsDir.path}');
+      _initCompleter!.complete(_isar!);
       return _isar!;
-    } finally {
-      _initializing = false;
+    } catch (e, st) {
+      _initCompleter!.completeError(e, st);
+      _initCompleter = null;
+      rethrow;
     }
   }
 
@@ -79,21 +73,23 @@ class IsarNoteStore {
 
   Future<List<Note>> getAllActive() async {
     final isar = await init();
-    final all = await isar.notes.where().findAll();
-    return all
-        .where(
-          (note) =>
-              note.status != NoteStatus.archived &&
-              note.status != NoteStatus.deleted,
-        )
-        .toList();
+    return isar.notes
+        .filter()
+        .not()
+        .statusEqualTo(NoteStatus.archived)
+        .and()
+        .not()
+        .statusEqualTo(NoteStatus.deleted)
+        .findAll();
   }
 
   Future<List<Note>> getPendingAiNotes() async {
     final isar = await init();
-    final all = await isar.notes.where().findAll();
-    return all.where((note) => note.status == NoteStatus.pendingAi).toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return isar.notes
+        .filter()
+        .statusEqualTo(NoteStatus.pendingAi)
+        .sortByCreatedAt()
+        .findAll();
   }
 
   Future<int> countPendingAi() async {

@@ -1,32 +1,33 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show compute, debugPrint, debugPrintStack;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:wishperlog/core/config/app_env.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
+import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
+import 'package:wishperlog/features/ai/data/groq_note_classifier.dart';
+import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
+import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
-import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 
 class AiProcessingService {
   AiProcessingService({
-    AiClassifierRouter? router,
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     IsarNoteStore? isarNoteStore,
     ExternalSyncService? externalSync,
     NoteEventBus? noteEventBus,
-  }) : _router = router ?? sl<AiClassifierRouter>(),
-       _auth = auth ?? FirebaseAuth.instance,
+  }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
        _isarNoteStore = isarNoteStore ?? IsarNoteStore.instance,
        _externalSync = externalSync ?? sl<ExternalSyncService>(),
        _noteEventBus = noteEventBus ?? NoteEventBus.instance;
 
-  final AiClassifierRouter _router;
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final IsarNoteStore _isarNoteStore;
@@ -38,9 +39,11 @@ class AiProcessingService {
   bool _sweepRunning = false;
 
   void start() {
-    unawaited(_sweepPendingOnce());
+    Future.delayed(const Duration(seconds: 3), () => unawaited(_sweepPendingOnce()));
     _noteSavedSubscription ??= _noteEventBus.onNoteSaved.listen((noteId) {
-      unawaited(processNoteById(noteId));
+      Future.delayed(const Duration(milliseconds: 200), () {
+        unawaited(processNoteById(noteId));
+      });
     });
   }
 
@@ -54,19 +57,22 @@ class AiProcessingService {
   }
 
   Future<void> _sweepPendingOnce() async {
-    if (_sweepRunning) {
-      return;
-    }
+    if (_sweepRunning) return;
     _sweepRunning = true;
 
     try {
       final pending = await _isarNoteStore.getPendingAiNotes();
+      if (pending.isEmpty) return;
 
-      for (final note in pending) {
-        await processNoteById(note.noteId);
+      // Process up to 3 concurrently
+      final chunks = <List<Note>>[];
+      for (var i = 0; i < pending.length; i += 3) {
+        chunks.add(pending.sublist(i, (i + 3).clamp(0, pending.length)));
+      }
+      for (final chunk in chunks) {
+        await Future.wait(chunk.map((n) => processNoteById(n.noteId)));
       }
     } catch (_) {
-      // Avoid crashing the UI if SQLite is temporarily unavailable during startup.
     } finally {
       _sweepRunning = false;
     }
@@ -74,18 +80,22 @@ class AiProcessingService {
 
   Future<void> processNoteById(String noteId) async {
     final trimmedId = noteId.trim();
-    if (trimmedId.isEmpty || _inFlightNoteIds.contains(trimmedId)) {
-      return;
-    }
+    if (trimmedId.isEmpty || _inFlightNoteIds.contains(trimmedId)) return;
 
     _inFlightNoteIds.add(trimmedId);
     try {
       final note = await _isarNoteStore.getByNoteId(trimmedId);
-      if (note == null || note.status != NoteStatus.pendingAi) {
-        return;
-      }
+      if (note == null || note.status != NoteStatus.pendingAi) return;
 
-      final result = await _router.classify(note.rawTranscript);
+      // Run AI off the main thread using compute so the UI never janks.
+      final result = await compute(
+        _classifyInBackground,
+        _ClassifyInput(
+          transcript: note.rawTranscript,
+          geminiKey: AppEnv.geminiApiKey,
+          groqKey: AppEnv.groqApiKey,
+        ),
+      );
       final now = DateTime.now();
 
       final activeNote = note.copyWith(
@@ -101,21 +111,45 @@ class AiProcessingService {
         syncedAt: now,
       );
 
-      final externalResult = await _externalSync.syncExternalForNote(
-        activeNote,
-      );
-      final externallySyncedNote = externalResult.note;
+      await _isarNoteStore.put(activeNote);
 
-      await _isarNoteStore.put(externallySyncedNote);
+      // Tell island UI to refresh with resolved category/model.
+      try {
+        sl<CaptureUiController>().notifyExternalRecordingSaved(
+          title: activeNote.title,
+          category: activeNote.category,
+          model: activeNote.aiModel.trim().isNotEmpty
+              ? activeNote.aiModel
+              : 'AI',
+        );
+      } catch (_) {}
 
-      await _syncToFirestore(externallySyncedNote);
+      // Also notify native island directly.
+      try {
+        await sl<OverlayNotifier>().notifyNativeSaved(
+          activeNote.title,
+          activeNote.category,
+        );
+      } catch (_) {}
+
+      // External sync + Firestore fire-and-forget.
+      unawaited(_syncExternalAndFirestore(activeNote));
     } catch (e, st) {
-      // Log the exact error to diagnose AI failures.
       debugPrint('[AiProcessingService] Error processing $trimmedId: $e');
       debugPrintStack(stackTrace: st);
-      // Keep note as pendingAi and let future events/sweeps retry.
     } finally {
       _inFlightNoteIds.remove(trimmedId);
+    }
+  }
+
+  Future<void> _syncExternalAndFirestore(Note note) async {
+    try {
+      final externalResult = await _externalSync.syncExternalForNote(note);
+      final synced = externalResult.note;
+      if (externalResult.noteChanged) await _isarNoteStore.put(synced);
+      await _syncToFirestore(synced);
+    } catch (e) {
+      debugPrint('[AiProcessingService] background sync error: $e');
     }
   }
 
@@ -152,4 +186,50 @@ class AiProcessingService {
       return false;
     }
   }
+}
+
+class _ClassifyInput {
+  const _ClassifyInput({
+    required this.transcript,
+    required this.geminiKey,
+    required this.groqKey,
+  });
+
+  final String transcript;
+  final String geminiKey;
+  final String groqKey;
+}
+
+/// Runs in a separate Dart isolate. No Flutter plugin calls are allowed here.
+Future<GeminiClassificationResult> _classifyInBackground(
+  _ClassifyInput input,
+) async {
+  // Try Gemini first with a tight timeout.
+  try {
+    final gemini = GeminiNoteClassifier(apiKey: input.geminiKey);
+    return await gemini.classify(input.transcript).timeout(
+      const Duration(seconds: 8),
+    );
+  } catch (_) {}
+
+  // Fallback to Groq.
+  try {
+    final groq = GroqNoteClassifier(apiKey: input.groqKey);
+    final result = await groq.classify(input.transcript).timeout(
+      const Duration(seconds: 8),
+    );
+    if (result != null) return result;
+  } catch (_) {}
+
+  // Local fallback. Never fails.
+  final oneLine = input.transcript.replaceAll('\n', ' ').trim();
+  return GeminiClassificationResult(
+    title: oneLine.length <= 60 ? oneLine : '${oneLine.substring(0, 60)}...',
+    category: NoteCategory.general,
+    priority: NotePriority.medium,
+    extractedDate: null,
+    cleanBody: input.transcript.trim(),
+    model: 'local-fallback',
+    wasFallback: true,
+  );
 }

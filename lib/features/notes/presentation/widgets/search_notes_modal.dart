@@ -6,6 +6,7 @@ import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_title_bar.dart';
 
 class SearchNotesModal extends StatefulWidget {
   const SearchNotesModal({super.key});
@@ -53,14 +54,15 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
         child: SafeArea(
           child: Column(
             children: [
+              GlassTitleBar(
+                title: 'Search',
+                subtitle: 'Find notes quickly',
+                onBack: () => Navigator.of(context).pop(),
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.arrow_back_rounded, color: titleColor),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
                     Expanded(
                       child: GlassContainer(
                         borderRadius: BorderRadius.circular(14),

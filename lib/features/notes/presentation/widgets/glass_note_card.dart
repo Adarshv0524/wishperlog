@@ -106,7 +106,11 @@ class _GlassNoteCardState extends State<GlassNoteCard>
                             children: [
                               Row(
                                 children: [
-                                  Text(categoryEmoji(note.category)),
+                                  Icon(
+                                    categoryIcon(note.category),
+                                    size: 18,
+                                    color: categoryColor(note.category),
+                                  ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(

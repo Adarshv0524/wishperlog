@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +21,7 @@ import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_title_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -29,6 +31,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const MethodChannel _overlayChannel = MethodChannel('wishperlog/overlay');
+
   // ── Services ───────────────────────────────────────────────────────────────
   final UserRepository _users = sl<UserRepository>();
   final AppPreferencesRepository _prefs = sl<AppPreferencesRepository>();
@@ -48,6 +52,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _savingDigest = false;
   String? _telegramChatId;
   bool _savingTelegram = false;
+  double _overlayOpacity = 0.85;
+  bool _overlayGrow = true;
 
   final TextEditingController _telegramController = TextEditingController();
 
@@ -67,6 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _hydrateLocalPrefs();
     _hydrateNotificationPermission();
     _hydrateTelegramId();
+    _hydrateOverlaySettings();
   }
 
   @override
@@ -133,6 +140,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } finally {
       if (mounted) setState(() => _overlayUpdating = false);
+    }
+  }
+
+  Future<void> _hydrateOverlaySettings() async {
+    try {
+      final values = await _overlayChannel.invokeMapMethod<String, dynamic>('getOverlaySettings');
+      if (!mounted || values == null) return;
+      final alpha = (values['alpha'] as num?)?.toDouble() ?? 0.85;
+      final grow = values['growOnHold'] as bool? ?? true;
+      setState(() {
+        _overlayOpacity = alpha.clamp(0.3, 1.0);
+        _overlayGrow = grow;
+      });
+    } catch (e) {
+      debugPrint('[Settings] _hydrateOverlaySettings error: $e');
+    }
+  }
+
+  Future<void> _applyOverlaySettings() async {
+    try {
+      await _overlayChannel.invokeMethod<void>('updateOverlaySettings', {
+        'alpha': _overlayOpacity,
+        'growOnHold': _overlayGrow,
+      });
+    } catch (e) {
+      debugPrint('[Settings] _applyOverlaySettings error: $e');
     }
   }
 
@@ -291,26 +324,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: _goBack,
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: context.textPri,
-          ),
-        ),
-        title: Text(
-          'Settings',
-          style: TextStyle(
-            color: context.textPri,
-            fontWeight: FontWeight.w900,
-            fontSize: 20,
-            letterSpacing: -0.5,
-          ),
-        ),
+      appBar: GlassTitleBar(
+        title: 'Settings',
+        subtitle: 'Preferences and integrations',
+        onBack: _goBack,
       ),
       body: GlassPageBackground(
         child: SafeArea(
@@ -358,6 +375,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onChanged: (_) => _toggleOverlay(),
                           activeThumbColor: AppColors.tasks,
                         ),
+                ),
+              ),
+
+              GlassContainer(
+                padding: EdgeInsets.zero,
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                borderRadius: BorderRadius.circular(14),
+                child: Column(
+                  children: [
+                    ListTile(
+                      title: const Text('Bubble Opacity'),
+                      subtitle: Slider(
+                        value: _overlayOpacity,
+                        min: 0.3,
+                        max: 1.0,
+                        divisions: 14,
+                        label: '${(_overlayOpacity * 100).round()}%',
+                        onChanged: (value) {
+                          setState(() => _overlayOpacity = value);
+                          unawaited(_applyOverlaySettings());
+                        },
+                      ),
+                    ),
+                    SwitchListTile(
+                      title: const Text('Grow on hold'),
+                      subtitle: const Text('Bubble enlarges when recording starts'),
+                      value: _overlayGrow,
+                      onChanged: (value) {
+                        setState(() => _overlayGrow = value);
+                        unawaited(_applyOverlaySettings());
+                      },
+                    ),
+                  ],
                 ),
               ),
 

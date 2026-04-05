@@ -66,10 +66,14 @@ class CaptureUiSaved extends CaptureUiState {
   const CaptureUiSaved({
     required this.title,
     required this.category,
+    this.collection = 'notes',
+    this.noteId,
   });
 
   final String title;
   final NoteCategory category;
+  final String collection;
+  final String? noteId;
 
   @override
   bool operator ==(Object other) =>
@@ -77,10 +81,16 @@ class CaptureUiSaved extends CaptureUiState {
       other is CaptureUiSaved &&
           runtimeType == other.runtimeType &&
           title == other.title &&
-          category == other.category;
+          category == other.category &&
+          collection == other.collection &&
+          noteId == other.noteId;
 
   @override
-  int get hashCode => title.hashCode ^ category.hashCode;
+  int get hashCode =>
+      title.hashCode ^
+      category.hashCode ^
+      collection.hashCode ^
+      noteId.hashCode;
 }
 
 /// State when an error occurred during recording or processing.

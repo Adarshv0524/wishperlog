@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/features/home/presentation/home_screen_layout.dart';
 import 'package:wishperlog/features/notes/presentation/screens/folder_screen.dart';
+import 'package:wishperlog/features/notes/presentation/screens/note_detail_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/permissions_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/sign_in_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/telegram_screen.dart';
@@ -29,6 +30,13 @@ final GoRouter router = GoRouter(
       builder: (context, state) => const HomeScreenLayout(),
     ),
     GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
+    GoRoute(
+      path: '/notes/:noteId',
+      builder: (context, state) {
+        final noteId = state.pathParameters['noteId'] ?? '';
+        return NoteDetailScreen(noteId: noteId);
+      },
+    ),
     GoRoute(
       path: '/folder',
       builder: (context, state) {

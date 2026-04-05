@@ -11,8 +11,8 @@ extension AppColorsX on BuildContext {
   Color get textPri => isDark ? AppColors.darkTextPri : AppColors.lightTextPri;
   Color get textSec => isDark ? AppColors.darkTextSec : AppColors.lightTextSec;
   Color get border => isDark ? AppColors.darkBorder : AppColors.lightBorder;
-  Color get surface1 => isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F5F7);
-  Color get surface2 => isDark ? const Color(0xFF2C2C2E) : const Color(0xFFFFFFFF);
+  Color get surface1 => isDark ? const Color(0xFF111B2B) : const Color(0xFFF7FAFF);
+  Color get surface2 => isDark ? const Color(0xFF1A2940) : const Color(0xFFFFFFFF);
   List<Color> get meshNodes =>
       isDark ? AppColors.darkMesh : AppColors.lightMesh;
 }

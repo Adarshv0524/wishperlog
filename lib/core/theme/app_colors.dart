@@ -4,24 +4,24 @@ import 'package:flutter/material.dart';
 // DO NOT add colour literals anywhere else in the codebase.
 abstract class AppColors {
   // DARK GLASS SURFACES
-  static const Color darkBg = Color(0xFF08080F);
-  static const Color darkGlass1 = Color(0x26FFFFFF);
-  static const Color darkGlass2 = Color(0x1AFFFFFF);
-  static const Color darkGlass3 = Color(0x0DFFFFFF);
-  static const Color darkTextPri = Color(0xFFD8CFF0);
-  static const Color darkTextSec = Color(0xFF7A7598);
-  static const Color darkTextTer = Color(0xFF58AC72);
-  static const Color darkBorder = Color(0x23FFFFFF);
+  static const Color darkBg = Color(0xFF090F1A);
+  static const Color darkGlass1 = Color(0x30F5FAFF);
+  static const Color darkGlass2 = Color(0x22EFF6FF);
+  static const Color darkGlass3 = Color(0x14E8F0FF);
+  static const Color darkTextPri = Color(0xFFEAF1FF);
+  static const Color darkTextSec = Color(0xFFA7B6CC);
+  static const Color darkTextTer = Color(0xFF75D6B0);
+  static const Color darkBorder = Color(0x2DDAE8FF);
 
   // LIGHT GLASS SURFACES
-  static const Color lightBg = Color(0xFFEEEAFB);
-  static const Color lightGlass1 = Color(0xD9FFFFFF);
-  static const Color lightGlass2 = Color(0xA6FFFFFF);
-  static const Color lightGlass3 = Color(0x80FFFFFF);
-  static const Color lightTextPri = Color(0xFF1A1530);
-  static const Color lightTextSec = Color(0xFF4B6590);
-  static const Color lightTextTer = Color(0xFF9B97BB);
-  static const Color lightBorder = Color(0x1A000000);
+  static const Color lightBg = Color(0xFFF3F7FB);
+  static const Color lightGlass1 = Color(0xE6FFFFFF);
+  static const Color lightGlass2 = Color(0xC2FFFFFF);
+  static const Color lightGlass3 = Color(0x9EFFFFFF);
+  static const Color lightTextPri = Color(0xFF102037);
+  static const Color lightTextSec = Color(0xFF4E6485);
+  static const Color lightTextTer = Color(0xFF7E8EAB);
+  static const Color lightBorder = Color(0x1A204268);
 
   // CATEGORY CHROMATICS
   static const Color tasks = Color(0xFF6045FA);
@@ -50,17 +50,17 @@ abstract class AppColors {
 
   // BACKGROUND MESH NODES
   static const List<Color> darkMesh = [
-    Color(0xFF08080F),
-    Color(0xFF1B0A3E),
-    Color(0xFF061A1A),
-    Color(0xFF0D0D1F),
-    Color(0xFF1A0A1E),
+    Color(0xFF090F1A),
+    Color(0xFF10223D),
+    Color(0xFF0A2D2D),
+    Color(0xFF1A1636),
+    Color(0xFF2A1E3D),
   ];
   static const List<Color> lightMesh = [
-    Color(0xFFEEEAFB),
-    Color(0xFFE0D8FA),
-    Color(0xFFD8EEF0),
-    Color(0xFFEAE0F8),
-    Color(0xFFF5F0FF),
+    Color(0xFFF3F7FB),
+    Color(0xFFE4EEFF),
+    Color(0xFFDDF6F4),
+    Color(0xFFEDE8FF),
+    Color(0xFFF7F4FF),
   ];
 }

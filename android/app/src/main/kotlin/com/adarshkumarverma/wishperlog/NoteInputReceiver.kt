@@ -12,11 +12,8 @@ import io.flutter.plugin.common.MethodChannel
  * Receives captured note text from OverlayForegroundService and
  * forwards it to Flutter via MethodChannel — WITHOUT opening the app.
  *
- * KEY FIX: This receiver is now registered by the SERVICE itself (not MainActivity),
- * so it stays alive even when the app is in the background.
- * MainActivity still registers/unregisters a second copy for convenience when the
- * app is foregrounded (both are safe — Flutter handles duplicate captureNote calls via
- * the noteId dedup in IsarNoteStore).
+ * Registered once at the Application level (see WishperlogApplication) so only a
+ * single receiver instance handles each broadcast.
  */
 class NoteInputReceiver : BroadcastReceiver() {
 
@@ -41,34 +38,41 @@ class NoteInputReceiver : BroadcastReceiver() {
         if (intent.action != OverlayForegroundService.ACTION_NOTE_CAPTURED) return
 
         val text = intent.getStringExtra(OverlayForegroundService.EXTRA_TEXT) ?: return
-        val source = intent.getStringExtra(OverlayForegroundService.EXTRA_SOURCE) ?: "overlay"
-
-        val payload = mapOf(
-            "text" to text,
-            "source" to source
-        )
+        val source = intent.getStringExtra(OverlayForegroundService.EXTRA_SOURCE) ?: "voice_overlay"
 
         val channel = FlutterEngineHolder.channel
         if (channel == null) {
-            Log.w(TAG, "captureNote dropped: Flutter channel unavailable (engine/activity not alive)")
-            // When Flutter is not available, we cannot process the note.
-            // The note will be re-attempted on next app open via Firestore sync.
-            // TODO: consider storing in SharedPreferences and retrying on next launch.
+            Log.w(TAG, "captureNote: engine not alive — persisting for retry")
+            persistPending(context, text, source)
             return
         }
 
-        channel.invokeMethod("captureNote", payload, object : MethodChannel.Result {
+        channel.invokeMethod("captureNote", mapOf("text" to text, "source" to source),
+            object : MethodChannel.Result {
             override fun success(result: Any?) {
-                Log.d(TAG, "captureNote forwarded to Flutter (source=$source, len=${text.length})")
+                Log.d(TAG, "captureNote forwarded (source=$source, len=${text.length})")
             }
 
             override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-                Log.e(TAG, "captureNote failed in Flutter: code=$errorCode, msg=$errorMessage")
+                Log.e(TAG, "captureNote failed: $errorCode")
+                persistPending(context, text, source)
             }
 
             override fun notImplemented() {
-                Log.e(TAG, "captureNote failed: method not implemented on Flutter side")
+                Log.e(TAG, "captureNote: notImplemented")
+                persistPending(context, text, source)
             }
         })
+    }
+
+    private fun persistPending(context: Context, text: String, source: String) {
+        val prefs = context.getSharedPreferences(
+            "wishperlog_pending_notes", Context.MODE_PRIVATE
+        )
+        val key = "pending_${System.currentTimeMillis()}"
+        prefs.edit()
+            .putString("${key}_text", text)
+            .putString("${key}_source", source)
+            .apply()
     }
 }

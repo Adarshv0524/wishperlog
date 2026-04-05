@@ -1,0 +1,53 @@
+flowchart TD
+    A["User holds floating button<br/>(out of app)"] --> B["OverlayForegroundService<br/>startVoiceCapture"]
+    B --> C["Check RECORD_AUDIO<br/>permission"]
+    C -->|Denied| C1["Show 🔒 Permission<br/>Dismiss in 2s"]
+    C -->|Granted| D["Request Audio Focus<br/>AUDIOFOCUS_GAIN_EXCLUSIVE"]
+    D --> E["Create SpeechRecognizer<br/>with RecognitionListener"]
+    E --> F["startListening Intent<br/>PARTIAL_RESULTS=true"]
+    F --> G["Show 🎙 Listening...<br/>blue pill animates"]
+    
+    G --> H{Audio input<br/>received?}
+    H -->|No| I["10s timeout fires<br/>Force stopListeningCalled"]
+    H -->|Yes| J["onPartialResults<br/>callback fires"]
+    
+    J --> K["Update island text<br/>showPersistentIsland<br/>🎙 transcript"]
+    K --> L["Forward to Flutter<br/>notifyRecordingTranscript<br/>MethodChannel"]
+    L --> M{User released<br/>button?}
+    M -->|No| J
+    M -->|Yes| N["stopVoiceCapture<br/>stopListeningCalled=true"]
+    
+    N --> O["Release Audio Focus"]
+    O --> P["Wait for onResults<br/>or onError"]
+    
+    P --> Q{Did we get<br/>results?}
+    Q -->|Yes| Q1["onResults callback<br/>extract text from bundle"]
+    Q -->|Salvage| Q2["onError ERROR_NO_MATCH<br/>Use lastPartialTranscript"]
+    Q -->|No| Q3["onError other<br/>Dismiss, fail"]
+    
+    Q1 --> R["Show ⚙ Classifying...<br/>purple pill"]
+    Q2 --> R
+    R --> S["broadcastCapture<br/>text, SOURCE_VOICE"]
+    
+    S --> T{Flutter engine<br/>alive?}
+    T -->|Yes| T1["Direct MethodChannel<br/>captureNote"]
+    T -->|No| T2["sendCaptureViaLocalBroadcast"]
+    
+    T1 --> T1A{Success?}
+    T1A -->|Yes| U["Note saved<br/>in Flutter"]
+    T1A -->|No| T2
+    
+    T2 --> T2A["NoteInputReceiver<br/>LocalBroadcast"]
+    T2A --> T2B{Engine alive?}
+    T2B -->|Yes| T2B1["invokeMethod"]
+    T2B -->|No| T2B2["SharedPrefs backup<br/>wishperlog_pending"]
+    
+    T2B1 --> U
+    T2B2 --> V["MainActivity.onResume<br/>drainPendingNotes"]
+    V --> U
+    
+    U --> W["CaptureService<br/>ingestRawCapture ~5ms"]
+    W --> X["Show ✓ Category<br/>Title pill"]
+    X --> Y["AI enrichment<br/>compute isolate 8s"]
+    Y --> Z["Sync to Firestore"]
+    Z --> AA["Auto-dismiss 1s<br/>smooth fade"]

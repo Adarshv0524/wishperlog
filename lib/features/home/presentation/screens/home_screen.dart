@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/capture/data/note_save_service.dart';
 import 'package:wishperlog/features/home/presentation/widgets/folder_grid.dart';
@@ -14,6 +15,7 @@ import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -158,6 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
         sl<CaptureUiController>().notifyExternalRecordingSaved(
           title: savedNote.title,
           category: savedNote.category,
+          noteId: savedNote.noteId,
         );
       }
     } finally {
@@ -179,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final totalH = constraints.maxHeight;
-              final folderH = totalH * 0.42;
+              final folderH = totalH * 0.40;
               final topH = totalH - folderH;
 
               return StreamBuilder<Map<NoteCategory, int>>(
@@ -195,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       SizedBox(
                         height: topH,
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -203,189 +206,84 @@ class _HomeScreenState extends State<HomeScreen> {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'WishperLog',
-                                          style: TextStyle(
-                                            color: context.textPri,
-                                            fontSize: 26,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: -1,
+                                    child: GlassPane(
+                                      level: 1,
+                                      radius: 22,
+                                      padding: const EdgeInsets.fromLTRB(40, 8, 0, 8),
+                                      tintOverride: context.isDark
+                                          ? const Color(0x5F0F2742)
+                                          : const Color(0xCBEAF4FF),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              gradient: const LinearGradient(
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                                colors: [
+                                                  AppColors.tasks,
+                                                  Color(0xFF57C7FF),
+                                                ],
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: AppColors.tasks.withValues(alpha: 0.05),
+                                                  blurRadius: 12,
+                                                  spreadRadius: -3,
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.auto_awesome_rounded,
+                                              size: 13,
+                                              color: Colors.white,
+                                            ),
                                           ),
-                                        ),
-                                        Text(
-                                          'Jai Shree Ram',
-                                          style: TextStyle(
-                                            color: context.textSec,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'WishperLog',
+                                                  style: TextStyle(
+                                                    color: context.textPri,
+                                                    fontSize: 21,
+                                                    fontWeight: FontWeight.w900,
+                                                    letterSpacing: -0.6,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Jai Shree Ram',
+                                                  style: TextStyle(
+                                                    color: context.textSec,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   // Search pill
                                   GestureDetector(
                                     onTap: () => context.push('/search'),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: BackdropFilter(
-                                        filter: ImageFilter.blur(
-                                          sigmaX: 16,
-                                          sigmaY: 16,
-                                        ),
-                                        child: Container(
-                                          height: 38,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                              colors: [
-                                                context.isDark
-                                                    ? Colors.white.withValues(
-                                                        alpha: 0.10,
-                                                      )
-                                                    : Colors.white.withValues(
-                                                        alpha: 0.52,
-                                                      ),
-                                                context.isDark
-                                                    ? Colors.white.withValues(
-                                                        alpha: 0.04,
-                                                      )
-                                                    : Colors.white.withValues(
-                                                        alpha: 0.30,
-                                                      ),
-                                              ],
-                                            ),
-                                            border: Border.all(
-                                              color: context.isDark
-                                                  ? Colors.white.withValues(
-                                                      alpha: 0.18,
-                                                    )
-                                                  : Colors.black.withValues(
-                                                      alpha: 0.06,
-                                                    ),
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: context.isDark
-                                                    ? Colors.black.withValues(
-                                                        alpha: 0.26,
-                                                      )
-                                                    : Colors.white.withValues(
-                                                        alpha: 0.40,
-                                                      ),
-                                                blurRadius: 14,
-                                                spreadRadius: -2,
-                                                offset: const Offset(0, 3),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                Icons.search_rounded,
-                                                color: context.textSec,
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                'Search',
-                                                style: TextStyle(
-                                                  color: context.textSec,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
+                                    child: _GlassPillButton(
+                                      icon: Icons.search_rounded,
+                                      label: 'Search',
+                                      onTap: () => context.push('/search'),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(
-                                        sigmaX: 16,
-                                        sigmaY: 16,
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        borderRadius: BorderRadius.circular(14),
-                                        child: InkWell(
-                                          onTap: () => context.push('/settings'),
-                                          borderRadius: BorderRadius.circular(14),
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(14),
-                                              gradient: LinearGradient(
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                                colors: [
-                                                  context.isDark
-                                                      ? Colors.white.withValues(
-                                                          alpha: 0.10,
-                                                        )
-                                                      : Colors.white.withValues(
-                                                          alpha: 0.50,
-                                                        ),
-                                                  context.isDark
-                                                      ? Colors.white.withValues(
-                                                          alpha: 0.04,
-                                                        )
-                                                      : Colors.white.withValues(
-                                                          alpha: 0.28,
-                                                        ),
-                                                ],
-                                              ),
-                                              border: Border.all(
-                                                color: context.isDark
-                                                    ? Colors.white.withValues(
-                                                        alpha: 0.18,
-                                                      )
-                                                    : Colors.black.withValues(
-                                                        alpha: 0.06,
-                                                      ),
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: context.isDark
-                                                      ? Colors.black.withValues(
-                                                          alpha: 0.26,
-                                                        )
-                                                      : Colors.white.withValues(
-                                                          alpha: 0.36,
-                                                        ),
-                                                  blurRadius: 14,
-                                                  spreadRadius: -2,
-                                                  offset: const Offset(0, 3),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(10),
-                                              child: Icon(
-                                                Icons.tune_rounded,
-                                                size: 20,
-                                                color: context.textPri,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                                  _GlassIconButton(
+                                    icon: Icons.tune_rounded,
+                                    onTap: () => context.push('/settings'),
                                   ),
                                 ],
                               ),
@@ -413,7 +311,32 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: folderH,
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          child: FolderGrid(counts: counts),
+                          child: GlassPane(
+                            level: 2,
+                            radius: 26,
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                            tintOverride: context.isDark
+                                ? const Color(0x4E122D4A)
+                                : const Color(0xA9EDF7FF),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                                  child: Text(
+                                    'Collections',
+                                    style: TextStyle(
+                                      color: context.textPri,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(child: FolderGrid(counts: counts)),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -421,6 +344,149 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassPillButton extends StatelessWidget {
+  const _GlassPillButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: context.isDark
+                      ? [
+                          Colors.white.withValues(alpha: 0.16),
+                          Colors.white.withValues(alpha: 0.06),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.78),
+                          Colors.white.withValues(alpha: 0.48),
+                        ],
+                ),
+                border: Border.all(
+                  color: context.isDark
+                      ? Colors.white.withValues(alpha: 0.24)
+                      : const Color(0x1A204268),
+                  width: 0.9,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.isDark
+                        ? Colors.black.withValues(alpha: 0.30)
+                        : const Color(0x543D6A97),
+                    blurRadius: 16,
+                    spreadRadius: -4,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: context.textSec, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: context.textSec,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassIconButton extends StatelessWidget {
+  const _GlassIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: context.isDark
+                      ? [
+                          Colors.white.withValues(alpha: 0.16),
+                          Colors.white.withValues(alpha: 0.06),
+                        ]
+                      : [
+                          Colors.white.withValues(alpha: 0.76),
+                          Colors.white.withValues(alpha: 0.46),
+                        ],
+                ),
+                border: Border.all(
+                  color: context.isDark
+                      ? Colors.white.withValues(alpha: 0.24)
+                      : const Color(0x1A204268),
+                  width: 0.9,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.isDark
+                        ? Colors.black.withValues(alpha: 0.30)
+                        : const Color(0x4F3D6A97),
+                    blurRadius: 16,
+                    spreadRadius: -4,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Icon(icon, size: 20, color: context.textPri),
+              ),
+            ),
           ),
         ),
       ),

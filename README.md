@@ -212,6 +212,38 @@ sequenceDiagram
 
 **Guarantee**: Notes save instantly locally even if Firebase is offline.
 
+### Overlay Capture Lifecycle
+
+```mermaid
+flowchart TD
+   A[Bubble Idle] --> B{User Gesture}
+   B -->|Long press| C[Voice Recording]
+   B -->|Double tap| D[Quick Text Input]
+   C --> E[Processing]
+   D --> E
+   E --> F[Saved State]
+   E --> G[Idle on failure/timeout]
+   F --> H[Auto return to idle]
+```
+
+### Native/Flutter Overlay Bridge
+
+```mermaid
+sequenceDiagram
+   participant Native as OverlayForegroundService
+   participant Bridge as MainActivity + MethodChannel
+   participant Flutter as OverlayNotifier/CaptureUiController
+   participant Store as Isar + Firestore
+
+   Native->>Bridge: notifyRecordingStarted / transcript / stopped
+   Bridge->>Flutter: MethodChannel events
+   Flutter->>Store: ingestRawCapture(...)
+   Store-->>Flutter: saved note (title/category/model)
+   Flutter->>Bridge: notifySaved(title, category, collection)
+   Bridge->>Native: notifySaved(...)
+   Native-->>Native: Render 2-line saved pill + haptic
+```
+
 ### View & Search
 - **Home Screen**: StreamBuilder on category counts (real-time updates)
 - **Folder Screen**: StreamBuilder on filtered notes by category

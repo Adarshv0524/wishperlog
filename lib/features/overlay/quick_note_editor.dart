@@ -48,6 +48,7 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
       sl<CaptureUiController>().notifyExternalRecordingSaved(
         title: saved?.title ?? 'Quick note',
         category: saved?.category ?? NoteCategory.general,
+        noteId: saved?.noteId,
       );
       if (mounted) {
         context.pop();

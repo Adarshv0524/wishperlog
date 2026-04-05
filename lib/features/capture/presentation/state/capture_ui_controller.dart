@@ -136,42 +136,51 @@ class CaptureUiController extends Cubit<CaptureUiState> {
 
   /// Stops recording.  Called on long-press END.
   Future<void> stopRecording() async {
-    // If still initialising, just flag it — startRecording() will see it.
-    if (_isInitializing) {
-      _stopRequested = true;
-      return;
-    }
+    if (_isInitializing) { _stopRequested = true; return; }
     if (state is! CaptureUiRecording) return;
 
     _recordingTimer?.cancel();
 
+    final captured = _lastTranscript.trim();
+
     try {
       await _speechToText.stop();
-      emit(const CaptureUiProcessing(provider: 'AI'));
+    } catch (_) {}
 
-      final captured = _lastTranscript.trim();
-      final savedNote = captured.isEmpty
-          ? null
-          : await _captureService.ingestRawCapture(
-              rawTranscript: captured,
-              source: CaptureSource.voiceOverlay,
-              syncToCloud: true, // sync in background
-            );
+    if (captured.isEmpty) {
+      emit(const CaptureUiIdle());
+      return;
+    }
 
+    // Show provider immediately using last known provider
+    emit(CaptureUiProcessing(
+      provider: _captureService.activeProviderName,
+    ));
+
+    // Save in background - ingestRawCapture now returns instantly
+    try {
+      final savedNote = await _captureService.ingestRawCapture(
+        rawTranscript: captured,
+        source: CaptureSource.voiceOverlay,
+        syncToCloud: true,
+      );
+
+      // Show saved with quick title; island updates again when AI finishes
       emit(CaptureUiSaved(
-        title: savedNote?.title ?? 'Voice capture',
+        title: savedNote?.title ?? captured,
         category: savedNote?.category ?? NoteCategory.general,
       ));
-
-      _autoReturnTimer?.cancel();
-      _autoReturnTimer = Timer(AppDurations.notchAutoReturn, () {
-        if (state is CaptureUiSaved) emit(const CaptureUiIdle());
-      });
     } catch (error) {
       emit(CaptureUiError(message: 'Failed to save: $error'));
       await Future<void>.delayed(const Duration(seconds: 2));
-      emit(const CaptureUiIdle());
     }
+
+    _autoReturnTimer?.cancel();
+    _autoReturnTimer = Timer(AppDurations.notchAutoReturn, () {
+      if (state is CaptureUiSaved || state is CaptureUiError) {
+        emit(const CaptureUiIdle());
+      }
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -214,28 +223,38 @@ class CaptureUiController extends Cubit<CaptureUiState> {
   void notifyExternalRecordingStopped() {
     _recordingTimer?.cancel();
     if (state is CaptureUiRecording) {
-      emit(const CaptureUiProcessing(provider: 'AI'));
+      final activeProvider = _captureService.activeProviderName;
+      emit(CaptureUiProcessing(provider: activeProvider));
       // Safety net: if _saveOverlayNote never calls notifyExternalRecordingSaved
       // (e.g. empty transcript), auto-return to idle after 12 seconds.
       _autoReturnTimer?.cancel();
-      _autoReturnTimer = Timer(const Duration(seconds: 12), () {
+      _autoReturnTimer = Timer(const Duration(seconds: 4), () {
         if (state is CaptureUiProcessing) {
-          debugPrint(
-            '[CaptureUiController] processing timeout — returning to idle',
-          );
           emit(const CaptureUiIdle());
         }
       });
     }
   }
 
+  /// Text overlay submitted — show processing indicator (no prior recording state).
+  void notifyExternalTextProcessingStarted() {
+    _recordingTimer?.cancel();
+    emit(const CaptureUiProcessing(provider: 'AI'));
+    _autoReturnTimer?.cancel();
+    _autoReturnTimer = Timer(const Duration(seconds: 15), () {
+      if (state is CaptureUiProcessing) emit(const CaptureUiIdle());
+    });
+  }
+
   /// A note was saved (from any source) — show the saved confirmation pill.
   void notifyExternalRecordingSaved({
     required String title,
     required NoteCategory category,
+    String model = 'AI',
+    String? noteId,
   }) {
     _recordingTimer?.cancel();
-    emit(CaptureUiSaved(title: title, category: category));
+    emit(CaptureUiSaved(title: title, category: category, noteId: noteId));
     _autoReturnTimer?.cancel();
     _autoReturnTimer = Timer(AppDurations.notchAutoReturn, () {
       if (state is CaptureUiSaved) emit(const CaptureUiIdle());
@@ -260,9 +279,29 @@ class CaptureUiController extends Cubit<CaptureUiState> {
 
   void _onSpeechStatus(String status) {
     debugPrint('[CaptureUiController] STT status: $status');
-    if ((status == 'done' || status == 'notListening') &&
-        state is CaptureUiRecording) {
-      stopRecording();
+    // 'done' often indicates the engine auto-closed due to silence.
+    // Keep recording alive until the user explicitly stops.
+    if (status == 'done' && state is CaptureUiRecording && !_isInitializing) {
+      unawaited(_resumeListening());
+    }
+  }
+
+  /// Re-arms STT when it auto-closes during an active recording session.
+  Future<void> _resumeListening() async {
+    if (state is! CaptureUiRecording || _stopRequested || _isInitializing) {
+      return;
+    }
+    try {
+      await _speechToText.listen(
+        onResult: _onSpeechResult,
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: false,
+          onDevice: false,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[CaptureUiController] _resumeListening error: $e');
     }
   }
 

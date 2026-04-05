@@ -65,7 +65,7 @@ class GeminiNoteClassifier {
         final response = await model.generateContent([
           Content.text(systemPrompt),
           Content.text('Raw input: $text'),
-        ]);
+        ]).timeout(const Duration(seconds: 7));
 
         final payload = response.text?.trim();
         if (payload == null || payload.isEmpty) {

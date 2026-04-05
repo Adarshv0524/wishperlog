@@ -12,12 +12,14 @@ class AiClassifierRouter {
   final GeminiNoteClassifier _gemini;
   final GroqNoteClassifier _groq;
   AiProvider _activeProvider = AiProvider.auto;
+  String _lastUsedModelName = 'AI';
 
   AiClassifierRouter()
       : _gemini = GeminiNoteClassifier(),
         _groq = GroqNoteClassifier();
 
   AiProvider get activeProvider => _activeProvider;
+  String get lastUsedModelName => _lastUsedModelName;
 
   bool get geminiConfigured => _gemini.isConfigured;
   bool get groqConfigured => _groq.isConfigured;
@@ -49,21 +51,29 @@ class AiClassifierRouter {
 
   /// Classify a note using the configured provider chain.
   Future<GeminiClassificationResult> classify(String rawTranscript) async {
+    GeminiClassificationResult result;
+
     switch (_activeProvider) {
       case AiProvider.groq:
-        return await _tryGroq(rawTranscript) ?? _localFallback(rawTranscript);
+        result = await _tryGroq(rawTranscript) ?? _localFallback(rawTranscript);
+        break;
       case AiProvider.gemini:
-        return await _gemini.classify(rawTranscript);
+        result = await _gemini.classify(rawTranscript);
+        break;
       case AiProvider.huggingface:
       case AiProvider.auto:
         // Try Gemini first, then Groq, then local
         try {
-          return await _gemini.classify(rawTranscript);
+          result = await _gemini.classify(rawTranscript);
         } catch (e) {
           debugPrint('[AiClassifierRouter] Gemini failed, trying Groq: $e');
-          return await _tryGroq(rawTranscript) ?? _localFallback(rawTranscript);
+          result = await _tryGroq(rawTranscript) ?? _localFallback(rawTranscript);
         }
+        break;
     }
+
+    _lastUsedModelName = result.model;
+    return result;
   }
 
   Future<GeminiClassificationResult?> _tryGroq(String rawTranscript) async {

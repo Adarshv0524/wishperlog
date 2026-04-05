@@ -24,6 +24,8 @@ enum CaptureSource {
   voiceOverlay,
   textOverlay,
   homeWritingBox,
+  shortcutTile,
+  notification,
 }
 
 enum AiProvider {

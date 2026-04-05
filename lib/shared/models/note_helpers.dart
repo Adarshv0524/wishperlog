@@ -126,6 +126,10 @@ CaptureSource parseSource(String raw) {
       return CaptureSource.voiceOverlay;
     case 'text overlay':
       return CaptureSource.textOverlay;
+    case 'shortcut tile':
+      return CaptureSource.shortcutTile;
+    case 'notification':
+      return CaptureSource.notification;
     case 'home writing box':
     default:
       return CaptureSource.homeWritingBox;

@@ -13,6 +13,7 @@ import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
+import 'package:wishperlog/shared/widgets/glass_title_bar.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 
 class FolderScreen extends StatefulWidget {
@@ -45,55 +46,29 @@ class _FolderScreenState extends State<FolderScreen> {
         final notes = snapshot.data ?? const <Note>[];
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              onPressed: _goBack,
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 20,
-                color: context.textPri,
-              ),
+          appBar: GlassTitleBar(
+            title: categoryLabel(widget.category),
+            subtitle: '${notes.length} notes',
+            onBack: _goBack,
+            leading: Icon(
+              categoryIcon(widget.category),
+              size: 18,
+              color: categoryColor(widget.category),
             ),
-            title: Row(
-              children: [
-                Text(
-                  categoryEmoji(widget.category),
-                  style: const TextStyle(fontSize: 20),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: categoryColor(widget.category).withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${notes.length}',
+                style: TextStyle(
+                  color: categoryColor(widget.category),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  categoryLabel(widget.category),
-                  style: TextStyle(
-                    color: context.textPri,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 20,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: categoryColor(
-                      widget.category,
-                    ).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${notes.length}',
-                    style: TextStyle(
-                      color: categoryColor(widget.category),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
           body: GlassPageBackground(
@@ -486,6 +461,7 @@ class _FolderScreenState extends State<FolderScreen> {
                               sl<CaptureUiController>().notifyExternalRecordingSaved(
                                 title: displayTitle.isNotEmpty ? displayTitle : 'Note updated',
                                 category: selectedCategory,
+                                noteId: note.noteId,
                               );
                               Navigator.of(context).pop();
                             }

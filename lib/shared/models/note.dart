@@ -39,6 +39,7 @@ class Note {
   DateTime createdAt;
   DateTime updatedAt;
 
+  @Index()
   @Enumerated(EnumType.name)
   NoteStatus status;
 

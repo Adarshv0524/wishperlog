@@ -28,12 +28,15 @@ class ThoughtCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final glassColor = isDark
-      ? const Color(0x0DFFFFFF)
-      : const Color(0x55FFFFFF);
     final borderColor = isDark
-      ? const Color(0x22FFFFFF)
-      : const Color(0x0F000000);
+      ? const Color(0x44D4E5FF)
+      : const Color(0x26204268);
+    final topLayer = isDark
+      ? const Color(0x2AE8F2FF)
+      : const Color(0xE3FFFFFF);
+    final bottomLayer = isDark
+      ? const Color(0x164E6FA0)
+      : const Color(0xBFEAF2FF);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
@@ -45,23 +48,20 @@ class ThoughtCanvas extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                glassColor,
-                (isDark
-                        ? const Color(0x18FFFFFF)
-                        : const Color(0x99FFFFFF))
-                    .withValues(alpha: isDark ? 0.08 : 0.42),
+                topLayer,
+                bottomLayer,
               ],
             ),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: borderColor, width: 0.75),
+            border: Border.all(color: borderColor, width: 0.95),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withValues(alpha: 0.30)
-                    : Colors.white.withValues(alpha: 0.38),
-                blurRadius: 24,
-                spreadRadius: -6,
-                offset: const Offset(0, 6),
+                    ? Colors.black.withValues(alpha: 0.34)
+                    : const Color(0x663D6A97),
+                blurRadius: 30,
+                spreadRadius: -10,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -74,9 +74,9 @@ class ThoughtCanvas extends StatelessWidget {
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      Colors.white.withValues(alpha: isDark ? 0.02 : 0.18),
-                      Colors.white.withValues(alpha: isDark ? 0.26 : 0.40),
-                      Colors.white.withValues(alpha: isDark ? 0.02 : 0.18),
+                      Colors.white.withValues(alpha: isDark ? 0.04 : 0.24),
+                      Colors.white.withValues(alpha: isDark ? 0.34 : 0.54),
+                      Colors.white.withValues(alpha: isDark ? 0.04 : 0.24),
                     ],
                   ),
                 ),
@@ -150,8 +150,8 @@ class ThoughtCanvas extends StatelessWidget {
                           color: isRecording
                               ? AppColors.tasks.withValues(alpha: 0.85)
                               : (isDark
-                                  ? const Color(0x33FFFFFF)
-                                  : const Color(0x22000000)),
+                                ? const Color(0x30FFFFFF)
+                                : const Color(0x22DDEAFF)),
                           border: Border.all(
                             color: isRecording ? AppColors.tasks : borderColor,
                             width: isRecording ? 1.5 : 0.8,

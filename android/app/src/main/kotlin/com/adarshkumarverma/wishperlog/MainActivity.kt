@@ -1,6 +1,7 @@
 package com.adarshkumarverma.wishperlog
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.Uri
@@ -16,7 +17,6 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "wishperlog/overlay"
     private val REQUEST_RECORD_AUDIO = 4242
-    private val noteReceiver = NoteInputReceiver()
     private var pendingMicPermissionResult: MethodChannel.Result? = null
 
     override fun getBackgroundMode(): FlutterActivityLaunchConfigs.BackgroundMode {
@@ -93,21 +93,84 @@ class MainActivity : FlutterActivity() {
                     val args = call.arguments as? Map<String, Any?> ?: emptyMap()
                     val title = args["title"] as? String ?: "Saved"
                     val category = args["category"] as? String ?: "general"
-                    OverlayForegroundService.notifySaved(title, category)
+                    val collection = args["collection"] as? String ?: "notes"
+                    OverlayForegroundService.notifySaved(title, category, collection)
+                    result.success(null)
+                }
+                "updateOverlaySettings" -> {
+                    val alpha = (call.argument<Double>("alpha") ?: 0.85).toFloat()
+                    val grow = call.argument<Boolean>("growOnHold") ?: true
+                    val normalizedAlpha = alpha.coerceIn(0.3f, 1f)
+                    val prefs = getSharedPreferences(
+                        "com.adarshkumarverma.wishperlog_preferences",
+                        Context.MODE_PRIVATE
+                    )
+                    prefs.edit()
+                        .putFloat("overlay_bubble_alpha", normalizedAlpha)
+                        .putBoolean("overlay_bubble_grow", grow)
+                        .apply()
+                    OverlayForegroundService.applySettings(normalizedAlpha, grow)
+                    result.success(null)
+                }
+                "getOverlaySettings" -> {
+                    val prefs = getSharedPreferences(
+                        "com.adarshkumarverma.wishperlog_preferences",
+                        Context.MODE_PRIVATE
+                    )
+                    val alpha = prefs.getFloat("overlay_bubble_alpha", 0.85f).toDouble()
+                    val grow = prefs.getBoolean("overlay_bubble_grow", true)
+                    result.success(mapOf("alpha" to alpha, "growOnHold" to grow))
+                }
+                "drainPendingNotes" -> {
+                    val prefs = getSharedPreferences("wishperlog_pending_notes", Context.MODE_PRIVATE)
+                    val all = prefs.all
+                    val textKeys = all.keys.filter { it.endsWith("_text") }
+                    val channel2 = FlutterEngineHolder.channel
+                    textKeys.forEach { textKey ->
+                        val sourceKey = textKey.replace("_text", "_source")
+                        val text = prefs.getString(textKey, null)
+                        val src = prefs.getString(sourceKey, "voice_overlay") ?: "voice_overlay"
+                        if (text != null && channel2 != null) {
+                            channel2.invokeMethod("captureNote", mapOf("text" to text, "source" to src))
+                            prefs.edit().remove(textKey).remove(sourceKey).apply()
+                        }
+                    }
                     result.success(null)
                 }
                 else -> result.notImplemented()
             }
         }
+    }
 
-        // Register overlay note receiver (secondary - in case service receiver misses it)
-        NoteInputReceiver.register(this, noteReceiver)
+    override fun onResume() {
+        super.onResume()
+        drainPendingNotes()
+    }
+
+    private fun drainPendingNotes() {
+        val prefs = getSharedPreferences("wishperlog_pending_notes", Context.MODE_PRIVATE)
+        val all = prefs.all
+        if (all.isEmpty()) return
+
+        val channel = FlutterEngineHolder.channel ?: return
+        val keys = all.keys.filter { it.endsWith("_text") }
+        keys.forEach { textKey ->
+            val sourceKey = textKey.replace("_text", "_source")
+            val text = prefs.getString(textKey, null) ?: return@forEach
+            val source = prefs.getString(sourceKey, "voice_overlay") ?: "voice_overlay"
+
+            channel.invokeMethod("captureNote", mapOf("text" to text, "source" to source))
+            prefs.edit().remove(textKey).remove(sourceKey).apply()
+        }
     }
 
     override fun onDestroy() {
-        NoteInputReceiver.unregister(this, noteReceiver)
-        FlutterEngineHolder.channel = null
         super.onDestroy()
+    }
+
+    override fun onFlutterUiNoLongerDisplayed() {
+        super.onFlutterUiNoLongerDisplayed()
+        // Don't null the channel here either; foreground service may still need it.
     }
 
     override fun onRequestPermissionsResult(

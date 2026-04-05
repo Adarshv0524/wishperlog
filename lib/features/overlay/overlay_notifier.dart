@@ -29,7 +29,6 @@ class OverlayNotifier extends ChangeNotifier {
   Timer? _persistDebounce;
   StreamSubscription<CaptureUiState>? _captureStateSub;
   String _lastNativeState = 'idle';
-  String? _lastNativeMessage;
 
   final MethodChannel _channel = const MethodChannel('wishperlog/overlay');
   final List<VoidCallback> _openEditorCallbacks = [];
@@ -81,7 +80,7 @@ class OverlayNotifier extends ChangeNotifier {
             final text = call.arguments?['text'] as String? ?? '';
             final source = call.arguments?['source'] as String? ?? 'voice_overlay';
             if (text.isNotEmpty) {
-              await _saveOverlayNote(text, source);
+              Future.microtask(() => _saveOverlayNote(text, source));
             }
             break;
           case 'promptMicrophonePermission':
@@ -163,6 +162,16 @@ class OverlayNotifier extends ChangeNotifier {
     }
   }
 
+  /// Called from main.dart _postLaunchTasks - drains notes captured while
+  /// Flutter engine was dead (native-only sessions).
+  Future<void> drainPendingNativeNotes() async {
+    try {
+      await _channel.invokeMethod('drainPendingNotes');
+    } catch (e) {
+      debugPrint('[OverlayNotifier] drainPendingNativeNotes error: $e');
+    }
+  }
+
   void updatePosition(Offset newPosition) {
     _position = newPosition;
     notifyListeners();
@@ -221,7 +230,7 @@ class OverlayNotifier extends ChangeNotifier {
   }
 
   /// Core save method — called when native overlay broadcasts a captured note.
-  /// CRITICAL PATH: this must call _notifyNativeSaved after saving so the
+  /// CRITICAL PATH: this must call notifyNativeSaved after saving so the
   /// native island shows the category pill even when the app is backgrounded.
   Future<void> _saveOverlayNote(String text, String source) async {
     try {
@@ -232,10 +241,8 @@ class OverlayNotifier extends ChangeNotifier {
           ? CaptureSource.textOverlay
           : CaptureSource.voiceOverlay;
 
-      // Update Flutter island to processing state (works when app is foreground)
-      try {
-        sl<CaptureUiController>().notifyExternalRecordingStopped();
-      } catch (_) {}
+      // With instant-save, skip "processing" flash - go direct to saved.
+      // AI will update the note in the background.
 
       final saved = await svc.ingestRawCapture(
         rawTranscript: text,
@@ -244,47 +251,41 @@ class OverlayNotifier extends ChangeNotifier {
       );
 
       if (saved == null) {
-        debugPrint('[OverlayNotifier] Overlay note ignored (empty transcript).');
         try { sl<CaptureUiController>().resetToIdle(); } catch (_) {}
         return;
       }
 
       debugPrint('[OverlayNotifier] Note saved from overlay: $source');
 
-      // 1. Update Flutter island (works when app is in foreground)
+      // Show saved state immediately with quick title.
       try {
         sl<CaptureUiController>().notifyExternalRecordingSaved(
           title: saved.title,
           category: saved.category,
+          model: saved.aiModel,
         );
-      } catch (e) {
-        debugPrint('[OverlayNotifier] island saved-notify error: $e');
-      }
+      } catch (_) {}
 
-      // 2. Push the saved result DIRECTLY to the native overlay service.
-      //    This is the critical call that makes the island show the category
-      //    label even when the Flutter engine is backgrounded.
-      await _notifyNativeSaved(saved.title, saved.category);
+      // Native island also gets instant saved notification.
+      await notifyNativeSaved(saved.title, saved.category);
     } catch (e) {
       debugPrint('[OverlayNotifier] _saveOverlayNote error: $e');
-      // Show error on native island too
-      try {
-        await _channel.invokeMethod('updateIslandState', {'state': 'idle'});
-      } catch (_) {}
+      try { await _channel.invokeMethod('updateIslandState', {'state': 'idle'}); } catch (_) {}
     }
   }
 
   /// Pushes the save result to the native OverlayForegroundService so it can
   /// show the category pill on the native island overlay.
   /// Uses the dedicated `notifySaved` channel method added to MainActivity.
-  Future<void> _notifyNativeSaved(String title, NoteCategory category) async {
+  Future<void> notifyNativeSaved(String title, NoteCategory category) async {
     try {
       await _channel.invokeMethod('notifySaved', {
         'title': title,
         'category': category.name, // e.g. "tasks", "ideas", "reminders"
+        'collection': 'users/{uid}/notes', // informational label for the island
       });
     } catch (e) {
-      debugPrint('[OverlayNotifier] _notifyNativeSaved error: $e');
+      debugPrint('[OverlayNotifier] notifyNativeSaved error: $e');
       // Fallback: use the generic updateIslandState
       try {
         await _channel.invokeMethod('updateIslandState', {
@@ -330,53 +331,45 @@ class OverlayNotifier extends ChangeNotifier {
   }
 
   void _onCaptureStateChanged(CaptureUiState state) {
-    String stateStr;
-    String? message;
-
-    if (state is CaptureUiRecording) {
-      stateStr = 'recording';
-      if (_lastNativeState == 'recording') return;
-      final transcript = state.currentTranscript;
-      if (transcript.isEmpty) {
-        message = 'Listening...';
-      } else {
-        final end = transcript.length.clamp(0, 50).toInt();
-        message = transcript.substring(0, end);
-      }
-    } else if (state is CaptureUiProcessing) {
-      stateStr = 'processing';
-      message = 'Classifying...';
-    } else if (state is CaptureUiSaved) {
-      stateStr = 'saved';
-      // Include category name so native island can show the label
-      message = '${state.category.name}::${state.title}';
-    } else {
-      stateStr = 'idle';
-      message = null;
-    }
-
-    // While recording, forward transcript changes (not only first entry state)
-    if (_lastNativeState == stateStr) {
-      if (stateStr != 'recording' || _lastNativeMessage == message) {
-        return;
-      }
-    }
-    _lastNativeState = stateStr;
-    _lastNativeMessage = message;
-
-    // For the saved state, use notifySaved for richer category info
-    if (state is CaptureUiSaved) {
-      unawaited(_notifyNativeSaved(state.title, state.category));
+    if (state is CaptureUiIdle) {
+      if (_lastNativeState == 'idle') return;
+      _lastNativeState = 'idle';
+      unawaited(_channel.invokeMethod('updateIslandState', {'state': 'idle'}));
       return;
     }
 
-    final payload = <String, Object?>{'state': stateStr};
-    if (message != null) {
-      payload['message'] = message;
+    if (state is CaptureUiRecording) {
+      _lastNativeState = 'recording';
+      final transcript = state.currentTranscript.trim();
+      final msg = transcript.isEmpty ? 'Listening...' : transcript;
+      // Always forward transcript updates; native side handles dedup.
+      unawaited(_channel.invokeMethod('updateIslandState', {
+        'state': 'recording',
+        'message': msg,
+      }));
+      return;
     }
 
-    unawaited(
-      _channel.invokeMethod('updateIslandState', payload),
-    );
+    if (state is CaptureUiProcessing) {
+      if (_lastNativeState == 'processing') return;
+      _lastNativeState = 'processing';
+      unawaited(_channel.invokeMethod('updateIslandState', {
+        'state': 'processing',
+        'message': state.provider,
+      }));
+      return;
+    }
+
+    if (state is CaptureUiSaved) {
+      // Use notifySaved path so native shows category emoji + collection.
+      _lastNativeState = 'idle';
+      unawaited(notifyNativeSaved(state.title, state.category));
+      return;
+    }
+
+    if (state is CaptureUiError) {
+      _lastNativeState = 'idle';
+      unawaited(_channel.invokeMethod('updateIslandState', {'state': 'idle'}));
+    }
   }
 }

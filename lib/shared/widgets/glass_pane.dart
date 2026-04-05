@@ -78,6 +78,17 @@ class GlassPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseFill = _fillFor(context);
+    final isDark = context.isDark;
+    final topLayer = Color.alphaBlend(
+      Colors.white.withValues(alpha: isDark ? 0.08 : 0.32),
+      baseFill,
+    );
+    final bottomLayer = Color.alphaBlend(
+      Colors.black.withValues(alpha: isDark ? 0.14 : 0.03),
+      baseFill,
+    );
+
     return Container(
       margin: margin,
       child: ClipRRect(
@@ -88,8 +99,25 @@ class GlassPane extends StatelessWidget {
             padding: padding,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(radius),
-              color: _fillFor(context),
-              border: Border.all(color: context.border, width: 0.5),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [topLayer, bottomLayer],
+              ),
+              border: Border.all(
+                color: context.border.withValues(alpha: isDark ? 0.95 : 0.75),
+                width: 0.8,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.28)
+                      : Colors.white.withValues(alpha: 0.48),
+                  blurRadius: isDark ? 22 : 18,
+                  spreadRadius: -8,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: child,
           ),

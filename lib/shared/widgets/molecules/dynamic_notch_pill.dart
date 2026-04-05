@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:wishperlog/app/router.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
@@ -53,70 +54,93 @@ class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
 
     return BlocBuilder<CaptureUiController, CaptureUiState>(
       buildWhen: (previous, current) {
-        final changed =
-            previous.runtimeType != current.runtimeType ||
-            (current is CaptureUiSaved &&
-                previous is CaptureUiSaved &&
-                (previous.category != current.category ||
-                    previous.title != current.title));
-        if (changed) {
-          _scheduleContentFade();
+        final isTranscriptUpdate =
+            previous is CaptureUiRecording &&
+            current is CaptureUiRecording;
+
+        if (!isTranscriptUpdate) {
+          final changed =
+              previous.runtimeType != current.runtimeType ||
+              (current is CaptureUiSaved &&
+                  previous is CaptureUiSaved &&
+                  (previous.category != current.category ||
+                      previous.title != current.title));
+          if (changed) {
+            _scheduleContentFade();
+          }
         }
         return true;
       },
       builder: (context, state) {
         final isActive = state is! CaptureUiIdle;
         final size = _sizeForState(state);
-        final glowColor = state is CaptureUiRecording
-            ? AppColors.tasks.withValues(alpha: 0.30)
-            : state is CaptureUiSaved
-            ? categoryColor(state.category).withValues(alpha: 0.30)
-            : Colors.transparent;
+        final glowColor = switch (state) {
+          CaptureUiRecording() => AppColors.tasks.withValues(alpha: 0.35),
+          CaptureUiProcessing() => const Color(0xFF7C3AED).withValues(alpha: 0.30),
+          CaptureUiSaved(category: final c) =>
+            categoryColor(c).withValues(alpha: 0.45),
+          _ => Colors.transparent,
+        };
 
-        return IgnorePointer(
-          ignoring: !isActive,
-          child: AnimatedOpacity(
-            duration: AppDurations.saveConfirm,
-            opacity: isActive ? 1.0 : 0.0,
-            child: AnimatedContainer(
-              duration: AppDurations.microSnap,
-              curve: Curves.easeInOut,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                boxShadow: glowColor == Colors.transparent
-                    ? const []
-                    : [
-                        BoxShadow(
-                          color: glowColor,
-                          blurRadius: 12,
-                          spreadRadius: 0,
-                        ),
-                      ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: GlassPane(
-                  level: 1,
-                  sigmaOverride: 28,
-                  radius: 999,
-                  tintOverride: isDark
-                      ? const Color(0xFF14142A)
-                      : const Color(0xF5F0F8FC),
-                  child: AnimatedContainer(
-                    duration: AppDurations.saveConfirm,
-                    curve: Curves.easeOutCubic,
-                    width: size.width,
-                    height: size.height,
-                    child: AnimatedOpacity(
-                      duration: AppDurations.notchContentFade,
-                      opacity: _showContent ? 1 : 0,
-                      child: Center(child: _buildStateContent(state, isDark)),
-                    ),
+        Widget child = AnimatedOpacity(
+          duration: AppDurations.saveConfirm,
+          opacity: isActive ? 1.0 : 0.0,
+          child: AnimatedContainer(
+            duration: AppDurations.microSnap,
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: glowColor == Colors.transparent
+                  ? const []
+                  : [
+                      BoxShadow(
+                        color: glowColor,
+                        blurRadius: 12,
+                        spreadRadius: 0,
+                      ),
+                    ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: GlassPane(
+                level: 1,
+                sigmaOverride: 28,
+                radius: 999,
+                tintOverride: isDark
+                  ? const Color(0x99101B2E)
+                  : const Color(0xCCEAF4FF),
+                child: AnimatedContainer(
+                  duration: AppDurations.saveConfirm,
+                  curve: Curves.easeOutCubic,
+                  width: size.width,
+                  height: size.height,
+                  child: AnimatedOpacity(
+                    duration: AppDurations.notchContentFade,
+                    opacity: _showContent ? 1 : 0,
+                    child: Center(child: _buildStateContent(state, isDark)),
                   ),
                 ),
               ),
             ),
           ),
+        );
+
+        if (state is CaptureUiSaved &&
+            state.noteId != null &&
+            state.noteId!.isNotEmpty) {
+          child = GestureDetector(
+            onTap: () {
+              try {
+                router.push('/notes/${state.noteId}');
+              } catch (_) {}
+            },
+            child: child,
+          );
+        }
+
+        return IgnorePointer(
+          ignoring: !isActive,
+          child: child,
         );
       },
     );
@@ -126,6 +150,9 @@ class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
     if (state is CaptureUiIdle) {
       return Size.zero;
     }
+    if (state is CaptureUiRecording) return const Size(300, 44);
+    if (state is CaptureUiProcessing) return const Size(220, 36);
+    if (state is CaptureUiSaved) return const Size(260, 44);
     return const Size(240, 40);
   }
 
@@ -194,6 +221,8 @@ class _RecordingContent extends StatelessWidget {
     final bars = state.waveformSamples.isEmpty
         ? const <double>[0.25, 0.48, 0.7, 0.45, 0.3]
         : state.waveformSamples.take(5).toList();
+    final secs = (state.durationMs ~/ 1000);
+    final timeStr = '${secs ~/ 60}:${(secs % 60).toString().padLeft(2, '0')}';
     final transcript = state.currentTranscript.trim();
     final transcriptText = transcript.isEmpty ? 'Listening...' : transcript;
 
@@ -224,6 +253,16 @@ class _RecordingContent extends StatelessWidget {
               ),
             );
           }),
+          const SizedBox(width: 6),
+          Text(
+            timeStr,
+            style: TextStyle(
+              fontSize: 9,
+              color: AppColors.tasks.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w500,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: SingleChildScrollView(
@@ -281,7 +320,25 @@ class _ProcessingContent extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          _CategoryChip(label: state.provider, category: NoteCategory.journal),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: const Color(0xFF7C3AED).withValues(alpha: 0.20),
+              border: Border.all(
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.45),
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              state.provider,
+              style: const TextStyle(
+                fontSize: 8,
+                color: Color(0xFFA78BFA),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -311,15 +368,30 @@ class _SavedContent extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(
-              state.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10,
-                color: textColor,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  state.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '→ ${state.collection.isNotEmpty && state.collection != 'notes' ? state.collection : categoryLabel(state.category)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: textColor.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 6),

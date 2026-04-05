@@ -126,6 +126,10 @@ void main() async {
 
 Future<void> _postLaunchTasks() async {
   try {
+    await sl<OverlayNotifier>().drainPendingNativeNotes();
+  } catch (_) {}
+
+  try {
     debugPrint('[Main] Registering WorkManager periodic syncs...');
     await WorkManagerService.registerPeriodicGoogleTasksSync();
     await WorkManagerService.registerTelegramDailyDigest();

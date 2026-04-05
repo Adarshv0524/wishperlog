@@ -217,6 +217,46 @@ sequenceDiagram
     F->>F: router.push('/system_banner')
 ```
 
+### 7.2.1 Native Overlay Runtime State
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Armed: Bubble shown
+  Armed --> Recording: Long press >= 350ms
+  Armed --> TextEntry: Double tap
+  Recording --> Processing: Voice stop / final transcript
+  Recording --> Idle: Error or empty transcript
+  TextEntry --> Processing: Submit text
+  Processing --> Saved: CaptureService saves note
+  Processing --> Idle: Timeout / failure
+  Saved --> Idle: Auto-dismiss
+```
+
+### 7.2.2 Pending Note Recovery (Engine Unavailable)
+
+```mermaid
+sequenceDiagram
+  participant OFS as OverlayForegroundService
+  participant NIR as NoteInputReceiver
+  participant SP as SharedPreferences
+  participant MA as MainActivity
+  participant CH as FlutterEngineHolder.channel
+
+  OFS->>NIR: ACTION_NOTE_CAPTURED(text, source)
+  NIR->>CH: captureNote(payload)
+  alt Channel unavailable
+    NIR->>SP: persist pending_<ts>_text/source
+  else Channel available
+    CH-->>NIR: invoke success/error
+  end
+
+  MA->>MA: onResume()
+  MA->>SP: read pending note keys
+  MA->>CH: captureNote(text, source)
+  MA->>SP: remove drained keys
+```
+
 ## 7.3 Event-Driven AI Enrichment
 
 Service: lib/features/ai/data/ai_processing_service.dart

@@ -1,12 +1,9 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
-import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
-import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
-import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
@@ -18,29 +15,15 @@ class NoteSaveService {
     FirebaseFirestore? firestore,
     IsarNoteStore? isarNoteStore,
     NoteEventBus? noteEventBus,
-    AiClassifierRouter? aiRouter,
-    ExternalSyncService? externalSync,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
        _isarNoteStore = isarNoteStore ?? IsarNoteStore.instance,
-       _noteEventBus = noteEventBus ?? NoteEventBus.instance,
-       _aiRouter =
-           aiRouter ??
-           (sl.isRegistered<AiClassifierRouter>()
-               ? sl<AiClassifierRouter>()
-               : AiClassifierRouter()),
-       _externalSync =
-           externalSync ??
-           (sl.isRegistered<ExternalSyncService>()
-               ? sl<ExternalSyncService>()
-               : ExternalSyncService());
+       _noteEventBus = noteEventBus ?? NoteEventBus.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final IsarNoteStore _isarNoteStore;
   final NoteEventBus _noteEventBus;
-  final AiClassifierRouter _aiRouter;
-  final ExternalSyncService _externalSync;
 
   /// Saves a note locally and attempts cloud sync.
   /// Returns the saved Note when local persistence succeeds.
@@ -50,77 +33,44 @@ class NoteSaveService {
     bool syncToCloud = true,
   }) async {
     final trimmed = rawTranscript.trim();
-    if (trimmed.isEmpty) {
-      throw Exception('[NoteSaveService] Empty transcript');
-    }
+    if (trimmed.isEmpty) throw Exception('[NoteSaveService] Empty transcript');
 
     debugPrint('[NoteSaveService] Starting save: $source');
 
-    final classification = await _aiRouter.classify(trimmed);
-
-    // Step 1: Create note from AI output. If AI falls back, keep the note
-    // pending so the existing retry pipeline can handle it server-side.
-    final note = _createNote(
-      transcript: trimmed,
-      source: source,
-      classification: classification,
-    );
-
-    // Step 2: Save to local SQLite storage - no debug print here to reduce spam
-    await _saveToLocalStore(note);
-
-    var finalNote = note;
-
-    if (note.status == NoteStatus.active) {
-      final externalResult = await _externalSync.syncExternalForNote(note);
-      if (externalResult.noteChanged) {
-        finalNote = externalResult.note;
-        await _saveToLocalStore(finalNote);
-      }
-    }
-
-    // Fire-and-forget emit to trigger event-driven AI processing.
-    _noteEventBus.emitNoteSaved(finalNote.noteId);
-
-    // Step 3: Save to Firebase (cloud) if requested - best effort only
-    if (syncToCloud) {
-      await _saveToFirebase(finalNote);
-    }
-
-    return finalNote;
-  }
-
-  /// Creates a Note object from raw transcript
-  Note _createNote({
-    required String transcript,
-    required CaptureSource source,
-    required GeminiClassificationResult classification,
-  }) {
     final now = DateTime.now();
     final user = _auth.currentUser;
-    final status = classification.wasFallback
-        ? NoteStatus.pendingAi
-        : NoteStatus.active;
     final noteId = '${now.microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
 
-    return Note(
+    // Instant local save - no AI await
+    final oneLine = trimmed.replaceAll('\n', ' ').trim();
+    final quickTitle = oneLine.length <= 60 ? oneLine : '${oneLine.substring(0, 60).trimRight()}...';
+
+    final note = Note(
       noteId: noteId,
       uid: user?.uid ?? 'local_anonymous',
-      rawTranscript: transcript,
-      title: classification.title,
-      cleanBody: classification.cleanBody,
-      category: classification.category,
-      priority: classification.priority,
+      rawTranscript: trimmed,
+      title: quickTitle,
+      cleanBody: trimmed,
+      category: NoteCategory.general,
+      priority: NotePriority.medium,
       extractedDate: null,
       createdAt: now,
       updatedAt: now,
-      status: status,
-      aiModel: classification.model,
+      status: NoteStatus.pendingAi,
+      aiModel: 'pending',
       gcalEventId: null,
       gtaskId: null,
       source: source,
-      syncedAt: status == NoteStatus.active ? now : null,
+      syncedAt: null,
     );
+
+    await _saveToLocalStore(note);
+
+    _noteEventBus.emitNoteSaved(note.noteId);
+
+    if (syncToCloud) unawaited(_saveToFirebase(note));
+
+    return note;
   }
 
   /// Saves note to local SQLite database
