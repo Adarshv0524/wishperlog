@@ -1,6 +1,7 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:wishperlog/core/theme/app_durations.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class GlassContainer extends StatelessWidget {
   const GlassContainer({
@@ -24,44 +25,13 @@ class GlassContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final base = isDark ? Colors.white : Colors.black;
-
-    return Container(
+    final resolvedRadius = borderRadius.topLeft.x;
+    return GlassPane(
       margin: margin,
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: sigmaX, sigmaY: sigmaY),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              borderRadius: borderRadius,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  base.withValues(alpha: isDark ? 0.12 : 0.08),
-                  base.withValues(alpha: isDark ? 0.07 : 0.04),
-                ],
-              ),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: isDark ? 0.20 : 0.45),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: shadowOpacity),
-                  blurRadius: 22,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: child,
-          ),
-        ),
-      ),
+      padding: padding,
+      radius: resolvedRadius,
+      level: 1,
+      child: child,
     );
   }
 }
@@ -89,54 +59,42 @@ class GlassBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final base = isDark ? Colors.white : Colors.black;
     final normalizedOpacity = opacity.clamp(0.2, 1.0);
 
-    final idleGradient = [
-      base.withValues(alpha: isDark ? 0.18 : 0.10),
-      base.withValues(alpha: isDark ? 0.10 : 0.06),
-    ];
+    final idleGradient = isDark
+        ? [AppColors.darkGlass1, AppColors.darkGlass2]
+        : [AppColors.lightGlass1, AppColors.lightGlass2];
 
     return Opacity(
       opacity: normalizedOpacity,
-      child: ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: sigmaX, sigmaY: sigmaY),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isActive
-                    ? const [Color(0xFF4C6FFF), Color(0xFF7B4BFF)]
-                    : idleGradient,
-              ),
-              border: Border.all(
-                color: isActive
-                    ? const Color(0xFFD6DDFF)
-                    : isError
-                    ? const Color(0xFFFFCFCF)
-                    : Colors.white.withValues(alpha: isDark ? 0.72 : 0.86),
-                width: isActive ? 2.0 : 1.3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isActive
-                      ? const Color(0xAA5F77FF)
-                      : Colors.black.withValues(alpha: 0.22),
-                  blurRadius: isActive ? 24 : 16,
-                  spreadRadius: isActive ? 3 : 0,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+      child: GlassPane(
+        level: 4,
+        radius: size,
+        sigmaOverride: (sigmaX + sigmaY) / 2,
+        child: AnimatedContainer(
+          duration: AppDurations.microSnap,
+          curve: Curves.easeOutCubic,
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isActive
+                  ? const [Color(0xFF4C6FFF), Color(0xFF7B4BFF)]
+                  : idleGradient,
             ),
-            child: child,
+            border: Border.all(
+              color: isActive
+                  ? const Color(0xFFD6DDFF)
+                  : isError
+                  ? const Color(0xFFFFCFCF)
+                  : Colors.white.withValues(alpha: isDark ? 0.72 : 0.86),
+              width: isActive ? 2.0 : 1.3,
+            ),
           ),
+          child: child,
         ),
       ),
     );

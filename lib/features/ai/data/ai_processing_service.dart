@@ -1,33 +1,35 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:wishperlog/core/storage/sqlite_note_store.dart';
-import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
+import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
+import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 
 class AiProcessingService {
   AiProcessingService({
-    GeminiNoteClassifier? classifier,
+    AiClassifierRouter? router,
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-     SqliteNoteStore? noteStore,
+    IsarNoteStore? isarNoteStore,
     ExternalSyncService? externalSync,
-     NoteEventBus? noteEventBus,
-  }) : _classifier = classifier ?? GeminiNoteClassifier(),
+    NoteEventBus? noteEventBus,
+  }) : _router = router ?? sl<AiClassifierRouter>(),
        _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _noteStore = noteStore ?? SqliteNoteStore.instance,
-       _externalSync = externalSync ?? ExternalSyncService(),
+       _isarNoteStore = isarNoteStore ?? IsarNoteStore.instance,
+       _externalSync = externalSync ?? sl<ExternalSyncService>(),
        _noteEventBus = noteEventBus ?? NoteEventBus.instance;
 
-  final GeminiNoteClassifier _classifier;
+  final AiClassifierRouter _router;
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final SqliteNoteStore _noteStore;
+  final IsarNoteStore _isarNoteStore;
   final ExternalSyncService _externalSync;
   final NoteEventBus _noteEventBus;
 
@@ -58,7 +60,7 @@ class AiProcessingService {
     _sweepRunning = true;
 
     try {
-      final pending = await _noteStore.getPendingAiNotes();
+      final pending = await _isarNoteStore.getPendingAiNotes();
 
       for (final note in pending) {
         await processNoteById(note.noteId);
@@ -78,12 +80,12 @@ class AiProcessingService {
 
     _inFlightNoteIds.add(trimmedId);
     try {
-      final note = await _noteStore.getByNoteId(trimmedId);
+      final note = await _isarNoteStore.getByNoteId(trimmedId);
       if (note == null || note.status != NoteStatus.pendingAi) {
         return;
       }
 
-      final result = await _classifier.classify(note.rawTranscript);
+      final result = await _router.classify(note.rawTranscript);
       final now = DateTime.now();
 
       final activeNote = note.copyWith(
@@ -104,10 +106,13 @@ class AiProcessingService {
       );
       final externallySyncedNote = externalResult.note;
 
-      await _noteStore.upsert(externallySyncedNote);
+      await _isarNoteStore.put(externallySyncedNote);
 
       await _syncToFirestore(externallySyncedNote);
-    } catch (_) {
+    } catch (e, st) {
+      // Log the exact error to diagnose AI failures.
+      debugPrint('[AiProcessingService] Error processing $trimmedId: $e');
+      debugPrintStack(stackTrace: st);
       // Keep note as pendingAi and let future events/sweeps retry.
     } finally {
       _inFlightNoteIds.remove(trimmedId);
@@ -115,20 +120,35 @@ class AiProcessingService {
   }
 
   Future<bool> _syncToFirestore(Note note) async {
-    final user = _auth.currentUser;
+    var user = _auth.currentUser;
+    // Wait for auth to hydrate in isolated contexts
     if (user == null) {
-      return true;
+      try {
+        user = await _auth
+            .authStateChanges()
+            .firstWhere((u) => u != null, orElse: () => null as User?)
+            .timeout(const Duration(seconds: 2));
+      } catch (_) {}
+    }
+
+    final uid = user?.uid ?? note.uid;
+    if (uid.isEmpty || uid == 'local_anonymous') {
+      debugPrint(
+        '[AiProcessingService] Firebase sync skipped: user not authenticated ($uid)',
+      );
+      return false; // Return false so it is retried later!
     }
 
     try {
       await _firestore
           .collection('users')
-          .doc(user.uid)
+          .doc(uid)
           .collection('notes')
           .doc(note.noteId)
           .set(note.toFirestoreJson(), SetOptions(merge: true));
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[AiProcessingService] Firestore sync error: $e');
       return false;
     }
   }

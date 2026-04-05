@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 
@@ -14,9 +15,9 @@ class CaptureUiController extends Cubit<CaptureUiState> {
   CaptureUiController({
     required CaptureService captureService,
     required SpeechToText speechToText,
-  })  : _captureService = captureService,
-        _speechToText = speechToText,
-        super(const CaptureUiIdle());
+  }) : _captureService = captureService,
+       _speechToText = speechToText,
+       super(const CaptureUiIdle());
 
   final CaptureService _captureService;
   final SpeechToText _speechToText;
@@ -55,7 +56,13 @@ class CaptureUiController extends Cubit<CaptureUiState> {
       _lastTranscript = '';
 
       // Emit recording state
-      emit(const CaptureUiRecording(durationMs: 0, waveformSamples: []));
+      emit(
+        const CaptureUiRecording(
+          durationMs: 0,
+          waveformSamples: [],
+          currentTranscript: '',
+        ),
+      );
 
       // Start recording timer to update waveform visualization
       _recordingTimer?.cancel();
@@ -87,7 +94,7 @@ class CaptureUiController extends Cubit<CaptureUiState> {
       emit(const CaptureUiProcessing(provider: 'Gemini'));
 
       // Simulate processing delay (in production, wait for actual AI response)
-      await Future<void>.delayed(const Duration(milliseconds: 800));
+      await Future<void>.delayed(AppDurations.microSnap * 6);
 
       final captured = _lastTranscript.trim();
       final savedNote = captured.isEmpty
@@ -108,7 +115,7 @@ class CaptureUiController extends Cubit<CaptureUiState> {
 
       // Auto-return to idle after 2600ms
       _autoReturnTimer?.cancel();
-      _autoReturnTimer = Timer(const Duration(milliseconds: 2600), () {
+      _autoReturnTimer = Timer(AppDurations.notchAutoReturn, () {
         if (state is CaptureUiSaved) {
           emit(const CaptureUiIdle());
         }
@@ -123,6 +130,16 @@ class CaptureUiController extends Cubit<CaptureUiState> {
   /// Called whenever speech recognition result is updated.
   void _onSpeechResult(SpeechRecognitionResult result) {
     _lastTranscript = result.recognizedWords;
+    if (state is CaptureUiRecording) {
+      final current = state as CaptureUiRecording;
+      emit(
+        CaptureUiRecording(
+          durationMs: current.durationMs,
+          waveformSamples: current.waveformSamples,
+          currentTranscript: _lastTranscript,
+        ),
+      );
+    }
   }
 
   /// Updates waveform visualization with mock data.
@@ -134,13 +151,19 @@ class CaptureUiController extends Cubit<CaptureUiState> {
     // Generate mock waveform samples (5 bars as per design)
     final newSamples = List<double>.generate(
       5,
-      (_) => (0.3 + (0.7 * ((_recordingDurationMs % 1000) / 1000))).clamp(0.0, 1.0),
+      (_) => (0.3 + (0.7 * ((_recordingDurationMs % 1000) / 1000))).clamp(
+        0.0,
+        1.0,
+      ),
     );
 
-    emit(CaptureUiRecording(
-      durationMs: _recordingDurationMs,
-      waveformSamples: newSamples,
-    ));
+    emit(
+      CaptureUiRecording(
+        durationMs: _recordingDurationMs,
+        waveformSamples: newSamples,
+        currentTranscript: _lastTranscript,
+      ),
+    );
   }
 
   /// Manually resets to idle state (for cancel operations).

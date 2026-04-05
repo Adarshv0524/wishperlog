@@ -1,141 +1,162 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
+import 'package:wishperlog/core/theme/app_durations.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
-import 'package:wishperlog/shared/widgets/atoms/category_color.dart';
+import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
-/// A morphing notch pill that transitions between recording states.
-/// Implements the design from the UX audit: idle (compact) → recording (expanded with waveform)
-/// → processing (shimmer) → saved (success badge) → idle (auto-return 2600ms).
-class DynamicNotchPill extends StatelessWidget {
+class UnifiedDynamicIsland extends StatefulWidget {
+  const UnifiedDynamicIsland({super.key});
+
+  @override
+  State<UnifiedDynamicIsland> createState() => _UnifiedDynamicIslandState();
+}
+
+@Deprecated('Use UnifiedDynamicIsland instead.')
+class DynamicNotchPill extends UnifiedDynamicIsland {
   const DynamicNotchPill({super.key});
+}
+
+class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
+  bool _showContent = true;
+  Timer? _fadeTimer;
+
+  @override
+  void dispose() {
+    _fadeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleContentFade() {
+    _fadeTimer?.cancel();
+    setState(() {
+      _showContent = false;
+    });
+    _fadeTimer = Timer(AppDurations.notchContentFade, () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showContent = true;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return BlocBuilder<CaptureUiController, CaptureUiState>(
+      buildWhen: (previous, current) {
+        final changed =
+            previous.runtimeType != current.runtimeType ||
+            (current is CaptureUiSaved &&
+                previous is CaptureUiSaved &&
+                (previous.category != current.category ||
+                    previous.title != current.title));
+        if (changed) {
+          _scheduleContentFade();
+        }
+        return true;
+      },
       builder: (context, state) {
+        final size = _sizeForState(state);
+        final glowColor = state is CaptureUiRecording
+            ? AppColors.tasks.withValues(alpha: 0.30)
+            : state is CaptureUiSaved
+            ? categoryColor(state.category).withValues(alpha: 0.30)
+            : Colors.transparent;
+
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 350),
+          duration: AppDurations.microSnap,
           curve: Curves.easeInOut,
-          height: _heightForState(state),
-          width: _widthForState(state),
           decoration: BoxDecoration(
-            color: _backgroundColorForState(state, colorScheme, isDark),
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(
-              color: _borderColorForState(state, colorScheme, isDark),
-              width: 1,
-            ),
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: glowColor == Colors.transparent
+                ? const []
+                : [
+                    BoxShadow(
+                      color: glowColor,
+                      blurRadius: 12,
+                      spreadRadius: 0,
+                    ),
+                  ],
           ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _buildContent(context, state, colorScheme, isDark),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: GlassPane(
+              level: 1,
+              sigmaOverride: 28,
+              radius: 999,
+              tintOverride: isDark
+                  ? const Color(0xFF14142A)
+                  : const Color(0xF5F0F8FC),
+              child: AnimatedContainer(
+                duration: AppDurations.saveConfirm,
+                curve: Curves.easeOutCubic,
+                width: size.width,
+                height: size.height,
+                child: AnimatedOpacity(
+                  duration: AppDurations.notchContentFade,
+                  opacity: _showContent ? 1 : 0,
+                  child: Center(child: _buildStateContent(state, isDark)),
+                ),
+              ),
+            ),
           ),
         );
       },
     );
   }
 
-  /// Determines height based on state.
-  static double _heightForState(CaptureUiState state) {
-    final baseSize = 24.0;
-    if (state is CaptureUiRecording) return 40.0;
-    if (state is CaptureUiProcessing) return 30.0;
-    if (state is CaptureUiSaved) return 34.0;
-    return baseSize; // idle
-  }
-
-  /// Determines width based on state.
-  static double _widthForState(CaptureUiState state) {
-    final baseSize = 88.0;
-    if (state is CaptureUiRecording) return 190.0;
-    if (state is CaptureUiProcessing) return 156.0;
-    if (state is CaptureUiSaved) return 172.0;
-    return baseSize; // idle
-  }
-
-  /// Background color based on state and theme.
-  static Color _backgroundColorForState(
-    CaptureUiState state,
-    ColorScheme colorScheme,
-    bool isDark,
-  ) {
-    // Use glass layer color from theme
-    if (isDark) {
-      return const Color(0xFF14142A).withValues(alpha: 0.95);
-    } else {
-      return Colors.white.withValues(alpha: 0.9);
+  Size _sizeForState(CaptureUiState state) {
+    if (state is CaptureUiIdle) {
+      return const Size(132, 36);
     }
+    return const Size(240, 40);
   }
 
-  /// Border color based on state.
-  static Color _borderColorForState(
-    CaptureUiState state,
-    ColorScheme colorScheme,
-    bool isDark,
-  ) {
-    if (isDark) {
-      if (state is CaptureUiRecording) {
-        return const Color(0xFF4DAAFF).withValues(alpha: 0.4);
-      } else if (state is CaptureUiProcessing) {
-        return const Color(0xFF9B6FFF).withValues(alpha: 0.4);
-      } else if (state is CaptureUiSaved) {
-        return const Color(0xFF32C878).withValues(alpha: 0.4);
-      }
-      return const Color(0xFFFFFFFF).withValues(alpha: 0.1);
-    } else {
-      if (state is CaptureUiRecording) {
-        return const Color(0xFF3B82F6).withValues(alpha: 0.3);
-      } else if (state is CaptureUiProcessing) {
-        return const Color(0xFF8B5CF6).withValues(alpha: 0.3);
-      } else if (state is CaptureUiSaved) {
-        return const Color(0xFF10B981).withValues(alpha: 0.3);
-      }
-      return const Color(0xFF000000).withValues(alpha: 0.1);
-    }
-  }
-
-  /// Builds the content inside the notch pill based on state.
-  Widget _buildContent(
-    BuildContext context,
-    CaptureUiState state,
-    ColorScheme colorScheme,
-    bool isDark,
-  ) {
+  Widget _buildStateContent(CaptureUiState state, bool isDark) {
     if (state is CaptureUiRecording) {
-      return _buildRecordingContent(state, isDark);
-    } else if (state is CaptureUiProcessing) {
-      return _buildProcessingContent(state, isDark);
-    } else if (state is CaptureUiSaved) {
-      return _buildSavedContent(state, isDark);
-    } else if (state is CaptureUiError) {
-      return _buildErrorContent(isDark);
-    } else {
-      return _buildIdleContent(isDark);
+      return _RecordingContent(state: state, isDark: isDark);
     }
+    if (state is CaptureUiProcessing) {
+      return _ProcessingContent(state: state, isDark: isDark);
+    }
+    if (state is CaptureUiSaved) {
+      return _SavedContent(state: state, isDark: isDark);
+    }
+    if (state is CaptureUiError) {
+      return _ErrorContent(isDark: isDark);
+    }
+    return _IdleContent(isDark: isDark);
   }
+}
 
-  /// Idle state: small purple dot + "whisperlog" label.
-  Widget _buildIdleContent(bool isDark) {
-    final textColor = isDark
-        ? const Color(0xFFE8E4FD)
-        : const Color(0xFF1A1530);
+class _IdleContent extends StatelessWidget {
+  const _IdleContent({required this.isDark});
 
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF353360)
-                  : const Color(0xFF9B97B8),
-              borderRadius: BorderRadius.circular(3),
+            decoration: const BoxDecoration(
+              color: AppColors.tasks,
+              shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 4),
@@ -144,34 +165,6 @@ class DynamicNotchPill extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: textColor.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Recording state: waveform bars + "Recording" label.
-  Widget _buildRecordingContent(CaptureUiRecording state, bool isDark) {
-    final textColor = isDark
-        ? const Color(0xFFE8E4FD)
-        : const Color(0xFF1A1530);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Waveform bars (5 animated bars)
-          ..._buildWaveformBars(state.waveformSamples, isDark),
-          const SizedBox(width: 6),
-          Text(
-            'Recording',
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w500,
               color: textColor,
             ),
           ),
@@ -179,162 +172,63 @@ class DynamicNotchPill extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// Processing state: shimmer effect + "Classifying" + "Gemini" sublabel.
-  Widget _buildProcessingContent(CaptureUiProcessing state, bool isDark) {
-    final textColor = isDark
-        ? const Color(0xFFE8E4FD)
-        : const Color(0xFF1A1530);
-    final subtextColor = isDark
-        ? const Color(0xFF7A74A8)
-        : const Color(0xFF6B6590);
+class _RecordingContent extends StatelessWidget {
+  const _RecordingContent({required this.state, required this.isDark});
 
-    return Stack(
-      children: [
-        // Shimmer overlay
-        ClipRRect(
-          borderRadius: BorderRadius.circular(100),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  Colors.transparent,
-                  isDark
-                      ? const Color(0xFF9B6FFF).withValues(alpha: 0.22)
-                      : const Color(0xFF8B5CF6).withValues(alpha: 0.18),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-        ),
-        // Content
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Classifying',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w500,
-                  color: textColor,
-                ),
-              ),
-              Text(
-                state.provider,
-                style: TextStyle(
-                  fontSize: 8.5,
-                  color: subtextColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  final CaptureUiRecording state;
+  final bool isDark;
 
-  /// Saved state: category badge + title + success indicator.
-  Widget _buildSavedContent(CaptureUiSaved state, bool isDark) {
-    final textColor = isDark
-        ? const Color(0xFFE8E4FD)
-        : const Color(0xFF1A1530);
-    final categoryColor = getCategoryColor(state.category);
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
+    final bars = state.waveformSamples.isEmpty
+        ? const <double>[0.25, 0.48, 0.7, 0.45, 0.3]
+        : state.waveformSamples.take(5).toList();
+    final transcript = state.currentTranscript.trim();
+    final transcriptText = transcript.isEmpty ? 'Listening...' : transcript;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Success dot
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: const Color(0xFF32C878),
-              borderRadius: BorderRadius.circular(3.5),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  state.title,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.2),
-                    border: Border.all(
-                      color: categoryColor.withValues(alpha: 0.3),
-                      width: 0.5,
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    state.category.label,
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w500,
-                      color: categoryColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Error state: red dot + error message.
-  Widget _buildErrorContent(bool isDark) {
-    final textColor = isDark
-        ? const Color(0xFFE8E4FD)
-        : const Color(0xFF1A1530);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: Colors.red,
-              borderRadius: BorderRadius.circular(3),
+            decoration: const BoxDecoration(
+              color: AppColors.tasks,
+              shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              'Error',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: textColor,
-                overflow: TextOverflow.ellipsis,
+          const SizedBox(width: 6),
+          ...bars.map((value) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1),
+              child: AnimatedContainer(
+                duration: AppDurations.microSnap,
+                width: 2,
+                height: (4 + (value * 10)).clamp(4, 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  color: AppColors.tasks,
+                ),
+              ),
+            );
+          }),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Text(
+                transcriptText,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: textColor,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -342,29 +236,129 @@ class DynamicNotchPill extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// Builds animated waveform bar visuals.
-  static List<Widget> _buildWaveformBars(
-    List<double> samples,
-    bool isDark,
-  ) {
-    final barColor = isDark ? const Color(0xFF4DAAFF) : const Color(0xFF3B82F6);
-    final bars = samples.isEmpty
-        ? [0.3, 0.5, 0.4, 0.6, 0.5] // default pattern
-        : samples;
+class _ProcessingContent extends StatelessWidget {
+  const _ProcessingContent({required this.state, required this.isDark});
 
-    return List.generate(
-      bars.length,
-      (index) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 1.5),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 2.5,
-          height: (bars[index] * 14 + 4).clamp(4, 16).toDouble(),
-          decoration: BoxDecoration(
-            color: barColor,
-            borderRadius: BorderRadius.circular(1.25),
+  final CaptureUiProcessing state;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: AppColors.tasks,
+              shape: BoxShape.circle,
+            ),
           ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Classifying with ${state.provider}...',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                color: textColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          _CategoryChip(label: state.provider, category: NoteCategory.journal),
+        ],
+      ),
+    );
+  }
+}
+
+class _SavedContent extends StatelessWidget {
+  const _SavedContent({required this.state, required this.isDark});
+
+  final CaptureUiSaved state;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: AppColors.tasks,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              state.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                color: textColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          _CategoryChip(
+            label: categoryLabel(state.category),
+            category: state.category,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorContent extends StatelessWidget {
+  const _ErrorContent({required this.isDark});
+
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
+    return Text('Error', style: TextStyle(fontSize: 10, color: textColor));
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({required this.label, required this.category});
+
+  final String label;
+  final NoteCategory category;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = categoryColor(category);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        color: color.withValues(alpha: 0.20),
+        border: Border.all(color: color.withValues(alpha: 0.45), width: 0.5),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 8,
+          color: color,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

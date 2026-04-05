@@ -23,10 +23,12 @@ class CaptureUiRecording extends CaptureUiState {
   const CaptureUiRecording({
     required this.durationMs,
     required this.waveformSamples,
+    required this.currentTranscript,
   });
 
   final int durationMs;
   final List<double> waveformSamples;
+  final String currentTranscript;
 
   @override
   bool operator ==(Object other) =>
@@ -34,10 +36,12 @@ class CaptureUiRecording extends CaptureUiState {
       other is CaptureUiRecording &&
           runtimeType == other.runtimeType &&
           durationMs == other.durationMs &&
-          waveformSamples == other.waveformSamples;
+          waveformSamples == other.waveformSamples &&
+          currentTranscript == other.currentTranscript;
 
   @override
-  int get hashCode => durationMs.hashCode ^ waveformSamples.hashCode;
+  int get hashCode =>
+      durationMs.hashCode ^ waveformSamples.hashCode ^ currentTranscript.hashCode;
 }
 
 /// State when audio is being processed (transcribing / classifying).

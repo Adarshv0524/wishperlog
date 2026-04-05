@@ -6,7 +6,7 @@ import 'package:fuzzy/fuzzy.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as gcal;
 import 'package:googleapis/tasks/v1.dart' as gtasks;
-import 'package:wishperlog/core/storage/sqlite_note_store.dart';
+import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/sync/data/google_api_client.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
@@ -22,11 +22,11 @@ class ExternalSyncService {
   ExternalSyncService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    SqliteNoteStore? noteStore,
+    IsarNoteStore? isarNoteStore,
     GoogleSignIn? googleSignIn,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _noteStore = noteStore ?? SqliteNoteStore.instance,
+       _isarNoteStore = isarNoteStore ?? IsarNoteStore.instance,
        _googleSignIn =
            googleSignIn ??
            GoogleSignIn(
@@ -39,7 +39,7 @@ class ExternalSyncService {
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final SqliteNoteStore _noteStore;
+  final IsarNoteStore _isarNoteStore;
   final GoogleSignIn _googleSignIn;
 
   Future<bool> ensureGoogleConnected() async {
@@ -61,13 +61,13 @@ class ExternalSyncService {
   }
 
   Future<SyncRunResult> syncNow() async {
-    final active = await _noteStore.getActiveNotes();
+    final active = await _isarNoteStore.getAllActive();
 
     var updated = 0;
     for (final note in active) {
       final result = await syncExternalForNote(note);
       if (result.noteChanged) {
-        await _noteStore.upsert(result.note);
+        await _isarNoteStore.put(result.note);
         await _syncNoteToFirestore(result.note);
         updated += 1;
       }
@@ -103,7 +103,7 @@ class ExternalSyncService {
         return 0;
       }
 
-      final linkedTaskNotes = (await _noteStore.getActiveNotes())
+      final linkedTaskNotes = (await _isarNoteStore.getAllActive())
           .where((note) => note.gtaskId != null)
           .toList();
 
@@ -120,7 +120,7 @@ class ExternalSyncService {
           syncedAt: DateTime.now(),
         );
 
-        await _noteStore.upsert(archived);
+        await _isarNoteStore.put(archived);
         await _syncNoteToFirestore(archived);
         archivedCount += 1;
       }
@@ -263,14 +263,21 @@ class ExternalSyncService {
   }
 
   Future<void> _syncNoteToFirestore(Note note) async {
-    final user = _auth.currentUser;
+    var user = _auth.currentUser;
     if (user == null) {
+      try {
+        user = await _auth.authStateChanges().first;
+      } catch (_) {}
+    }
+
+    final uid = user?.uid ?? note.uid;
+    if (uid.isEmpty || uid == 'local_anonymous') {
       return;
     }
 
     await _firestore
         .collection('users')
-        .doc(user.uid)
+        .doc(uid)
         .collection('notes')
         .doc(note.noteId)
         .set(note.toFirestoreJson(), SetOptions(merge: true));

@@ -86,7 +86,7 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
               ),
               Expanded(
                 child: StreamBuilder<List<Note>>(
-                  stream: _notes.watchAllActive(),
+                  stream: _notes.watchAllActiveLocal(),
                   builder: (context, snapshot) {
                     final all = snapshot.data ?? const <Note>[];
                     final query = _queryController.text.trim();
@@ -120,7 +120,12 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
                               context.go('/folder', extra: note.category);
                             },
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                10,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [

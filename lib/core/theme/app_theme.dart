@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 
 class AppTheme {
   static ThemeData _base(ColorScheme scheme) {
-    final outline = scheme.outline.withValues(alpha: 0.35);
+    final outline = scheme.outline.withValues(alpha: 0.65);
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: scheme.brightness == Brightness.dark
+          ? AppColors.darkBg
+          : AppColors.lightBg,
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+        backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -16,10 +19,12 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         shadowColor: Colors.transparent,
-        color: scheme.surface,
+        color: scheme.brightness == Brightness.dark
+            ? AppColors.darkGlass2
+            : AppColors.lightGlass2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: outline, width: 1),
+          side: BorderSide(color: outline, width: 0.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -58,30 +63,34 @@ class AppTheme {
           borderSide: BorderSide(color: outline),
         ),
       ),
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
       dividerColor: outline,
     );
   }
 
   static ThemeData get lightTheme {
     return _base(
-      const ColorScheme.light(
-        primary: Colors.black,
-        onPrimary: Colors.white,
-        surface: Colors.white,
-        onSurface: Colors.black,
-        outline: Color(0xFF9CA3AF),
+      ColorScheme.fromSeed(
+        seedColor: AppColors.tasks,
+        brightness: Brightness.light,
+      ).copyWith(
+        surface: AppColors.lightGlass1,
+        onSurface: AppColors.lightTextPri,
+        outline: AppColors.lightBorder,
       ),
     );
   }
 
   static ThemeData get darkTheme {
     return _base(
-      const ColorScheme.dark(
-        primary: Color(0xFFF3F4F6),
-        onPrimary: Color(0xFF111827),
-        surface: Color(0xFF0F1115),
-        onSurface: Color(0xFFE5E7EB),
-        outline: Color(0xFF4B5563),
+      ColorScheme.fromSeed(
+        seedColor: AppColors.tasks,
+        brightness: Brightness.dark,
+      ).copyWith(
+        surface: AppColors.darkGlass1,
+        onSurface: AppColors.darkTextPri,
+        outline: AppColors.darkBorder,
       ),
     );
   }

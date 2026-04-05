@@ -27,6 +27,23 @@ String categoryLabel(NoteCategory category) {
   }
 }
 
+String categoryEmoji(NoteCategory category) {
+  switch (category) {
+    case NoteCategory.tasks:
+      return '✅';
+    case NoteCategory.reminders:
+      return '🔔';
+    case NoteCategory.ideas:
+      return '💡';
+    case NoteCategory.followUp:
+      return '📥';
+    case NoteCategory.journal:
+      return '📖';
+    case NoteCategory.general:
+      return '📂';
+  }
+}
+
 IconData categoryIcon(NoteCategory category) {
   switch (category) {
     case NoteCategory.tasks:
@@ -44,14 +61,21 @@ IconData categoryIcon(NoteCategory category) {
   }
 }
 
-NoteCategory parseCategory(String raw) {
-  final value = raw
+String normalizeEnumToken(String raw) {
+  return raw
       .trim()
-      .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m.group(1)} ${m.group(2)}')
+      .replaceAllMapped(
+        RegExp(r'([a-z])([A-Z])'),
+        (match) => '${match.group(1)} ${match.group(2)}',
+      )
       .toLowerCase()
       .replaceAll(RegExp(r'[_-]'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
+}
+
+NoteCategory parseCategory(String raw) {
+  final value = normalizeEnumToken(raw);
   switch (value) {
     case 'tasks':
       return NoteCategory.tasks;
@@ -71,7 +95,7 @@ NoteCategory parseCategory(String raw) {
 }
 
 NotePriority parsePriority(String raw) {
-  switch (raw.trim().toLowerCase()) {
+  switch (normalizeEnumToken(raw)) {
     case 'high':
       return NotePriority.high;
     case 'low':
@@ -79,6 +103,32 @@ NotePriority parsePriority(String raw) {
     case 'medium':
     default:
       return NotePriority.medium;
+  }
+}
+
+NoteStatus parseStatus(String raw) {
+  switch (normalizeEnumToken(raw)) {
+    case 'archived':
+      return NoteStatus.archived;
+    case 'deleted':
+      return NoteStatus.deleted;
+    case 'pending ai':
+      return NoteStatus.pendingAi;
+    case 'active':
+    default:
+      return NoteStatus.active;
+  }
+}
+
+CaptureSource parseSource(String raw) {
+  switch (normalizeEnumToken(raw)) {
+    case 'voice overlay':
+      return CaptureSource.voiceOverlay;
+    case 'text overlay':
+      return CaptureSource.textOverlay;
+    case 'home writing box':
+    default:
+      return CaptureSource.homeWritingBox;
   }
 }
 

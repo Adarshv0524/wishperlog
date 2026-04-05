@@ -10,10 +10,12 @@
 
 ## Features
 
+Note: local data now runs Isar-first for both reads and writes, while Firestore remains an asynchronous cloud mirror and cross-device sync source.
+
 ### 📝 Note Capture
 - **Voice Capture**: Long-press Android floating bubble for instant voice-to-text capture
 - **Text Input**: Write directly in the app's thought canvas or overlay text panel
-- **Offline-First**: Save instantly to local SQLite database—no internet required
+- **Offline-First**: Save instantly to local Isar store—no internet required
 - **Real-Time Sync**: Notes automatically sync to Firestore when network available
 
 ### 🤖 AI-Powered Classification
@@ -44,7 +46,7 @@
 - **Theme Support**: Light/Dark/System theme with persistent preference
 - **Glass UI**: Modern glassmorphic design using Material Design 3
 - **Gentle Save Notch**: Top-center confirmation notch (`60vw`, `5-20vh`) stays visible for ~2.6s
-- **Android Overlay**: Floating bubble with draggable positioning and edge-snap physics
+- **Android Overlay**: Floating bubble managed by native overlay service + `OverlayNotifier` state sync
 - **Permission Handling**: Graceful flows for microphone and overlay permissions
 
 ---
@@ -96,10 +98,12 @@
 
 WhisperLog follows **Clean Architecture** with layers for Presentation, Features, and Data. See [ARCHITECTURE.md](ARCHITECTURE.md) for:
 - Complete system diagrams (Mermaid)
-- Database schemas (SQLite + Firestore)
+- Database schemas and storage topology (Isar + Firestore)
 - Data pipeline flows
 - Service descriptions
 - 30-item tech stack reference
+
+Overlay rollout details and current implementation status are tracked in [OVERLAY_INTEGRATION_PLAN.md](OVERLAY_INTEGRATION_PLAN.md).
 
 ## UX Audit Implementation
 
@@ -142,7 +146,7 @@ Flow contract:
 3. `processing -> saved` after 2-second mock AI delay.
 4. `saved -> idle` after 1.5-second confirmation window.
 
-This keeps UI behavior deterministic while backend wiring (SQLite/Firestore/AI orchestration) remains decoupled.
+This keeps UI behavior deterministic while backend wiring (Isar/Firestore/AI orchestration) remains decoupled.
 
 ## UI Structure
 
@@ -166,10 +170,42 @@ All transitions use implicit animations (`AnimatedContainer`, `AnimatedSize`, `A
 
 ## Data Pipeline
 
+### Current Runtime Architecture
+
+```mermaid
+flowchart LR
+   UI[Flutter Screens] --> Repo[NoteRepository]
+   UI --> Save[CaptureService/NoteSaveService]
+   Repo --> Isar[(IsarNoteStore)]
+   Save --> Isar
+   Save --> Firestore[(Firestore)]
+   Repo --> Firestore
+   FireSync[FirestoreNoteSyncService] --> Firestore
+   FireSync --> Isar
+   WM[WorkManager Tasks] --> Isar
+```
+
+```mermaid
+sequenceDiagram
+   participant User
+   participant App as UI/Capture
+   participant AI as AiClassifierRouter
+   participant Local as IsarNoteStore
+   participant Cloud as Firestore
+   participant Mirror as FirestoreNoteSyncService
+
+   User->>App: Create or edit note
+   App->>AI: Enrich and classify
+   AI->>Local: Upsert note
+   AI->>Cloud: Best-effort mirror write
+   Cloud-->>Mirror: Snapshot updates
+   Mirror->>Local: Upsert remote changes
+```
+
 ### Save Flow (Local-First, Async Cloud)
 1. User enters text/voice in Home Canvas or overlay bubble
 2. CaptureService validates and creates Note with `status: pendingAi`
-3. Note saved to **SQLite database** instantly (< 50ms)
+3. Note saved to **Isar local store** instantly (< 50ms)
 4. User sees a top-center glass notch confirmation for ~2.6s
 5. Background: event-driven AI orchestration invokes Gemini classification per newly saved note and updates status to `active`
 6. Background: FirestoreNoteSyncService → pushes to `users/{uid}/notes/{noteId}`
@@ -183,7 +219,7 @@ All transitions use implicit animations (`AnimatedContainer`, `AnimatedSize`, `A
 
 ### Edit & Sync
 - Modify note fields → NoteRepository.updateEditedNote()
-- SQLite transaction updates locally
+- Isar transaction updates locally
 - Firestore sync with `merge: true` (server timestamp conflict resolution)
 
 ---
@@ -201,7 +237,7 @@ lib/
 │   ├── notes/                   # NoteRepository & CRUD
 │   ├── home/                    # HomeScreen with writing box
 │   ├── folder/                  # FolderScreen (category view)
-│   ├── overlay_v1/              # Floating bubble (separate isolate)
+│   ├── overlay/                 # Overlay coordinator, communication service, preferences, floating UI
 │   ├── ai/                      # AiProcessingService & Gemini
 │   └── sync/                    # Firestore, FCM, ExternalSync services
 └── shared/                      # Models, enums, reusable widgets
@@ -217,7 +253,8 @@ lib/
 | **NoteRepository** | Central CRUD interface for all note operations |
 | **AiProcessingService** | Event-driven Gemini classify → set to active |
 | **FirestoreNoteSyncService** | Bi-directional sync with conflict resolution |
-| **OverlayCoordinator** | Manage floating bubble state & permissions |
+| **OverlayNotifier** | Overlay toggle/position state management and native bridge orchestration |
+| **OverlayForegroundService (Android)** | System-level floating capture bubble and quick-capture interactions |
 | **ExternalSyncService** | Google Calendar/Tasks event creation |
 | **FcmSyncService** | FCM token registration & message handling |
 
@@ -227,7 +264,7 @@ lib/
 
 **Frontend**: Flutter 3.11.4 • Material Design 3 • GoRouter • BLoC  
 **State**: GetIt • Streams • ValueNotifier  
-**Storage**: SQLite (local) • Firestore (cloud)  
+**Storage**: Isar (local primary) • Firestore (cloud mirror)  
 **AI**: Google Gemini • Google Calendar/Tasks APIs  
 **Platform**: flutter_overlay_window • speech_to_text • permission_handler  
 **Utilities**: connectivity_plus • workmanager • flutter_dotenv  

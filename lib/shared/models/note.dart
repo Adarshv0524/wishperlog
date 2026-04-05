@@ -1,5 +1,9 @@
+import 'package:isar/isar.dart';
+
 import 'enums.dart';
 import 'note_helpers.dart';
+
+part 'note.g.dart';
 
 int fastHash(String string) {
   var hash = 0xcbf29ce484222000;
@@ -14,23 +18,38 @@ int fastHash(String string) {
   return hash;
 }
 
+@collection
 class Note {
-  final String noteId;
-  final String uid;
-  final String rawTranscript;
-  final String title;
-  final String cleanBody;
-  final NoteCategory category;
-  final NotePriority priority;
-  final DateTime? extractedDate;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final NoteStatus status;
-  final String aiModel;
-  final String? gcalEventId;
-  final String? gtaskId;
-  final CaptureSource source;
-  final DateTime? syncedAt;
+  Id isarId = Isar.autoIncrement;
+
+  @Index(unique: true)
+  String noteId;
+  String uid;
+  String rawTranscript;
+  String title;
+  String cleanBody;
+
+  @Enumerated(EnumType.name)
+  NoteCategory category;
+
+  @Enumerated(EnumType.name)
+  NotePriority priority;
+
+  DateTime? extractedDate;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  @Enumerated(EnumType.name)
+  NoteStatus status;
+
+  String aiModel;
+  String? gcalEventId;
+  String? gtaskId;
+
+  @Enumerated(EnumType.name)
+  CaptureSource source;
+
+  DateTime? syncedAt;
 
   Note({
     required this.noteId,
@@ -149,11 +168,11 @@ class Note {
       extractedDate: _readDate(row['extracted_date']),
       createdAt: _readDate(row['created_at']) ?? DateTime.now(),
       updatedAt: _readDate(row['updated_at']) ?? DateTime.now(),
-      status: _parseStatus(_readString(row, 'status')),
+      status: parseStatus(_readString(row, 'status')),
       aiModel: _readString(row, 'ai_model'),
       gcalEventId: row['gcal_event_id']?.toString(),
       gtaskId: row['gtask_id']?.toString(),
-      source: _parseSource(_readString(row, 'source')),
+      source: parseSource(_readString(row, 'source')),
       syncedAt: _readDate(row['synced_at']),
     );
   }
@@ -170,51 +189,36 @@ class Note {
       title: (json['title'] as String?)?.trim().isNotEmpty == true
           ? (json['title'] as String).trim()
           : 'Quick note',
-      cleanBody: (json['clean_body'] as String?)?.trim() ??
+      cleanBody:
+          (json['clean_body'] as String?)?.trim() ??
           (json['raw_transcript'] as String?)?.trim() ??
           '',
-      category: parseCategory((json['category'] as String?) ?? 'general'),
-      priority: parsePriority((json['priority'] as String?) ?? 'medium'),
-      extractedDate: DateTime.tryParse((json['extracted_date'] as String?) ?? ''),
-      createdAt: DateTime.tryParse((json['created_at'] as String?) ?? '') ??
+      category: parseCategory(
+        (json['category'] as String?) ?? NoteCategory.general.name,
+      ),
+      priority: parsePriority(
+        (json['priority'] as String?) ?? NotePriority.medium.name,
+      ),
+      extractedDate: DateTime.tryParse(
+        (json['extracted_date'] as String?) ?? '',
+      ),
+      createdAt:
+          DateTime.tryParse((json['created_at'] as String?) ?? '') ??
           DateTime.now(),
-      updatedAt: DateTime.tryParse((json['updated_at'] as String?) ?? '') ??
+      updatedAt:
+          DateTime.tryParse((json['updated_at'] as String?) ?? '') ??
           DateTime.now(),
-      status: _parseStatus((json['status'] as String?) ?? 'active'),
+      status: parseStatus(
+        (json['status'] as String?) ?? NoteStatus.active.name,
+      ),
       aiModel: (json['ai_model'] as String?) ?? '',
       gcalEventId: json['gcal_event_id'] as String?,
       gtaskId: json['gtask_id'] as String?,
-      source: _parseSource((json['source'] as String?) ?? 'homeWritingBox'),
+      source: parseSource(
+        (json['source'] as String?) ?? CaptureSource.homeWritingBox.name,
+      ),
       syncedAt: DateTime.tryParse((json['synced_at'] as String?) ?? ''),
     );
-  }
-
-  static NoteStatus _parseStatus(String raw) {
-    switch (raw.trim().toLowerCase()) {
-      case 'archived':
-        return NoteStatus.archived;
-      case 'pendingai':
-      case 'pending_ai':
-        return NoteStatus.pendingAi;
-      case 'active':
-      default:
-        return NoteStatus.active;
-    }
-  }
-
-  static CaptureSource _parseSource(String raw) {
-    switch (raw.trim().toLowerCase()) {
-      case 'voiceoverlay':
-      case 'voice_overlay':
-        return CaptureSource.voiceOverlay;
-      case 'textoverlay':
-      case 'text_overlay':
-        return CaptureSource.textOverlay;
-      case 'homewritingbox':
-      case 'home_writing_box':
-      default:
-        return CaptureSource.homeWritingBox;
-    }
   }
 
   static String _readString(Map<String, Object?> row, String key) {

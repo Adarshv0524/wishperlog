@@ -4,13 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/features/notes/presentation/widgets/glass_note_card.dart';
+import 'package:wishperlog/features/overlay/quick_note_editor.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
-import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 import 'package:wishperlog/shared/widgets/top_notch_message.dart';
 
 class FolderScreen extends StatefulWidget {
@@ -35,125 +37,196 @@ class _FolderScreenState extends State<FolderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryText = isDark
-        ? Colors.white.withValues(alpha: 0.78)
-        : const Color(0xFF374151);
+    final secondaryText = context.textSec;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          tooltip: 'Back',
-          onPressed: _goBack,
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        title: Text(categoryLabel(widget.category)),
-      ),
-      body: GlassPageBackground(
-        child: StreamBuilder<List<Note>>(
-          stream: _notes.watchActiveByCategory(widget.category),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Unable to load notes right now.',
+    return StreamBuilder<List<Note>>(
+      stream: _notes.watchActiveByCategoryLocal(widget.category),
+      builder: (context, snapshot) {
+        final notes = snapshot.data ?? const <Note>[];
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              onPressed: _goBack,
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: context.textPri,
+              ),
+            ),
+            title: Row(
+              children: [
+                Text(
+                  categoryEmoji(widget.category),
+                  style: const TextStyle(fontSize: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  categoryLabel(widget.category),
                   style: TextStyle(
-                    color: secondaryText,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.1,
-                    fontSize: 13.5,
+                    color: context.textPri,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                    letterSpacing: -0.5,
                   ),
                 ),
-              );
-            }
-
-            if (!snapshot.hasData &&
-                snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              );
-            }
-
-            final notes = snapshot.data ?? const <Note>[];
-
-            if (notes.isEmpty) {
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 56),
-                    child: Center(
-                      child: Text(
-                        'No notes here yet.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: secondaryText,
-                          fontStyle: FontStyle.italic,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.1,
-                          fontSize: 13.5,
-                        ),
-                      ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: categoryColor(
+                      widget.category,
+                    ).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${notes.length}',
+                    style: TextStyle(
+                      color: categoryColor(widget.category),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ],
-              );
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
-              itemCount: notes.length,
-              itemBuilder: (context, index) {
-                final note = notes[index];
-
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: index == notes.length - 1 ? 0 : 10,
-                  ),
-                  child: Dismissible(
-                    key: ValueKey(note.noteId),
-                    confirmDismiss: (direction) async {
-                      if (direction == DismissDirection.startToEnd) {
-                        await _notes.archive(note.noteId);
-                        await HapticFeedback.lightImpact();
-                        return true;
-                      }
-
-                      await _notes.cyclePriority(note.noteId);
-                      await HapticFeedback.lightImpact();
-                      return false;
-                    },
-                    background: _swipeBackground(
-                      alignment: Alignment.centerLeft,
-                      color: const Color(0xFFE8F5E9),
-                      icon: Icons.archive_outlined,
-                      label: 'Archive',
-                    ),
-                    secondaryBackground: _swipeBackground(
-                      alignment: Alignment.centerRight,
-                      color: const Color(0xFFFFF8E1),
-                      icon: Icons.swap_horiz_rounded,
-                      label: 'Priority',
-                    ),
-                    child: GlassNoteCard(
-                      note: note,
-                      onTap: () async {
-                        await HapticFeedback.lightImpact();
-                        await _openEditSheet(note);
-                      },
-                    ),
-                  ),
+                ),
+              ],
+            ),
+          ),
+          body: GlassPageBackground(
+            category: widget.category,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              builder: (context, value, child) {
+                final targetTint = categoryColor(
+                  widget.category,
+                ).withValues(alpha: context.isDark ? 0.07 : 0.045);
+                return FolderGlassTint(
+                  tint: targetTint.withValues(alpha: targetTint.a * value),
+                  child: child!,
                 );
               },
-            );
-          },
-        ),
-      ),
-    );
+              child: (() {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Unable to load notes right now.',
+                      style: TextStyle(
+                        color: secondaryText,
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.1,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData &&
+                    snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
+                }
+
+                final notes = snapshot.data ?? const <Note>[];
+
+                if (notes.isEmpty) {
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 56),
+                        child: Center(
+                          child: Text(
+                            'No notes here yet.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: secondaryText,
+                              fontStyle: FontStyle.italic,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.1,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
+                  itemCount: notes.length,
+                  itemBuilder: (context, index) {
+                    final note = notes[index];
+
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index == notes.length - 1 ? 0 : 10,
+                      ),
+                      child: Dismissible(
+                        key: ValueKey(note.noteId),
+                        confirmDismiss: (direction) async {
+                          if (direction == DismissDirection.startToEnd) {
+                            unawaited(_notes.delete(note.noteId));
+                            unawaited(HapticFeedback.lightImpact());
+                            return true;
+                          }
+
+                          await _openReassignSheet(note);
+                          return false;
+                        },
+                        background: _swipeBackground(
+                          alignment: Alignment.centerLeft,
+                          color: Colors.red.withValues(alpha: 0.12),
+                          icon: Icons.delete_outline,
+                          label: 'Delete',
+                        ),
+                        secondaryBackground: _swipeBackground(
+                          alignment: Alignment.centerRight,
+                          color: categoryColor(
+                            widget.category,
+                          ).withValues(alpha: 0.12),
+                          icon: Icons.category_outlined,
+                          label: 'Reassign',
+                        ),
+                        child: GlassNoteCard(
+                          note: note,
+                          onTap: () async {
+                            await HapticFeedback.lightImpact();
+                            await _openEditSheet(note);
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                );
+              })(),
+            ), // closes TweenAnimationBuilder
+          ), // closes GlassPageBackground
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const QuickNoteEditor(),
+              );
+            },
+            icon: const Icon(Icons.add),
+            label: Text('New ${categoryLabel(widget.category).toLowerCase()}'),
+            backgroundColor: categoryColor(widget.category),
+            foregroundColor: Colors.white,
+          ),
+        ); // closes Scaffold
+      }, // closes StreamBuilder builder
+    ); // closes StreamBuilder
   }
 
   Widget _swipeBackground({
@@ -189,6 +262,64 @@ class _FolderScreenState extends State<FolderScreen> {
     );
   }
 
+  Future<void> _openReassignSheet(Note note) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          child: GlassPane(
+            level: 1,
+            radius: 20,
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final category in kAllNoteCategories)
+                  GestureDetector(
+                    onTap: () async {
+                      await _notes.updateEditedNote(
+                        noteId: note.noteId,
+                        title: note.title,
+                        cleanBody: note.cleanBody,
+                        category: category,
+                        priority: note.priority,
+                        extractedDate: note.extractedDate,
+                      );
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    child: GlassPane(
+                      level: 3,
+                      radius: 12,
+                      tintOverride: categoryColor(
+                        category,
+                      ).withValues(alpha: context.isDark ? 0.07 : 0.045),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        categoryLabel(category),
+                        style: TextStyle(
+                          color: categoryColor(category),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _openEditSheet(Note note) async {
     final titleController = TextEditingController(text: note.title);
     final bodyController = TextEditingController(text: note.cleanBody);
@@ -212,8 +343,9 @@ class _FolderScreenState extends State<FolderScreen> {
                 14,
                 14 + MediaQuery.of(context).viewInsets.bottom,
               ),
-              child: GlassContainer(
-                borderRadius: BorderRadius.circular(22),
+              child: GlassPane(
+                level: 1,
+                radius: 22,
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                 child: SingleChildScrollView(
                   child: Column(
@@ -357,9 +489,7 @@ class _FolderScreenState extends State<FolderScreen> {
                                   title: displayTitle.isNotEmpty
                                       ? displayTitle
                                       : 'Note updated',
-                                  categoryLabel: categoryLabel(selectedCategory),
-                                  subtitle:
-                                      'Priority: ${selectedPriority.name}',
+                                  category: selectedCategory,
                                 ),
                               );
                               Navigator.of(context).pop();

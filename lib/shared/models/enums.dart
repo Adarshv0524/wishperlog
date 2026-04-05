@@ -17,10 +17,18 @@ enum NoteStatus {
   active,
   archived,
   pendingAi,
+  deleted,
 }
 
 enum CaptureSource {
   voiceOverlay,
   textOverlay,
   homeWritingBox,
+}
+
+enum AiProvider {
+  auto,
+  gemini,
+  groq,
+  huggingface,
 }

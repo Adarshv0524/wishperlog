@@ -30,4 +30,14 @@ class AppEnv {
     final fromEnv = dotenv.maybeGet('GOOGLE_WEB_CLIENT_ID')?.trim();
     return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
   }
+
+  static String get groqApiKey {
+    final fromEnv = dotenv.maybeGet('GROQ_API_KEY')?.trim();
+    return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
+  }
+
+  static String get huggingFaceApiKey {
+    final fromEnv = dotenv.maybeGet('HUGGINGFACE_API_KEY')?.trim();
+    return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
+  }
 }

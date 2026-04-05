@@ -4,16 +4,17 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:wishperlog/core/config/app_env.dart';
-import 'package:wishperlog/core/storage/sqlite_note_store.dart';
+import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/ai/data/ai_processing_service.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/models/note.dart';
+import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/firebase_options.dart';
 
 class WorkManagerService {
@@ -22,15 +23,12 @@ class WorkManagerService {
       'wishperlog.periodic_google_tasks_sync.unique';
   static const flushPendingTaskName = 'wishperlog.flush_pending_ai';
   static const flushPendingTaskUnique = 'wishperlog.flush_pending_ai.unique';
-    static const telegramDigestTaskName = 'wishperlog.telegram_daily_digest';
-    static const telegramDigestTaskUnique =
+  static const telegramDigestTaskName = 'wishperlog.telegram_daily_digest';
+  static const telegramDigestTaskUnique =
       'wishperlog.telegram_daily_digest.unique';
 
   static Future<void> initialize() async {
-    await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: kDebugMode,
-    );
+    await Workmanager().initialize(callbackDispatcher);
   }
 
   static Future<void> registerPeriodicGoogleTasksSync() async {
@@ -42,7 +40,7 @@ class WorkManagerService {
         networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       backoffPolicy: BackoffPolicy.exponential,
       backoffPolicyDelay: const Duration(minutes: 30),
       initialDelay: const Duration(minutes: 20),
@@ -67,7 +65,7 @@ class WorkManagerService {
       telegramDigestTaskName,
       frequency: const Duration(minutes: 15),
       constraints: Constraints(networkType: NetworkType.connected),
-      existingWorkPolicy: ExistingWorkPolicy.update,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       backoffPolicy: BackoffPolicy.exponential,
       backoffPolicyDelay: const Duration(minutes: 20),
       initialDelay: const Duration(minutes: 5),
@@ -81,17 +79,6 @@ String _localYmd(DateTime dt) {
   final m = dt.month.toString().padLeft(2, '0');
   final d = dt.day.toString().padLeft(2, '0');
   return '${dt.year}-$m-$d';
-}
-
-int _priorityWeight(String priority) {
-  switch (priority.toLowerCase()) {
-    case 'high':
-      return 0;
-    case 'medium':
-      return 1;
-    default:
-      return 2;
-  }
 }
 
 bool _isWithinDigestWindow({
@@ -147,11 +134,10 @@ Future<bool> _runTelegramDailyDigest() async {
   final digestMinute = prefs.getInt('prefs.digest_minute') ?? 0;
   final now = DateTime.now();
 
-  if (
-      !_isWithinDigestWindow(
-        now: now,
-        digestTime: TimeOfDay(hour: digestHour, minute: digestMinute),
-      )) {
+  if (!_isWithinDigestWindow(
+    now: now,
+    digestTime: TimeOfDay(hour: digestHour, minute: digestMinute),
+  )) {
     return true;
   }
 
@@ -176,13 +162,19 @@ Future<bool> _runTelegramDailyDigest() async {
     return true;
   }
 
-  final notes = await SqliteNoteStore.instance.getAllNotes();
-  final activeNotes = notes
-      .where((n) => n.status == NoteStatus.active)
-      .toList()
+  List<Note> notes;
+  try {
+    notes = await IsarNoteStore.instance.getAllNotes();
+  } catch (e) {
+    debugPrint('[WorkManager] Telegram digest skipped: Isar read failed: $e');
+    return true;
+  }
+
+  final activeNotes = notes.where((n) => n.status == NoteStatus.active).toList()
     ..sort((a, b) {
-      final weightCompare =
-          _priorityWeight(a.priority.name).compareTo(_priorityWeight(b.priority.name));
+      final weightCompare = priorityWeight(
+        a.priority,
+      ).compareTo(priorityWeight(b.priority));
       if (weightCompare != 0) {
         return weightCompare;
       }
@@ -199,10 +191,14 @@ Future<bool> _runTelegramDailyDigest() async {
       final icon = note.priority == NotePriority.high
           ? '🔴'
           : note.priority == NotePriority.medium
-              ? '🟡'
-              : '⚪';
-      final title = note.title.trim().isEmpty ? 'Untitled note' : note.title.trim();
-      lines.add('${i + 1}. $icon ${title.length > 80 ? '${title.substring(0, 80)}...' : title}');
+          ? '🟡'
+          : '⚪';
+      final title = note.title.trim().isEmpty
+          ? 'Untitled note'
+          : note.title.trim();
+      lines.add(
+        '${i + 1}. $icon ${title.length > 80 ? '${title.substring(0, 80)}...' : title}',
+      );
     }
   }
 
@@ -224,10 +220,17 @@ void callbackDispatcher() {
   Workmanager().executeTask((task, _) async {
     try {
       await AppEnv.load();
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      await SqliteNoteStore.instance.init();
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+      try {
+        await IsarNoteStore.instance.init();
+      } catch (e) {
+        debugPrint('[WorkManager] Isar init failed for task $task: $e');
+        return Future<bool>.value(true);
+      }
 
       if (task == WorkManagerService.periodicTaskName) {
         final external = ExternalSyncService();

@@ -6,10 +6,11 @@ import 'package:wishperlog/features/notes/presentation/screens/folder_screen.dar
 import 'package:wishperlog/features/onboarding/presentation/screens/permissions_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/sign_in_screen.dart';
 import 'package:wishperlog/features/onboarding/presentation/screens/telegram_screen.dart';
-import 'package:wishperlog/features/overlay_v1/presentation/screens/overlay_customization_screen.dart';
+import 'package:wishperlog/features/search/presentation/search_screen.dart';
 import 'package:wishperlog/features/settings/presentation/screens/settings_screen.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/features/overlay/presentation/system_banner_overlay.dart';
 
 final GoRouter router = GoRouter(
   routes: [
@@ -23,7 +24,11 @@ final GoRouter router = GoRouter(
       path: '/telegram',
       builder: (context, state) => const TelegramScreen(),
     ),
-    GoRoute(path: '/home', builder: (context, state) => const HomeScreenLayout()),
+    GoRoute(
+      path: '/home',
+      builder: (context, state) => const HomeScreenLayout(),
+    ),
+    GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
     GoRoute(
       path: '/folder',
       builder: (context, state) {
@@ -32,7 +37,8 @@ final GoRouter router = GoRouter(
           return FolderScreen(category: extra);
         }
 
-        final raw = state.uri.queryParameters['category'] ??
+        final raw =
+            state.uri.queryParameters['category'] ??
             state.pathParameters['category'] ??
             'general';
         return FolderScreen(category: parseCategory(raw));
@@ -43,8 +49,10 @@ final GoRouter router = GoRouter(
       builder: (context, state) => const SettingsScreen(),
     ),
     GoRoute(
-      path: '/settings/overlay-customization',
-      builder: (context, state) => const OverlayCustomizationScreen(),
+      path: '/system_banner',
+      builder: (context, state) => SystemBannerOverlay(
+        mode: state.uri.queryParameters['mode'] ?? 'truecaller',
+      ),
     ),
   ],
   redirect: (context, state) {

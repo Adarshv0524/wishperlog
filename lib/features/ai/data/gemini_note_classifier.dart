@@ -33,11 +33,13 @@ class GeminiNoteClassifier {
         _providedModel = model;
 
   static const String systemPrompt =
-      'You are a personal note classifier. Return JSON with title, category, priority, clean_body, extracted_date. '
-      'Return ONLY valid JSON with these exact keys: "title", "category", "priority", "clean_body", "extracted_date". '
-      'Allowed category values: Tasks, Reminders, Ideas, Follow-up, Journal, General. '
-      'Allowed priority values: high, medium, low. '
-      'Use null when extracted_date is unknown. No markdown, no extra keys.';
+      'You are a smart personal note editor and classifier. Return JSON strictly containing title, category, priority, clean_body, extracted_date. '
+      'Your objectives: 1. Categorize exactly into (Tasks, Reminders, Ideas, Follow-up, Journal, or General). '
+      '2. Fix grammar, spelling, semantics and beautify the text as "clean_body" while keeping the original meaning. '
+      '3. Set "priority" to high, medium, or low. '
+      '4. Provide a descriptive "title". '
+      '5. Set "extracted_date" to ISO8601 if a date is mentioned, else null. '
+      'Output ONLY raw and valid JSON object payload without backticks or markdown fences!';
 
   final String _apiKey;
   final GenerativeModel? _providedModel;
@@ -57,21 +59,49 @@ class GeminiNoteClassifier {
     final model = _providedModel ??
         GenerativeModel(model: 'gemini-2.5-flash-lite', apiKey: _apiKey);
 
-    final response = await model.generateContent([
-      Content.text(systemPrompt),
-      Content.text('Raw input: $text'),
-    ]);
+    const maxAttempts = 3;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        final response = await model.generateContent([
+          Content.text(systemPrompt),
+          Content.text('Raw input: $text'),
+        ]);
 
-    final payload = response.text?.trim();
-    if (payload == null || payload.isEmpty) {
-      return _fallback(rawTranscript, model: 'gemini-2.5-flash-lite');
+        final payload = response.text?.trim();
+        if (payload == null || payload.isEmpty) {
+          return _fallback(rawTranscript, model: 'gemini-2.5-flash-lite');
+        }
+
+        return _parseOrFallback(
+          rawTranscript: rawTranscript,
+          payload: payload,
+          model: 'gemini-2.5-flash-lite',
+        );
+      } catch (e) {
+        final errorStr = e.toString();
+        final isRateLimit = errorStr.contains('429') ||
+            errorStr.contains('quota') ||
+            errorStr.contains('rate limit') ||
+            errorStr.contains('RESOURCE_EXHAUSTED');
+
+        if (!isRateLimit || attempt >= maxAttempts - 1) {
+          // Not a rate limit error or exhausted retries → graceful fallback
+          return _fallback(rawTranscript, model: 'gemini-2.5-flash-lite');
+        }
+
+        // Try to parse "retry in Xs" from the error message
+        Duration backoff = Duration(seconds: 2 * (attempt + 1));
+        final retryMatch = RegExp(r'retry in (\d+(?:\.\d+)?)s').firstMatch(errorStr);
+        if (retryMatch != null) {
+          final seconds = double.tryParse(retryMatch.group(1) ?? '') ?? 0;
+          backoff = Duration(milliseconds: (seconds * 1000).ceil() + 500);
+        }
+
+        await Future<void>.delayed(backoff);
+      }
     }
 
-    return _parseOrFallback(
-      rawTranscript: rawTranscript,
-      payload: payload,
-      model: 'gemini-2.5-flash-lite',
-    );
+    return _fallback(rawTranscript, model: 'gemini-2.5-flash-lite');
   }
 
   GeminiClassificationResult _parseOrFallback({
@@ -93,8 +123,12 @@ class GeminiNoteClassifier {
         title: (title == null || title.isEmpty)
             ? _fallbackTitle(rawTranscript)
             : title,
-        category: parseCategory((decoded['category'] as String?) ?? 'General'),
-        priority: parsePriority((decoded['priority'] as String?) ?? 'medium'),
+        category: parseCategory(
+          (decoded['category'] as String?) ?? NoteCategory.general.name,
+        ),
+        priority: parsePriority(
+          (decoded['priority'] as String?) ?? NotePriority.medium.name,
+        ),
         extractedDate: _parseDate(decoded['extracted_date']),
         cleanBody: (cleanBody == null || cleanBody.isEmpty)
             ? rawTranscript.trim()
