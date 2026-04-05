@@ -8,6 +8,7 @@ import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/overlay/quick_note_editor.dart';
+import 'package:wishperlog/shared/widgets/molecules/dynamic_notch_pill.dart';
 
 /// The root wrapper placed inside MaterialApp.builder.
 /// Renders all routes as normal, and conditionally overlays the
@@ -64,6 +65,13 @@ class _OverlayRootWrapperState extends State<OverlayRootWrapper> {
             widget.child,
             if (_notifier.isHydrated && _notifier.isEnabled)
               _DraggableCaptureBubble(notifier: _notifier),
+            // ── Global dynamic island (top center) ──
+            const Positioned(
+              top: 8,
+              left: 0,
+              right: 0,
+              child: Center(child: UnifiedDynamicIsland()),
+            ),
           ],
         );
       },
@@ -187,33 +195,58 @@ class _DraggableCaptureBubbleState extends State<_DraggableCaptureBubble>
     const size = 56.0;
 
     return Positioned(
+      left: _pos.dx,
+      top: _pos.dy,
       child: BlocBuilder<CaptureUiController, CaptureUiState>(
         bloc: _captureController,
         builder: (context, state) {
-          return GestureDetector(
-            onPanStart: _onPanStart,
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
-            onDoubleTap: _openEditor,
-            onLongPressStart: (_) => _startRecording(),
-            onLongPressEnd: (_) => _stopAndSave(),
-            child: AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                final isRecording = state is CaptureUiRecording;
-                if (!isRecording && _pulseController.isAnimating) {
-                  _pulseController.stop();
-                  _pulseController.reset();
-                }
-                final scale = isRecording
-                    ? 1.0 + (_pulseController.value * 0.12)
-                    : 1.0;
-                return Transform.scale(scale: scale, child: child);
-              },
-              child: SizedBox(
-                width: size,
-                height: size,
-                child: const _BubbleContent(),
+          // ── Drag uses a Listener (raw pointer events, outside the gesture
+          // arena) so it never competes with the long-press recognizer. ──────
+          return Listener(
+            onPointerDown: (e) {
+              _onPanStart(DragStartDetails(
+                globalPosition: e.position,
+                localPosition: e.localPosition,
+              ));
+            },
+            onPointerMove: (e) {
+              _onPanUpdate(DragUpdateDetails(
+                globalPosition: e.position,
+                localPosition: e.localPosition,
+                delta: e.delta,
+              ));
+            },
+            onPointerUp: (e) {
+              _onPanEnd(DragEndDetails());
+            },
+            onPointerCancel: (_) {
+              _onPanEnd(DragEndDetails());
+            },
+            // ── Long-press (record) + double-tap (editor) go in a plain
+            // GestureDetector with NO pan callbacks so there is no race. ─────
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTap: _openEditor,
+              onLongPressStart: (_) => _startRecording(),
+              onLongPressEnd: (_) => _stopAndSave(),
+              child: AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  final isRecording = state is CaptureUiRecording;
+                  if (!isRecording && _pulseController.isAnimating) {
+                    _pulseController.stop();
+                    _pulseController.reset();
+                  }
+                  final scale = isRecording
+                      ? 1.0 + (_pulseController.value * 0.12)
+                      : 1.0;
+                  return Transform.scale(scale: scale, child: child);
+                },
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: const _BubbleContent(),
+                ),
               ),
             ),
           );

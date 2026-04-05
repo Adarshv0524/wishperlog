@@ -14,6 +14,8 @@ import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/core/theme/app_theme.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_processing_service.dart';
+import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
+import 'package:wishperlog/features/overlay/overlay_bubble.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/fcm_sync_service.dart';
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
@@ -174,23 +176,28 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeMode>(
       builder: (context, themeMode) {
-        return MaterialApp.router(
-          title: 'WhisperLog',
-          debugShowCheckedModeBanner: false,
-          themeMode: themeMode,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          routerConfig: router,
-          // builder runs INSIDE MaterialApp (which provides an Overlay).
-          builder: (context, child) {
-            // Enforce system UI overlays.
-            SystemChrome.setSystemUIOverlayStyle(
-              themeMode == ThemeMode.dark
-                  ? SystemUiOverlayStyle.light
-                  : SystemUiOverlayStyle.dark,
-            );
-            return child ?? const SizedBox.shrink();
-          },
+        return BlocProvider<CaptureUiController>.value(
+          value: sl<CaptureUiController>(),
+          child: MaterialApp.router(
+            title: 'WhisperLog',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeMode,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            routerConfig: router,
+            // builder runs INSIDE MaterialApp (which provides an Overlay).
+            builder: (context, child) {
+              // Enforce system UI overlays.
+              SystemChrome.setSystemUIOverlayStyle(
+                themeMode == ThemeMode.dark
+                    ? SystemUiOverlayStyle.light
+                    : SystemUiOverlayStyle.dark,
+              );
+              return OverlayRootWrapper(
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
+          ),
         );
       },
     );

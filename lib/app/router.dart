@@ -50,9 +50,7 @@ final GoRouter router = GoRouter(
     ),
     GoRoute(
       path: '/system_banner',
-      builder: (context, state) => SystemBannerOverlay(
-        mode: state.uri.queryParameters['mode'] ?? 'truecaller',
-      ),
+      builder: (context, state) => const SystemBannerOverlay(),
     ),
   ],
   redirect: (context, state) {

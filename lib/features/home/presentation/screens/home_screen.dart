@@ -13,7 +13,7 @@ import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
-import 'package:wishperlog/shared/widgets/top_notch_message.dart';
+import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -154,12 +154,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _writingController.clear();
 
       if (mounted) {
-        unawaited(
-          showTopNotchSavedMessage(
-            context: context,
-            title: savedNote.title,
-            category: savedNote.category,
-          ),
+        sl<CaptureUiController>().notifyExternalRecordingSaved(
+          title: savedNote.title ?? 'Note saved',
+          category: savedNote.category ?? NoteCategory.general,
         );
       }
     } finally {
@@ -240,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'whisperlog',
+                                  'WishperLog',
                                   style: TextStyle(
                                     color: context.textPri,
                                     fontSize: 24,
@@ -249,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'your second brain',
+                                  'Jai Shree Ram',
                                   style: TextStyle(
                                     color: context.textSec,
                                     fontSize: 12,

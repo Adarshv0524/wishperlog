@@ -13,7 +13,7 @@ import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
-import 'package:wishperlog/shared/widgets/top_notch_message.dart';
+import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 
 class FolderScreen extends StatefulWidget {
   const FolderScreen({required this.category, super.key});
@@ -483,14 +483,9 @@ class _FolderScreenState extends State<FolderScreen> {
                                   titleController.text.trim().isNotEmpty
                                   ? titleController.text.trim()
                                   : bodyController.text.trim();
-                              unawaited(
-                                showTopNotchSavedMessage(
-                                  context: context,
-                                  title: displayTitle.isNotEmpty
-                                      ? displayTitle
-                                      : 'Note updated',
-                                  category: selectedCategory,
-                                ),
+                              sl<CaptureUiController>().notifyExternalRecordingSaved(
+                                title: displayTitle.isNotEmpty ? displayTitle : 'Note updated',
+                                category: selectedCategory,
                               );
                               Navigator.of(context).pop();
                             }

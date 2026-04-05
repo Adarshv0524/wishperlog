@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
@@ -38,10 +39,15 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
     setState(() => _isSaving = true);
     try {
       final captureService = sl<CaptureService>();
-      await captureService.ingestRawCapture(
+      final saved = await captureService.ingestRawCapture(
         rawTranscript: text,
         source: CaptureSource.textOverlay,
         syncToCloud: true,
+      );
+      // Show confirmation in the global Dynamic Island.
+      sl<CaptureUiController>().notifyExternalRecordingSaved(
+        title: saved?.title ?? 'Quick note',
+        category: saved?.category ?? NoteCategory.general,
       );
       if (mounted) {
         context.pop();

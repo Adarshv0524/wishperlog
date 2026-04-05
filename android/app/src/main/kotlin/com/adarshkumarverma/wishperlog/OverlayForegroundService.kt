@@ -273,6 +273,9 @@ class OverlayForegroundService : Service() {
         Log.d(TAG, "startVoiceCapture: starting recognizer")
         isRecording = true
 
+        // Tell Flutter the island should show recording state.
+        FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStarted", null)
+
         // Visual: bubble pulses red
         bubbleBackground?.colors = intArrayOf(Color.parseColor("#EF4444"), Color.parseColor("#991B1B"))
         bubbleIcon?.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.presence_audio_online))
@@ -312,6 +315,10 @@ class OverlayForegroundService : Service() {
                     broadcastCapture(text, SOURCE_VOICE)
                     showIsland("🎙 Saving: \"${text.take(35)}\"", auto = true)
                 }
+                // Signal Flutter to show "processing" in the island while the
+                // note is being classified; the island transitions to "saved"
+                // once Flutter's _saveOverlayNote completes.
+                FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
                 releaseSpeechRecognizer()
             }
 
@@ -319,6 +326,8 @@ class OverlayForegroundService : Service() {
                 Log.e(TAG, "onError: code=$error (${recognizerErrorToString(error)})")
                 isRecording = false
                 resetBubble()
+                // Let the island return to idle on error.
+                FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
                 releaseSpeechRecognizer()
             }
 
@@ -341,8 +350,15 @@ class OverlayForegroundService : Service() {
                 val partial = partialResults
                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
-                    ?.take(60)
+                    ?.take(80)
                 Log.d(TAG, "onPartialResults: ${partial ?: "<none>"}")
+                // Stream live transcript to the Flutter Dynamic Island.
+                if (!partial.isNullOrEmpty()) {
+                    FlutterEngineHolder.channel?.invokeMethod(
+                        "notifyRecordingTranscript",
+                        hashMapOf("text" to partial)
+                    )
+                }
             }
             override fun onEvent(eventType: Int, params: Bundle?) {
                 Log.v(TAG, "onEvent: type=$eventType")

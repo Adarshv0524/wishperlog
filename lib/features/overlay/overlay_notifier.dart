@@ -61,10 +61,16 @@ class OverlayNotifier extends ChangeNotifier {
         if (call.method == 'openEditor') {
           // Open Truecaller-style transparent banner
           router.push('/system_banner');
-        } else if (call.method == 'startRecording') {
-          _startBackgroundRecording();
-        } else if (call.method == 'stopRecording') {
-          _stopBackgroundRecording();
+        } else if (call.method == 'notifyRecordingStarted') {
+          // Native overlay started recording → light up the island.
+          _onNativeRecordingStarted();
+        } else if (call.method == 'notifyRecordingStopped') {
+          // Native overlay finished recognising → show brief processing.
+          _onNativeRecordingStopped();
+        } else if (call.method == 'notifyRecordingTranscript') {
+          // Native overlay sent a partial transcript → scroll in island.
+          final text = call.arguments?['text'] as String? ?? '';
+          _onNativeTranscript(text);
         } else if (call.method == 'captureNote') {
           // Called by NoteInputReceiver when native overlay sends a note
           final text = call.arguments?['text'] as String? ?? '';
@@ -221,7 +227,7 @@ class OverlayNotifier extends ChangeNotifier {
     try {
       final captureController = sl<CaptureUiController>();
       captureController.stopRecording();
-      router.push('/system_banner?mode=island');
+      // island is already globally rendered — no separate route needed
     } catch (e) {
       debugPrint('[OverlayNotifier] stop recording error: $e');
     }
@@ -245,8 +251,47 @@ class OverlayNotifier extends ChangeNotifier {
         return;
       }
       debugPrint('[OverlayNotifier] Note saved from overlay: $source');
+      // Tell the island to show the saved confirmation.
+      try {
+        final captureController = sl<CaptureUiController>();
+        captureController.notifyExternalRecordingSaved(
+          title: saved.title ?? 'Voice capture',
+          category: saved.category ?? NoteCategory.general,
+        );
+      } catch (e) {
+        debugPrint('[OverlayNotifier] island saved-notify error: $e');
+      }
     } catch (e) {
       debugPrint('[OverlayNotifier] _saveOverlayNote error: $e');
+    }
+  }
+
+  // ── Native recording notifications ─────────────────────────────────────────
+
+  void _onNativeRecordingStarted() {
+    try {
+      final captureController = sl<CaptureUiController>();
+      captureController.notifyExternalRecordingStarted();
+    } catch (e) {
+      debugPrint('[OverlayNotifier] _onNativeRecordingStarted error: $e');
+    }
+  }
+
+  void _onNativeTranscript(String text) {
+    try {
+      final captureController = sl<CaptureUiController>();
+      captureController.updateExternalTranscript(text);
+    } catch (e) {
+      debugPrint('[OverlayNotifier] _onNativeTranscript error: $e');
+    }
+  }
+
+  void _onNativeRecordingStopped() {
+    try {
+      final captureController = sl<CaptureUiController>();
+      captureController.notifyExternalRecordingStopped();
+    } catch (e) {
+      debugPrint('[OverlayNotifier] _onNativeRecordingStopped error: $e');
     }
   }
 }
