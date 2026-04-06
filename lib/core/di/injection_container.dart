@@ -11,9 +11,9 @@ import 'package:wishperlog/features/capture/data/note_save_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
-import 'package:wishperlog/features/ml/data/ml_toolkit_service.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
+import 'package:wishperlog/features/sync/data/telegram_service.dart';
 import 'package:wishperlog/features/sync/data/fcm_sync_service.dart';
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
@@ -29,7 +29,7 @@ Future<void> init() async {
   sl.registerLazySingleton<NoteRepository>(() => NoteRepository());
   sl.registerLazySingleton<SpeechToText>(() => SpeechToText());
   sl.registerLazySingleton<ExternalSyncService>(() => ExternalSyncService());
-  sl.registerLazySingleton<MlToolkitService>(() => MlToolkitService());
+  sl.registerLazySingleton<TelegramService>(() => TelegramService());
   sl.registerLazySingleton<NoteEventBus>(() => NoteEventBus.instance);
   sl.registerLazySingleton<IsarNoteStore>(() => IsarNoteStore.instance);
 

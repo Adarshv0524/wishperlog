@@ -133,6 +133,7 @@ Future<void> _postLaunchTasks() async {
     debugPrint('[Main] Registering WorkManager periodic syncs...');
     await WorkManagerService.registerPeriodicGoogleTasksSync();
     await WorkManagerService.registerTelegramDailyDigest();
+    await WorkManagerService.registerTelegramCommandPolling();
     debugPrint('[Main] WorkManager & periodic syncs initialized');
   } catch (e) {
     debugPrint('[Main] WorkManager periodic registration error: $e');

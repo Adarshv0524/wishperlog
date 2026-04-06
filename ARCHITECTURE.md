@@ -217,6 +217,66 @@ sequenceDiagram
     F->>F: router.push('/system_banner')
 ```
 
+## 7.3 Telegram Connect Flow (Deep-Link Token)
+
+WhisperLog now uses a bot deep-link verification flow with no manual chat ID entry during onboarding.
+
+### 7.3.1 Connect Handshake Sequence
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant A as App (TelegramScreen)
+  participant F as Firestore users/{uid}
+  participant T as Telegram App
+  participant B as Bot Backend
+
+  U->>A: Tap "Connect in Telegram"
+  A->>A: Generate token (6 chars)
+  A->>F: set pending_telegram {token, expires_at}
+  A->>T: Open t.me/<bot>?start=<token>
+  U->>T: Tap START
+  T->>B: /start <token>
+  B->>F: Resolve token -> uid
+  B->>F: set telegram_chat_id, delete pending_telegram
+  F-->>A: Snapshot update with telegram_chat_id
+  A->>A: Persist local cache + show success
+
+  alt token not used within 10 minutes
+    A->>F: clear pending_telegram
+    A->>U: Show expired state + Retry
+  end
+```
+
+### 7.3.2 Onboarding State Machine
+
+```mermaid
+stateDiagram-v2
+  [*] --> Intro
+  Intro --> Preparing: Tap Connect
+  Preparing --> Waiting: pending_telegram written and deep link launched
+  Preparing --> Error: write or launch failed
+  Waiting --> Success: telegram_chat_id observed from snapshot
+  Waiting --> Expired: 10m timeout
+  Expired --> Preparing: Retry
+  Error --> Preparing: Retry
+  Success --> [*]
+```
+
+Firestore shape:
+- `users/{uid}.telegram_chat_id`: string
+- `users/{uid}.pending_telegram.token`: string
+- `users/{uid}.pending_telegram.expires_at`: timestamp
+
+Client write methods in `UserRepository`:
+- `writePendingTelegramToken(token, expiresAt)`
+- `clearPendingTelegramToken()`
+- `updateTelegramChatId(chatId)` (manual override path in settings)
+
+Runtime notes:
+- Onboarding flow uses Firestore snapshot resolution, not Telegram `getUpdates` polling.
+- Settings manual chat ID input remains as a fallback override for recovery scenarios.
+
 ### 7.2.1 Native Overlay Runtime State
 
 ```mermaid
@@ -257,7 +317,7 @@ sequenceDiagram
   MA->>SP: remove drained keys
 ```
 
-## 7.3 Event-Driven AI Enrichment
+## 7.4 Event-Driven AI Enrichment
 
 Service: lib/features/ai/data/ai_processing_service.dart
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
-import 'package:wishperlog/features/search/data/local_note_search.dart';
+import 'package:wishperlog/features/search/data/smart_note_search.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
@@ -96,7 +96,10 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
 
                     final results = query.isEmpty
                         ? all
-                        : LocalNoteSearch.search(all, query);
+                        : SmartNoteSearch.searchSync(
+                            all,
+                            query,
+                          ).map((h) => h.note).toList();
 
                     if (results.isEmpty) {
                       return Center(

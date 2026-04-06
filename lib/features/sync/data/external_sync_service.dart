@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fuzzy/fuzzy.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/calendar/v3.dart' as gcal;
 import 'package:googleapis/tasks/v1.dart' as gtasks;
@@ -238,18 +238,26 @@ class ExternalSyncService {
       return false;
     }
 
-    final fuzzy = Fuzzy<String>(
-      existingTitles,
-      options: FuzzyOptions<String>(threshold: 0.15, shouldNormalize: true),
-    );
+    final tNorm = title.toLowerCase().trim();
+    return existingTitles.any((existing) {
+      final eNorm = existing.toLowerCase().trim();
+      if (eNorm == tNorm) {
+        return true;
+      }
 
-    final result = fuzzy.search(title, 1);
-    if (result.isEmpty) {
-      return false;
-    }
+      final tWords = tNorm
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty)
+          .toSet();
+      final eWords = eNorm
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty)
+          .toSet();
 
-    // threshold 0.15 ~= 85% similarity requirement.
-    return result.first.score <= 0.15;
+      final overlap = tWords.intersection(eWords).length;
+      final shorter = math.min(tWords.length, eWords.length);
+      return shorter > 0 && overlap / shorter >= 0.8;
+    });
   }
 
   Future<String?> _createGoogleTask(gtasks.TasksApi api, Note note) async {

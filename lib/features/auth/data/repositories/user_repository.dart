@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wishperlog/core/config/app_env.dart';
 
@@ -122,6 +123,27 @@ class UserRepository {
     }
     await _firestore.collection('users').doc(user.uid).set({
       'digest_time': digestTime,
+      'digest_times': [digestTime],
+      'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> updateDigestTimes(List<TimeOfDay> digestTimes) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    final normalized = digestTimes
+        .map((t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}')
+        .toSet()
+        .toList()
+      ..sort();
+
+    final first = normalized.isEmpty ? '09:00' : normalized.first;
+    await _firestore.collection('users').doc(user.uid).set({
+      'digest_time': first,
+      'digest_times': normalized,
       'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
     }, SetOptions(merge: true));
   }
@@ -141,8 +163,44 @@ class UserRepository {
     if (user == null) {
       return;
     }
+    final normalized = chatId.trim();
     await _firestore.collection('users').doc(user.uid).set({
-      'telegram_chat_id': chatId,
+      'telegram_chat_id': normalized,
+    }, SetOptions(merge: true));
+
+    final prefs = await SharedPreferences.getInstance();
+    if (normalized.isEmpty) {
+      await prefs.remove('telegram_chat_id');
+    } else {
+      await prefs.setString('telegram_chat_id', normalized);
+    }
+  }
+
+  Future<void> writePendingTelegramToken({
+    required String token,
+    required DateTime expiresAt,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null || token.trim().isEmpty) {
+      return;
+    }
+
+    await _firestore.collection('users').doc(user.uid).set({
+      'pending_telegram': {
+        'token': token.trim(),
+        'expires_at': Timestamp.fromDate(expiresAt.toUtc()),
+      },
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> clearPendingTelegramToken() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    await _firestore.collection('users').doc(user.uid).set({
+      'pending_telegram': FieldValue.delete(),
     }, SetOptions(merge: true));
   }
 

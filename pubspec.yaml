@@ -23,7 +23,6 @@ dependencies:
   speech_to_text: ^7.3.0
   shared_preferences: ^2.5.3
   google_generative_ai: ^0.4.7
-  fuzzy: ^0.5.1
   googleapis: ^14.0.0
   http: ^1.5.0
   url_launcher: ^6.3.2
@@ -34,8 +33,6 @@ dependencies:
   flutter_svg: ^2.2.0
   permission_handler: ^11.0.1
   provider: ^6.1.2
-  google_mlkit_language_id: ^0.13.0
-  google_mlkit_translation: ^0.13.0
 
 dev_dependencies:
   flutter_test:

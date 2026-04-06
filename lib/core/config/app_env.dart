@@ -16,15 +16,11 @@ class AppEnv {
     return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
   }
 
-  static String get telegramBotUsername {
-    final fromEnv = dotenv.maybeGet('TELEGRAM_BOT_USERNAME')?.trim();
-    return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
-  }
+  static String get telegramBotToken =>
+      _readDefineThenDotenv('TELEGRAM_BOT_TOKEN');
 
-  static String get telegramBotToken {
-    final fromEnv = dotenv.maybeGet('TELEGRAM_BOT_TOKEN')?.trim();
-    return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
-  }
+  static String get telegramBotUsername =>
+      _readDefineThenDotenv('TELEGRAM_BOT_USERNAME');
 
   static String get googleWebClientId {
     final fromEnv = dotenv.maybeGet('GOOGLE_WEB_CLIENT_ID')?.trim();
@@ -39,5 +35,12 @@ class AppEnv {
   static String get huggingFaceApiKey {
     final fromEnv = dotenv.maybeGet('HUGGINGFACE_API_KEY')?.trim();
     return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
+  }
+
+  static String _readDefineThenDotenv(String key) {
+    final fromDefine = String.fromEnvironment(key, defaultValue: '').trim();
+    if (fromDefine.isNotEmpty) return fromDefine;
+    final fromDotEnv = dotenv.maybeGet(key)?.trim();
+    return fromDotEnv == null || fromDotEnv.isEmpty ? '' : fromDotEnv;
   }
 }

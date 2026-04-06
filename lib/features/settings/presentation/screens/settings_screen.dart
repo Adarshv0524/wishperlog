@@ -6,10 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wishperlog/core/background/work_manager_service.dart';
-import 'package:wishperlog/core/config/app_env.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
@@ -17,9 +15,9 @@ import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
-import 'package:wishperlog/features/ml/data/ml_toolkit_service.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
+import 'package:wishperlog/features/sync/data/telegram_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
@@ -34,30 +32,15 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   static const MethodChannel _overlayChannel = MethodChannel('wishperlog/overlay');
-  static const _kMlAutoLanguage = 'mlkit.auto_language_detect';
-  static const _kMlModelLanguage = 'mlkit.translation_model_language';
-  static const Set<String> _supportedMlModelLanguages = {
-    'hi',
-    'bn',
-    'ta',
-    'te',
-    'mr',
-    'gu',
-    'kn',
-    'es',
-    'fr',
-    'de',
-    'ja',
-  };
 
   final UserRepository _users = sl<UserRepository>();
   final AppPreferencesRepository _prefs = sl<AppPreferencesRepository>();
   final ExternalSyncService _sync = sl<ExternalSyncService>();
+  final TelegramService _telegram = sl<TelegramService>();
   final AiClassifierRouter _aiRouter = sl<AiClassifierRouter>();
   final OverlayNotifier _overlayNotifier = sl<OverlayNotifier>();
-  final MlToolkitService _mlToolkit = sl<MlToolkitService>();
 
-  TimeOfDay _digestTime = const TimeOfDay(hour: 9, minute: 0);
+  List<TimeOfDay> _digestTimes = const [TimeOfDay(hour: 9, minute: 0)];
   DateTime? _lastSyncedAt;
   NotificationSettings? _notificationSettings;
 
@@ -71,11 +54,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _overlayGrow = true;
   String _speechLanguage = 'en-US';
   bool _speechPreferOffline = false;
-
-  bool _mlAutoLanguageDetect = true;
-  String _mlModelLanguage = 'hi';
-  bool _mlModelDownloaded = false;
-  bool _mlModelBusy = false;
 
   String? _telegramChatId;
 
@@ -102,20 +80,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     {'code': 'ja-JP', 'label': 'Japanese'},
   ];
 
-  static const List<Map<String, String>> _mlLanguageOptions = [
-    {'code': 'hi', 'label': 'Hindi'},
-    {'code': 'bn', 'label': 'Bengali'},
-    {'code': 'ta', 'label': 'Tamil'},
-    {'code': 'te', 'label': 'Telugu'},
-    {'code': 'mr', 'label': 'Marathi'},
-    {'code': 'gu', 'label': 'Gujarati'},
-    {'code': 'kn', 'label': 'Kannada'},
-    {'code': 'es', 'label': 'Spanish'},
-    {'code': 'fr', 'label': 'French'},
-    {'code': 'de', 'label': 'German'},
-    {'code': 'ja', 'label': 'Japanese'},
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -124,7 +88,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _hydrateTelegramId();
     _hydrateOverlaySettings();
     _hydrateSpeechSettings();
-    _hydrateMlToolkitSettings();
   }
 
   @override
@@ -144,9 +107,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _hydrateLocalPrefs() async {
-    final digest = await _prefs.getDigestTime();
+    final digestTimes = await _prefs.getDigestTimes();
     if (mounted) {
-      setState(() => _digestTime = digest);
+      setState(() => _digestTimes = digestTimes);
     }
   }
 
@@ -274,76 +237,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _hydrateMlToolkitSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final autoDetect = prefs.getBool(_kMlAutoLanguage) ?? true;
-      final persisted = prefs.getString(_kMlModelLanguage) ?? 'hi';
-      final modelLanguage = _supportedMlModelLanguages.contains(persisted) ? persisted : 'hi';
-      final downloaded = await _mlToolkit.isTranslationModelDownloaded(modelLanguage);
-      if (!mounted) return;
-      setState(() {
-        _mlAutoLanguageDetect = autoDetect;
-        _mlModelLanguage = modelLanguage;
-        _mlModelDownloaded = downloaded;
-      });
-    } catch (e) {
-      debugPrint('[Settings] _hydrateMlToolkitSettings error: $e');
-    }
-  }
-
-  Future<void> _saveMlToolkitPrefs() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_kMlAutoLanguage, _mlAutoLanguageDetect);
-      await prefs.setString(_kMlModelLanguage, _mlModelLanguage);
-    } catch (e) {
-      debugPrint('[Settings] _saveMlToolkitPrefs error: $e');
-    }
-  }
-
-  Future<void> _refreshMlModelStatus() async {
-    final downloaded = await _mlToolkit.isTranslationModelDownloaded(_mlModelLanguage);
-    if (!mounted) return;
-    setState(() => _mlModelDownloaded = downloaded);
-  }
-
-  Future<void> _downloadMlModel() async {
-    if (_mlModelBusy) return;
-    setState(() => _mlModelBusy = true);
-    try {
-      await _mlToolkit.downloadTranslationModel(_mlModelLanguage);
-      await _refreshMlModelStatus();
-    } finally {
-      if (mounted) setState(() => _mlModelBusy = false);
-    }
-  }
-
-  Future<void> _removeMlModel() async {
-    if (_mlModelBusy) return;
-    setState(() => _mlModelBusy = true);
-    try {
-      await _mlToolkit.deleteTranslationModel(_mlModelLanguage);
-      await _refreshMlModelStatus();
-    } finally {
-      if (mounted) setState(() => _mlModelBusy = false);
-    }
-  }
-
-  Future<void> _pickDigestTime() async {
-    final picked = await showTimePicker(context: context, initialTime: _digestTime);
+  Future<void> _addDigestTime() async {
+    final initial = _digestTimes.isNotEmpty
+        ? _digestTimes.last
+        : const TimeOfDay(hour: 9, minute: 0);
+    final picked = await showTimePicker(context: context, initialTime: initial);
     if (picked == null || !mounted) return;
 
-    setState(() {
-      _digestTime = picked;
-      _savingDigest = true;
-    });
-    try {
-      await _prefs.setDigestTime(picked);
-      await _users.updateDigestTime(
-        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
+    final minute = picked.hour * 60 + picked.minute;
+    final exists = _digestTimes.any((t) => t.hour * 60 + t.minute == minute);
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This digest time already exists')),
       );
+      return;
+    }
+
+    final updated = [..._digestTimes, picked]
+      ..sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
+    await _persistDigestTimes(updated);
+  }
+
+  Future<void> _removeDigestTime(TimeOfDay time) async {
+    if (_digestTimes.length <= 1) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Keep at least one digest schedule')),
+        );
+      }
+      return;
+    }
+    final minute = time.hour * 60 + time.minute;
+    final updated = _digestTimes
+        .where((t) => t.hour * 60 + t.minute != minute)
+        .toList();
+    await _persistDigestTimes(updated);
+  }
+
+  Future<void> _persistDigestTimes(List<TimeOfDay> times) async {
+    setState(() => _savingDigest = true);
+    try {
+      await _prefs.setDigestTimes(times);
+      await _users.updateDigestTimes(times);
       await WorkManagerService.registerTelegramDailyDigest();
+      if (mounted) {
+        setState(() => _digestTimes = times);
+      }
     } finally {
       if (mounted) setState(() => _savingDigest = false);
     }
@@ -397,12 +336,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _openTelegramBot() async {
-    final botUsername = AppEnv.telegramBotUsername;
-    if (botUsername.isEmpty) return;
+    final botUsername = await _telegram.resolveBotUsername();
+    if (botUsername == null || botUsername.isEmpty) return;
     final uri = Uri.parse('https://t.me/$botUsername');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  Future<void> _connectTelegramAuto() async {
+    if (FirebaseAuth.instance.currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign in required to connect Telegram')),
+        );
+      }
+      return;
+    }
+    final botUsername = await _telegram.resolveBotUsername();
+    if (botUsername == null || botUsername.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Telegram bot is not configured (missing token or unreachable bot)'),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    await context.push('/telegram');
+    await _hydrateTelegramId();
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -531,7 +495,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
 
-              _SectionHeader(label: 'Speech & ML'),
+              _SectionHeader(label: 'Speech'),
               GlassContainer(
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                 margin: const EdgeInsets.symmetric(vertical: 3),
@@ -540,7 +504,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Speech Recognition vs ML Toolkit',
+                      'Speech Recognition',
                       style: TextStyle(
                         color: context.textPri,
                         fontWeight: FontWeight.w700,
@@ -549,7 +513,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Speech language controls transcription. ML language controls translation model downloads.',
+                      'Choose recognition language and offline preference',
                       style: TextStyle(
                         color: context.textSec,
                         fontSize: 12,
@@ -664,134 +628,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-                      decoration: BoxDecoration(
-                        color: context.surface1.withValues(alpha: 0.55),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: context.textSec.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_outlined,
-                                color: context.textPri,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'ML Toolkit',
-                                style: TextStyle(
-                                  color: context.textPri,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Used for language identification and translation model management.',
-                            style: TextStyle(
-                              color: context.textSec,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Auto-detect transcript language'),
-                            subtitle: const Text('When ON, app can adapt speech language while recording (foreground only)'),
-                            value: _mlAutoLanguageDetect,
-                            onChanged: (value) {
-                              setState(() => _mlAutoLanguageDetect = value);
-                              unawaited(_saveMlToolkitPrefs());
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: _mlModelLanguage,
-                            menuMaxHeight: 360,
-                            isExpanded: true,
-                            decoration: InputDecoration(
-                              isDense: true,
-                              labelText: 'Translation model language',
-                              filled: true,
-                              fillColor: context.surface2.withValues(alpha: 0.7),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: context.textSec.withValues(alpha: 0.2),
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: context.textSec.withValues(alpha: 0.16),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: AppColors.ideas,
-                                ),
-                              ),
-                            ),
-                            items: _mlLanguageOptions
-                                .map((entry) => DropdownMenuItem<String>(
-                                      value: entry['code'],
-                                      child: Text(entry['label'] ?? entry['code'] ?? ''),
-                                    ))
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _mlModelLanguage = value);
-                              unawaited(_saveMlToolkitPrefs());
-                              unawaited(_refreshMlModelStatus());
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      _mlModelDownloaded ? 'Model status: downloaded' : 'Model status: not downloaded',
-                      style: TextStyle(
-                        color: _mlModelDownloaded ? AppColors.followUp : context.textSec,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _mlModelBusy ? null : _downloadMlModel,
-                            icon: const Icon(Icons.download_for_offline_outlined),
-                            label: Text(_mlModelBusy ? 'Working...' : 'Download model'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _mlModelBusy ? null : _removeMlModel,
-                            icon: const Icon(Icons.delete_outline),
-                            label: const Text('Remove model'),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -809,13 +645,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 8),
               _SectionHeader(label: 'Daily Digest'),
-              _SettingsTile(
-                title: 'Digest time',
-                subtitle: _formatTime(_digestTime),
-                leading: const Icon(Icons.schedule_outlined),
-                trailing: _savingDigest
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : TextButton(onPressed: _pickDigestTime, child: const Text('Change')),
+              GlassContainer(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                borderRadius: BorderRadius.circular(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule_outlined),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Digest schedules',
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_savingDigest)
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          TextButton.icon(
+                            onPressed: _addDigestTime,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add time'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Digests are sent at each selected time daily.',
+                      style: TextStyle(color: context.textSec, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _digestTimes
+                          .map(
+                            (t) => InputChip(
+                              label: Text(_formatTime(t)),
+                              onDeleted: _savingDigest ? null : () => _removeDigestTime(t),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 8),
@@ -879,23 +761,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Icon(Icons.telegram, color: AppColors.tasks, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          'Telegram Chat ID',
+                          'Telegram Chat ID (Override)',
                           style: TextStyle(
                             color: context.textPri,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
                         ),
-                        const Spacer(),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _connectTelegramAuto,
+                            icon: const Icon(Icons.link_rounded),
+                            label: const Text('Connect in Telegram'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         TextButton(onPressed: _openTelegramBot, child: const Text('Open bot')),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Recommended: use Connect in Telegram. Chat ID input is only a fallback override.',
+                      style: TextStyle(color: context.textSec, fontSize: 12),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _telegramController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        hintText: 'Enter your chat ID',
+                        hintText: 'Optional override if auto-link fails',
                         hintStyle: TextStyle(color: context.textSec),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
@@ -906,7 +805,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       alignment: Alignment.centerRight,
                       child: ElevatedButton(
                         onPressed: _savingTelegram ? null : _saveTelegramId,
-                        child: Text(_savingTelegram ? 'Saving…' : 'Save'),
+                        child: Text(_savingTelegram ? 'Saving…' : 'Save override'),
                       ),
                     ),
                     if (_telegramChatId != null) ...[

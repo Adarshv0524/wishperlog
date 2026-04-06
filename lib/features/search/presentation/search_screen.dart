@@ -1,9 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/features/search/data/local_note_search.dart';
+import 'package:wishperlog/features/search/data/smart_note_search.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
@@ -18,15 +20,27 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final IsarNoteStore _notes = sl<IsarNoteStore>();
   final TextEditingController _queryController = TextEditingController();
+  Timer? _debounce;
+  String _debouncedQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _queryController.addListener(() => setState(() {}));
+    _queryController.addListener(_onQueryChanged);
+  }
+
+  void _onQueryChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 180), () {
+      if (mounted) {
+        setState(() => _debouncedQuery = _queryController.text.trim());
+      }
+    });
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _queryController.dispose();
     super.dispose();
   }
@@ -87,7 +101,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   fontWeight: FontWeight.w500,
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: 'Search your brain...',
+                                  hintText: 'Search… try "tasks: standup"',
                                   hintStyle: TextStyle(
                                     color: context.textSec,
                                     fontSize: 14,
@@ -110,8 +124,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   stream: _notes.watchActive(),
                   builder: (context, snapshot) {
                     final all = snapshot.data ?? const <Note>[];
-                    final query = _queryController.text.trim();
-                    final ranked = LocalNoteSearch.search(all, query);
+                    final query = _debouncedQuery;
+                    final hits = SmartNoteSearch.searchSync(all, query);
 
                     if (query.isEmpty) {
                       return Center(
@@ -137,7 +151,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       );
                     }
 
-                    if (ranked.isEmpty) {
+                    if (hits.isEmpty) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -164,7 +178,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     return ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                       itemBuilder: (context, index) {
-                        final note = ranked[index];
+                        final hit = hits[index];
+                        final note = hit.note;
                         return GlassPane(
                           level: 2,
                           radius: 18,
@@ -172,7 +187,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             borderRadius: BorderRadius.circular(18),
                             onTap: () {
                               context.pop();
-                              context.push('/folder', extra: note.category);
+                              context.push('/notes/${note.noteId}');
                             },
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -200,7 +215,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    note.cleanBody,
+                                    hit.snippet.isNotEmpty
+                                        ? hit.snippet
+                                        : note.cleanBody,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -208,6 +225,54 @@ class _SearchScreenState extends State<SearchScreen> {
                                       fontSize: 13,
                                       height: 1.4,
                                     ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: context.surface1,
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                          border: Border.all(
+                                            color: context.textSec.withValues(
+                                              alpha: 0.18,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          categoryLabel(note.category),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: context.textSec,
+                                          ),
+                                        ),
+                                      ),
+                                      if (hit.matchedField.isNotEmpty &&
+                                          hit.matchedField != 'title') ...[
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'matched in ${hit.matchedField}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: context.textSec.withValues(
+                                                alpha: 0.5,
+                                              ),
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ],
                               ),
@@ -217,7 +282,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       },
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 12),
-                      itemCount: ranked.length,
+                      itemCount: hits.length,
                     );
                   },
                 ),

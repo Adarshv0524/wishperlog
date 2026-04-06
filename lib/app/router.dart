@@ -68,8 +68,7 @@ final GoRouter router = GoRouter(
       final isOnboarding =
           state.matchedLocation == '/' ||
           state.matchedLocation == '/signin' ||
-          state.matchedLocation == '/permissions' ||
-          state.matchedLocation == '/telegram';
+          state.matchedLocation == '/permissions';
 
       if (!isAuthenticated && !isOnboarding) {
         return '/';
