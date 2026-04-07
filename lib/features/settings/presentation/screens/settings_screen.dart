@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:wishperlog/core/background/work_manager_service.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
@@ -237,25 +236,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _addDigestTime() async {
-    final initial = _digestTimes.isNotEmpty
-        ? _digestTimes.last
-        : const TimeOfDay(hour: 9, minute: 0);
-    final picked = await showTimePicker(context: context, initialTime: initial);
-    if (picked == null || !mounted) return;
+  // ── 15-minute slot picker ─────────────────────────────────────────────────
 
-    final minute = picked.hour * 60 + picked.minute;
-    final exists = _digestTimes.any((t) => t.hour * 60 + t.minute == minute);
+  Future<void> _addDigestTime() async {
+    final slot = await _show15MinSlotPicker(context, _digestTimes);
+    if (slot == null || !mounted) return;
+
+    final exists = _digestTimes.any(
+        (t) => t.hour * 60 + t.minute == slot.hour * 60 + slot.minute);
     if (exists) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This digest time already exists')),
       );
       return;
     }
-
-    final updated = [..._digestTimes, picked]
+    final updated = [..._digestTimes, slot]
       ..sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
     await _persistDigestTimes(updated);
+  }
+
+  /// Shows a bottom-sheet grid of 15-minute interval slots (00, 15, 30, 45).
+  Future<TimeOfDay?> _show15MinSlotPicker(
+      BuildContext ctx, List<TimeOfDay> existing) async {
+    TimeOfDay? result;
+    await showModalBottomSheet<void>(
+      context: ctx,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) {
+        int selectedHour = 9;
+        int selectedMinuteSlot = 0; // index: 0=:00, 1=:15, 2=:30, 3=:45
+
+        return StatefulBuilder(builder: (_, setState) {
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Add Digest Time',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 16),
+
+                // Hour scroll
+                SizedBox(
+                  height: 48,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: 24,
+                    itemBuilder: (_, h) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(h.toString().padLeft(2, '0')),
+                        selected: selectedHour == h,
+                        onSelected: (_) => setState(() => selectedHour = h),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Minute slot chips (:00 :15 :30 :45)
+                Row(
+                  children: List.generate(4, (i) {
+                    final label = ':${(i * 15).toString().padLeft(2, '0')}';
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(label),
+                        selected: selectedMinuteSlot == i,
+                        onSelected: (_) => setState(() => selectedMinuteSlot = i),
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      result = TimeOfDay(
+                        hour:   selectedHour,
+                        minute: selectedMinuteSlot * 15,
+                      );
+                      Navigator.of(sheetCtx).pop();
+                    },
+                    child: const Text('Add'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        });
+      },
+    );
+    return result;
   }
 
   Future<void> _removeDigestTime(TimeOfDay time) async {
@@ -267,9 +343,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
       return;
     }
-    final minute = time.hour * 60 + time.minute;
+    final min     = time.hour * 60 + time.minute;
     final updated = _digestTimes
-        .where((t) => t.hour * 60 + t.minute != minute)
+        .where((t) => t.hour * 60 + t.minute != min)
         .toList();
     await _persistDigestTimes(updated);
   }
@@ -278,11 +354,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _savingDigest = true);
     try {
       await _prefs.setDigestTimes(times);
-      await _users.updateDigestTimes(times);
-      await WorkManagerService.registerTelegramDailyDigest();
-      if (mounted) {
-        setState(() => _digestTimes = times);
-      }
+
+      // Convert to UTC "HH:MM" strings for the Cloudflare Worker to match against.
+      final nowLocal = DateTime.now();
+      final utcOffsetMin = nowLocal.timeZoneOffset.inMinutes;
+      final utcSlots = times.map((t) {
+        final localMin  = t.hour * 60 + t.minute;
+        final utcMin    = (localMin - utcOffsetMin) % (24 * 60);
+        final normalized = utcMin < 0 ? utcMin + 24 * 60 : utcMin;
+        final h = normalized ~/ 60;
+        final m = normalized  % 60;
+        return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+      }).toList();
+
+      await _users.updateDigestTimes(times, utcSlots: utcSlots);
+
+      if (mounted) setState(() => _digestTimes = times);
     } finally {
       if (mounted) setState(() => _savingDigest = false);
     }

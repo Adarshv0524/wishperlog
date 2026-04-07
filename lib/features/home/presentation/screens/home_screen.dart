@@ -282,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   _GlassIconButton(
-                                    icon: Icons.tune_rounded,
+                                    icon: Icons.settings_rounded,
                                     onTap: () => context.push('/settings'),
                                   ),
                                 ],

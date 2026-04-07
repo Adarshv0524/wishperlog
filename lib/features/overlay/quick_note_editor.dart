@@ -6,6 +6,7 @@ import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 
 class QuickNoteEditor extends StatefulWidget {
   const QuickNoteEditor({super.key});
@@ -33,34 +34,60 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
   }
 
   Future<void> _save() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    
-    setState(() => _isSaving = true);
-    try {
-      final captureService = sl<CaptureService>();
-      final saved = await captureService.ingestRawCapture(
-        rawTranscript: text,
-        source: CaptureSource.textOverlay,
-        syncToCloud: true,
-      );
-      // Show confirmation in the global Dynamic Island.
-      sl<CaptureUiController>().notifyExternalRecordingSaved(
-        title: saved?.title ?? 'Quick note',
-        category: saved?.category ?? NoteCategory.general,
-        noteId: saved?.noteId,
-      );
-      if (mounted) {
-        context.pop();
+      final text = _controller.text.trim();
+      if (text.isEmpty) return;
+
+      setState(() => _isSaving = true);
+      try {
+          final captureService = sl<CaptureService>();
+
+          // Show processing state immediately on the Flutter island.
+          try {
+              sl<CaptureUiController>().notifyExternalRecordingProcessing(
+                  provider: captureService.activeProviderName,
+              );
+          } catch (_) {}
+
+          final saved = await captureService.ingestRawCapture(
+              rawTranscript: text,
+              source:        CaptureSource.textOverlay,
+              syncToCloud:   true,
+          );
+
+          // Transition island to saved state.
+          sl<CaptureUiController>().notifyExternalRecordingSaved(
+              title:    saved?.title    ?? 'Quick note',
+              category: saved?.category ?? NoteCategory.general,
+              noteId:   saved?.noteId,
+          );
+
+          // Also update native island pill via OverlayNotifier.
+          if (saved != null) {
+              try {
+                  await sl<OverlayNotifier>().notifyNativeSaved(
+                      saved.title,
+                      saved.category,
+                  );
+              } catch (_) {}
+          }
+
+          if (mounted) context.pop();
+      } catch (e) {
+          // Reset both islands so neither stays stuck on "Classifying...".
+          try { sl<CaptureUiController>().resetToIdle(); } catch (_) {}
+          try {
+              await sl<OverlayNotifier>().notifyNativeSaved(
+                  'Error saving note',
+                  NoteCategory.general,
+              );
+          } catch (_) {}
+          if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to save quick note')),
+              );
+              setState(() => _isSaving = false);
+          }
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save quick note')),
-        );
-        setState(() => _isSaving = false);
-      }
-    }
   }
 
   @override

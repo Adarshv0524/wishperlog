@@ -13,9 +13,13 @@ extension GetNoteCollection on Isar {
   IsarCollection<Note> get notes => this.collection();
 }
 
-const NoteSchema = CollectionSchema(
+final int _noteSchemaId = int.parse('6284318083599466921');
+final int _noteIndexNoteId = int.parse('-9014133502494436840');
+final int _noteIndexStatus = int.parse('-107785170620420283');
+
+final NoteSchema = CollectionSchema(
   name: r'Note',
-  id: 6284318083599466921,
+  id: _noteSchemaId,
   properties: {
     r'aiModel': PropertySchema(
       id: 0,
@@ -109,13 +113,26 @@ const NoteSchema = CollectionSchema(
   idName: r'isarId',
   indexes: {
     r'noteId': IndexSchema(
-      id: -9014133502494436840,
+      id: _noteIndexNoteId,
       name: r'noteId',
       unique: true,
       replace: false,
       properties: [
         IndexPropertySchema(
           name: r'noteId',
+          type: IndexType.hash,
+          caseSensitive: true,
+        )
+      ],
+    ),
+    r'status': IndexSchema(
+      id: _noteIndexStatus,
+      name: r'status',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'status',
           type: IndexType.hash,
           caseSensitive: true,
         )
@@ -295,11 +312,19 @@ const _NotesourceEnumValueMap = {
   r'voiceOverlay': r'voiceOverlay',
   r'textOverlay': r'textOverlay',
   r'homeWritingBox': r'homeWritingBox',
+  r'shortcutTile': r'shortcutTile',
+  r'notification': r'notification',
+  r'googleTasks': r'googleTasks',
+  r'googleCalendar': r'googleCalendar',
 };
 const _NotesourceValueEnumMap = {
   r'voiceOverlay': CaptureSource.voiceOverlay,
   r'textOverlay': CaptureSource.textOverlay,
   r'homeWritingBox': CaptureSource.homeWritingBox,
+  r'shortcutTile': CaptureSource.shortcutTile,
+  r'notification': CaptureSource.notification,
+  r'googleTasks': CaptureSource.googleTasks,
+  r'googleCalendar': CaptureSource.googleCalendar,
 };
 const _NotestatusEnumValueMap = {
   r'active': r'active',
@@ -491,6 +516,50 @@ extension NoteQueryWhere on QueryBuilder<Note, Note, QWhereClause> {
               indexName: r'noteId',
               lower: [],
               upper: [noteId],
+              includeUpper: false,
+            ));
+      }
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterWhereClause> statusEqualTo(NoteStatus status) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'status',
+        value: [status],
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterWhereClause> statusNotEqualTo(
+      NoteStatus status) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'status',
+              lower: [],
+              upper: [status],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'status',
+              lower: [status],
+              includeLower: false,
+              upper: [],
+            ));
+      } else {
+        return query
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'status',
+              lower: [status],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'status',
+              lower: [],
+              upper: [status],
               includeUpper: false,
             ));
       }

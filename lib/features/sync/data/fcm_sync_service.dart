@@ -43,6 +43,24 @@ class FcmSyncService {
     }
     _initialized = true;
 
+    // Android 13+ and iOS require runtime notification permission.
+    try {
+      final current = await _messaging.getNotificationSettings();
+
+      if (current.authorizationStatus == AuthorizationStatus.notDetermined) {
+        final requested = await requestPermission();
+        debugPrint(
+          '[FcmSyncService] Notification permission requested: ${requested.authorizationStatus.name}',
+        );
+      } else {
+        debugPrint(
+          '[FcmSyncService] Notification permission status: ${current.authorizationStatus.name}',
+        );
+      }
+    } catch (e) {
+      debugPrint('[FcmSyncService] Notification permission check error: $e');
+    }
+
     try {
       debugPrint('[FcmSyncService] Getting FCM token...');
       final token = await _messaging.getToken().timeout(
@@ -103,6 +121,10 @@ class FcmSyncService {
   }
 
   Future<void> _handleRemoteMessage(RemoteMessage message) async {
+    debugPrint(
+      '[FcmSyncService] Received message: id=${message.messageId}, dataKeys=${message.data.keys.toList()}',
+    );
+
     final type = message.data['type'];
     final noteId = message.data['note_id'];
     final status = message.data['status'];

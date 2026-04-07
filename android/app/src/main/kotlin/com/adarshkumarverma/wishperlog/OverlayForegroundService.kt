@@ -83,6 +83,17 @@ class OverlayForegroundService : Service() {
             instance?.get()?.handleSavedNotification(title, category, collection)
         }
 
+        fun notifyBackgroundSaved(title: String, category: String) {
+            instance?.get()?.handleSavedNotification(title, category, "notes")
+        }
+
+        /**
+         * Dismisses the island immediately. Called by BackgroundNoteService when
+         * the headless engine finishes but has no title (e.g., empty transcript).
+         */
+        fun dismissIslandFromBackground() {
+            instance?.get()?.dismissIsland()
+        }
         /** Called by MainActivity to live-update settings without restart. */
         fun applySettings(alpha: Float, grow: Boolean) {
             instance?.get()?.handleApplySettings(alpha, grow)
@@ -390,7 +401,7 @@ class OverlayForegroundService : Service() {
                 Color.parseColor("#EF4444"),
                 android.R.drawable.ic_lock_idle_lock
             )
-            scheduleIslandDismiss(1000)
+            scheduleIslandDismiss(2500L)
             return
         }
 
@@ -461,8 +472,11 @@ class OverlayForegroundService : Service() {
                         Color.parseColor("#7C3AED"),
                         android.R.drawable.ic_popup_sync
                     )
+                    // CRITICAL FIX #4: Safety-net — if BackgroundNoteService never replies
+                    // (e.g. Gemini fails, network dead), dismiss the island after 40s so it
+                    // never gets permanently stuck on "Classifying...".
+                    scheduleIslandDismiss(40_000L)
                     broadcastCapture(text, SOURCE_VOICE)
-                    // Tell Flutter to update its island state too (no-op if app is off-screen)
                     FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
                 } else {
                     dismissIsland()
@@ -515,6 +529,7 @@ class OverlayForegroundService : Service() {
                         Color.parseColor("#7C3AED"),
                         android.R.drawable.ic_popup_sync
                     )
+                    scheduleIslandDismiss(40_000L) // safety net
                     broadcastCapture(fallbackText, SOURCE_VOICE)
                     FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
                     return
@@ -809,6 +824,7 @@ class OverlayForegroundService : Service() {
                         Color.parseColor("#7C3AED"),
                         android.R.drawable.ic_popup_sync
                     )
+                    scheduleIslandDismiss(40_000L)
                     broadcastCapture(text, SOURCE_TEXT)
                 }
                 dismissBanner()
@@ -871,7 +887,7 @@ class OverlayForegroundService : Service() {
                     Color.parseColor("#10B981"),
                     android.R.drawable.checkbox_on_background
                 )
-                scheduleIslandDismiss(1000)
+                scheduleIslandDismiss(2500L)
             }
             else -> {
                 dismissIsland()
@@ -905,7 +921,7 @@ class OverlayForegroundService : Service() {
             val line1 = categoryLabel
             val line2 = title
             showPersistentIslandTwoLine(line1, line2, Color.parseColor("#10B981"), categoryIcon)
-            scheduleIslandDismiss(1000)
+            scheduleIslandDismiss(2500L)
         }
     }
 

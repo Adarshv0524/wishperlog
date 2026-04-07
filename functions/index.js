@@ -284,24 +284,45 @@ async function sendSilentFcm({ token, uid, noteId, status }) {
     return;
   }
 
+  const title = 'WishperLog update';
+  const body = status === 'done'
+    ? 'A note was marked done.'
+    : status === 'archived'
+      ? 'A note was archived.'
+      : 'Your notes were updated.';
+
   await admin.messaging().send({
     token,
+    notification: {
+      title,
+      body,
+    },
     data: {
       type: 'note_status_changed',
       uid,
       note_id: noteId,
       status,
+      title,
+      body,
     },
     android: {
       priority: 'high',
+      notification: {
+        title,
+        body,
+      },
     },
     apns: {
       headers: {
-        'apns-priority': '5',
+        'apns-priority': '10',
       },
       payload: {
         aps: {
-          'content-available': 1,
+          alert: {
+            title,
+            body,
+          },
+          sound: 'default',
         },
       },
     },

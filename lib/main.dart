@@ -16,10 +16,12 @@ import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_processing_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/overlay/overlay_bubble.dart';
+import 'package:wishperlog/features/notifications/data/local_notification_service.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/fcm_sync_service.dart';
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
 import 'firebase_options.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,6 +109,16 @@ void main() async {
     debugPrintStack(stackTrace: st);
   }
 
+  try {
+    debugPrint('[Main] Initializing local notifications...');
+    await LocalNotificationService.initialize();
+    await LocalNotificationService.requestPermissionIfSupported();
+    debugPrint('[Main] Local notifications initialized');
+  } catch (e, st) {
+    debugPrint('[Main] Local notification init error: $e');
+    debugPrintStack(stackTrace: st);
+  }
+
   debugPrint('[Main] === STARTUP COMPLETE, RUNNING APP ===');
 
   runApp(
@@ -132,8 +144,6 @@ Future<void> _postLaunchTasks() async {
   try {
     debugPrint('[Main] Registering WorkManager periodic syncs...');
     await WorkManagerService.registerPeriodicGoogleTasksSync();
-    await WorkManagerService.registerTelegramDailyDigest();
-    await WorkManagerService.registerTelegramCommandPolling();
     debugPrint('[Main] WorkManager & periodic syncs initialized');
   } catch (e) {
     debugPrint('[Main] WorkManager periodic registration error: $e');

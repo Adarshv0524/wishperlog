@@ -9,11 +9,11 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * Receives captured note text from OverlayForegroundService and
- * forwards it to Flutter via MethodChannel — WITHOUT opening the app.
- *
- * Registered once at the Application level (see WishperlogApplication) so only a
- * single receiver instance handles each broadcast.
+ * Receives captured note broadcasts from OverlayForegroundService.
+ * Priority order:
+ *  1. Forward to live Flutter engine via MethodChannel (zero-latency).
+ *  2. Start BackgroundNoteService (headless Flutter engine) if engine is dead.
+ *  3. Persist to SharedPreferences as a safety net.
  */
 class NoteInputReceiver : BroadcastReceiver() {
 
@@ -21,8 +21,9 @@ class NoteInputReceiver : BroadcastReceiver() {
         private const val TAG = "NoteInputReceiver"
 
         fun register(context: Context, receiver: NoteInputReceiver) {
-            LocalBroadcastManager.getInstance(context)
-                .registerReceiver(receiver, IntentFilter(OverlayForegroundService.ACTION_NOTE_CAPTURED))
+            LocalBroadcastManager.getInstance(context).registerReceiver(
+                receiver, IntentFilter(OverlayForegroundService.ACTION_NOTE_CAPTURED)
+            )
         }
 
         fun unregister(context: Context, receiver: NoteInputReceiver) {
@@ -37,42 +38,31 @@ class NoteInputReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != OverlayForegroundService.ACTION_NOTE_CAPTURED) return
 
-        val text = intent.getStringExtra(OverlayForegroundService.EXTRA_TEXT) ?: return
+        val text   = intent.getStringExtra(OverlayForegroundService.EXTRA_TEXT)   ?: return
         val source = intent.getStringExtra(OverlayForegroundService.EXTRA_SOURCE) ?: "voice_overlay"
 
         val channel = FlutterEngineHolder.channel
-        if (channel == null) {
-            Log.w(TAG, "captureNote: engine not alive — persisting for retry")
-            persistPending(context, text, source)
-            return
+        if (channel != null) {
+            channel.invokeMethod(
+                "captureNote",
+                mapOf("text" to text, "source" to source),
+                object : MethodChannel.Result {
+                    override fun success(result: Any?) {
+                        Log.d(TAG, "captureNote forwarded via live engine (len=${text.length})")
+                    }
+                    override fun error(code: String, msg: String?, details: Any?) {
+                        Log.e(TAG, "captureNote failed ($code) — launching BackgroundNoteService")
+                        BackgroundNoteService.start(context, text, source)
+                    }
+                    override fun notImplemented() {
+                        Log.e(TAG, "captureNote notImplemented — launching BackgroundNoteService")
+                        BackgroundNoteService.start(context, text, source)
+                    }
+                }
+            )
+        } else {
+            Log.w(TAG, "Engine dead — launching BackgroundNoteService")
+            BackgroundNoteService.start(context, text, source)
         }
-
-        channel.invokeMethod("captureNote", mapOf("text" to text, "source" to source),
-            object : MethodChannel.Result {
-            override fun success(result: Any?) {
-                Log.d(TAG, "captureNote forwarded (source=$source, len=${text.length})")
-            }
-
-            override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-                Log.e(TAG, "captureNote failed: $errorCode")
-                persistPending(context, text, source)
-            }
-
-            override fun notImplemented() {
-                Log.e(TAG, "captureNote: notImplemented")
-                persistPending(context, text, source)
-            }
-        })
-    }
-
-    private fun persistPending(context: Context, text: String, source: String) {
-        val prefs = context.getSharedPreferences(
-            "wishperlog_pending_notes", Context.MODE_PRIVATE
-        )
-        val key = "pending_${System.currentTimeMillis()}"
-        prefs.edit()
-            .putString("${key}_text", text)
-            .putString("${key}_source", source)
-            .apply()
     }
 }

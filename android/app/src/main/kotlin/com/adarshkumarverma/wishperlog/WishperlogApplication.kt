@@ -1,9 +1,12 @@
 package com.adarshkumarverma.wishperlog
 
-import android.app.Application
-class WishperlogApplication : Application() {
+import io.flutter.FlutterInjector
+import io.flutter.app.FlutterApplication
+
+class WishperlogApplication : FlutterApplication() {
     override fun onCreate() {
         super.onCreate()
-        // Receiver is registered by OverlayForegroundService directly.
+        // Pre-warm the Flutter loader so BackgroundNoteService starts faster.
+        FlutterInjector.instance().flutterLoader().startInitialization(this)
     }
 }

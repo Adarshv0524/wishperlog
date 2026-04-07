@@ -26,6 +26,8 @@ enum CaptureSource {
   homeWritingBox,
   shortcutTile,
   notification,
+  googleTasks,
+  googleCalendar,
 }
 
 enum AiProvider {

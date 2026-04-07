@@ -62,6 +62,16 @@ class CaptureUiController extends Cubit<CaptureUiState> {
     if (state is CaptureUiRecording || state is CaptureUiProcessing) return;
     if (_isInitializing) return; // already spinning up — ignore duplicate call
 
+    // Web graceful fallback: voice recording not supported
+    if (kIsWeb) {
+      emit(const CaptureUiError(
+        message: 'Voice recording is not available on web. Use text input instead.',
+      ));
+      await Future<void>.delayed(const Duration(seconds: 3));
+      emit(const CaptureUiIdle());
+      return;
+    }
+
     _stopRequested = false;
     _isInitializing = true;
 
@@ -246,16 +256,30 @@ class CaptureUiController extends Cubit<CaptureUiState> {
     });
   }
 
+  /// Called by OverlayNotifier when a note captured from the native overlay
+  /// is being saved + classified. Puts the Dynamic Island into processing state.
+  void notifyExternalRecordingProcessing({String provider = 'Gemini'}) {
+    _recordingTimer?.cancel();
+    _autoReturnTimer?.cancel();
+    emit(CaptureUiProcessing(provider: provider));
+    // Safety auto-return: if we never get a saved/error signal, reset after 45s.
+    _autoReturnTimer = Timer(const Duration(seconds: 45), () {
+      if (state is CaptureUiProcessing) {
+        emit(const CaptureUiIdle());
+      }
+    });
+  }
+
   /// A note was saved (from any source) — show the saved confirmation pill.
   void notifyExternalRecordingSaved({
     required String title,
     required NoteCategory category,
-    String model = 'AI',
+    String? model,
     String? noteId,
   }) {
     _recordingTimer?.cancel();
-    emit(CaptureUiSaved(title: title, category: category, noteId: noteId));
     _autoReturnTimer?.cancel();
+    emit(CaptureUiSaved(title: title, category: category, noteId: noteId));
     _autoReturnTimer = Timer(AppDurations.notchAutoReturn, () {
       if (state is CaptureUiSaved) emit(const CaptureUiIdle());
     });

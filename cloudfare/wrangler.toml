@@ -1,0 +1,21 @@
+name = "wishperlog-digest"
+main = "src/worker.ts"
+compatibility_date = "2024-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Cron Triggers ──────────────────────────────────────────────────────────
+# Fires every 15 minutes so we can match any user-configured digest slot.
+[triggers]
+crons = ["*/15 * * * *"]
+
+# ── KV Namespace ───────────────────────────────────────────────────────────
+# Stores "already sent today" dedup keys.
+[[kv_namespaces]]
+binding = "DIGEST_SENT"
+id      = "dca05ac5722b4be0a11d33f1070fa50d"          # replace after `wrangler kv namespace create DIGEST_SENT`
+
+# ── Secrets (set via `wrangler secret put <NAME>`) ─────────────────────────
+# TELEGRAM_BOT_TOKEN       — bot token from @BotFather
+# FIREBASE_PROJECT_ID      — e.g. wishperlog-prod
+# FIREBASE_CLIENT_EMAIL    — service account email
+# FIREBASE_PRIVATE_KEY     — service account private key (PEM, newlines as \n)

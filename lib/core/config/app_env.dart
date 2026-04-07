@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppEnv {
@@ -5,6 +6,9 @@ class AppEnv {
 
   static Future<void> load() async {
     try {
+      if (kIsWeb) {
+        return;
+      }
       await dotenv.load(fileName: '.env');
     } catch (_) {
       // Missing or malformed .env should never crash startup.
@@ -17,10 +21,10 @@ class AppEnv {
   }
 
   static String get telegramBotToken =>
-      _readDefineThenDotenv('TELEGRAM_BOT_TOKEN');
+      _readTelegramBotToken();
 
   static String get telegramBotUsername =>
-      _readDefineThenDotenv('TELEGRAM_BOT_USERNAME');
+      _readTelegramBotUsername();
 
   static String get googleWebClientId {
     final fromEnv = dotenv.maybeGet('GOOGLE_WEB_CLIENT_ID')?.trim();
@@ -37,10 +41,25 @@ class AppEnv {
     return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
   }
 
-  static String _readDefineThenDotenv(String key) {
-    final fromDefine = String.fromEnvironment(key, defaultValue: '').trim();
-    if (fromDefine.isNotEmpty) return fromDefine;
-    final fromDotEnv = dotenv.maybeGet(key)?.trim();
+  static String _readTelegramBotToken() {
+    const fromDefine = String.fromEnvironment(
+      'TELEGRAM_BOT_TOKEN',
+      defaultValue: '',
+    );
+    final trimmedDefine = fromDefine.trim();
+    if (trimmedDefine.isNotEmpty) return trimmedDefine;
+    final fromDotEnv = dotenv.maybeGet('TELEGRAM_BOT_TOKEN')?.trim();
+    return fromDotEnv == null || fromDotEnv.isEmpty ? '' : fromDotEnv;
+  }
+
+  static String _readTelegramBotUsername() {
+    const fromDefine = String.fromEnvironment(
+      'TELEGRAM_BOT_USERNAME',
+      defaultValue: '',
+    );
+    final trimmedDefine = fromDefine.trim();
+    if (trimmedDefine.isNotEmpty) return trimmedDefine;
+    final fromDotEnv = dotenv.maybeGet('TELEGRAM_BOT_USERNAME')?.trim();
     return fromDotEnv == null || fromDotEnv.isEmpty ? '' : fromDotEnv;
   }
 }

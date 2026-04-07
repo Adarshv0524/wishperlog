@@ -166,11 +166,11 @@ class OverlayNotifier extends ChangeNotifier {
   /// Called from main.dart _postLaunchTasks - drains notes captured while
   /// Flutter engine was dead (native-only sessions).
   Future<void> drainPendingNativeNotes() async {
-    try {
-      await _channel.invokeMethod('drainPendingNotes');
-    } catch (e) {
-      debugPrint('[OverlayNotifier] drainPendingNativeNotes error: $e');
-    }
+      try {
+          await _channel.invokeMethod('flushPendingNotes');
+      } catch (e) {
+          debugPrint('[OverlayNotifier] drainPendingNativeNotes error: $e');
+      }
   }
 
   void updatePosition(Offset newPosition) {
@@ -231,48 +231,66 @@ class OverlayNotifier extends ChangeNotifier {
   }
 
   /// Core save method — called when native overlay broadcasts a captured note.
-  /// CRITICAL PATH: this must call notifyNativeSaved after saving so the
-  /// native island shows the category pill even when the app is backgrounded.
+  ///
+  /// Flow:
+  ///   1. Show "processing" immediately on the Flutter Dynamic Island.
+  ///   2. ingestRawCapture → instant Isar save (returns quickTitle / general).
+  ///   3. Show saved pill on both Flutter island and native island.
+  ///   4. AI classification runs asynchronously via AiProcessingService.
   Future<void> _saveOverlayNote(String text, String source) async {
-    try {
-      final svc = sl.isRegistered<CaptureService>()
-          ? sl<CaptureService>()
-          : CaptureService();
-      final captureSource = source == 'text_overlay'
-          ? CaptureSource.textOverlay
-          : CaptureSource.voiceOverlay;
-
-      // With instant-save, skip "processing" flash - go direct to saved.
-      // AI will update the note in the background.
-
-      final saved = await svc.ingestRawCapture(
-        rawTranscript: text,
-        source: captureSource,
-        syncToCloud: true,
-      );
-
-      if (saved == null) {
-        try { sl<CaptureUiController>().resetToIdle(); } catch (_) {}
-        return;
-      }
-
-      debugPrint('[OverlayNotifier] Note saved from overlay: $source');
-
-      // Show saved state immediately with quick title.
       try {
-        sl<CaptureUiController>().notifyExternalRecordingSaved(
-          title: saved.title,
-          category: saved.category,
-          model: saved.aiModel,
-        );
-      } catch (_) {}
+          final svc = sl.isRegistered<CaptureService>()
+              ? sl<CaptureService>()
+              : CaptureService();
+          final captureSource = source == 'text_overlay'
+              ? CaptureSource.textOverlay
+              : CaptureSource.voiceOverlay;
 
-      // Native island also gets instant saved notification.
-      await notifyNativeSaved(saved.title, saved.category);
-    } catch (e) {
-      debugPrint('[OverlayNotifier] _saveOverlayNote error: $e');
-      try { await _channel.invokeMethod('updateIslandState', {'state': 'idle'}); } catch (_) {}
-    }
+          // Show "processing" in Flutter island immediately (no-op if app is off-screen).
+          try {
+              sl<CaptureUiController>().notifyExternalRecordingProcessing(
+                  provider: svc.activeProviderName,
+              );
+          } catch (_) {}
+
+          final saved = await svc.ingestRawCapture(
+              rawTranscript: text,
+              source:        captureSource,
+              syncToCloud:   true,
+          );
+
+          if (saved == null) {
+              try { sl<CaptureUiController>().resetToIdle(); } catch (_) {}
+              // Cancel any stuck "Classifying..." on the native island.
+              try {
+                  await _channel.invokeMethod('updateIslandState', {'state': 'idle'});
+              } catch (_) {}
+              return;
+          }
+
+          debugPrint('[OverlayNotifier] Note saved from overlay: $source '
+              'title="${saved.title}"');
+
+          // Update Flutter Dynamic Island to saved state.
+          try {
+              sl<CaptureUiController>().notifyExternalRecordingSaved(
+                  title:    saved.title,
+                  category: saved.category,
+                  model:    saved.aiModel,
+                  noteId:   saved.noteId,
+              );
+          } catch (_) {}
+
+          // Update native island pill (works even when app is backgrounded,
+          // because OverlayForegroundService is a persistent foreground service).
+          await notifyNativeSaved(saved.title, saved.category);
+      } catch (e) {
+          debugPrint('[OverlayNotifier] _saveOverlayNote error: $e');
+          try { sl<CaptureUiController>().resetToIdle(); } catch (_) {}
+          try {
+              await _channel.invokeMethod('updateIslandState', {'state': 'idle'});
+          } catch (_) {}
+      }
   }
 
   /// Pushes the save result to the native OverlayForegroundService so it can

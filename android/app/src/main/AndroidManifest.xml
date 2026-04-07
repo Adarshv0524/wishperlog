@@ -2,18 +2,35 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.adarshkumarverma.wishperlog">
 
+    <!-- ── Network ─────────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- ── Microphone ──────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- ── Foreground service permissions ─────────────────────────────── -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!--
+        CRITICAL FIX #1:
+        On Android 11+ (API 30+), background services that access the microphone
+        MUST declare FOREGROUND_SERVICE_MICROPHONE and set foregroundServiceType
+        to "microphone" in the <service> tag. Without this, Android silently
+        revokes mic access from background services after ~2 seconds.
+        This was the PRIMARY cause of the recording stopping out-of-app.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- ── Other system permissions ────────────────────────────────────── -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <queries>
-        <package android:name="com.google.android.gms"/>
-        <package android:name="com.android.vending"/>
+        <package android:name="com.google.android.gms" />
+        <package android:name="com.android.vending" />
     </queries>
 
     <application
@@ -24,6 +41,7 @@
         android:allowBackup="true"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/NormalTheme">
+
         <activity
             android:name="com.adarshkumarverma.wishperlog.MainActivity"
             android:exported="true"
@@ -39,34 +57,41 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- Flutter and Firebase permissions -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
+
+        <meta-data android:name="flutterEmbedding" android:value="2" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@mipmap/ic_launcher" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/black" />
+
+        <!--
+            CRITICAL FIX #1 (continued):
+            foregroundServiceType MUST include "microphone" for SpeechRecognizer
+            to work in a background service on Android 11+.
+            "specialUse" is retained because the service also drives a
+            SYSTEM_ALERT_WINDOW overlay (which requires a use-case justification
+            on Play Store submission).
+        -->
         <service
             android:name=".OverlayForegroundService"
-            android:foregroundServiceType="specialUse"
+            android:foregroundServiceType="microphone|specialUse"
             android:exported="false" />
 
-        <receiver
-            android:name=".NoteInputReceiver"
+        <!-- Headless Flutter engine — only needs dataSync (no mic) -->
+        <service
+            android:name=".BackgroundNoteService"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
 
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="true">
+        <receiver android:name=".NoteInputReceiver" android:exported="false" />
+
+        <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 
     </application>
-
 </manifest>
-

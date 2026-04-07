@@ -29,6 +29,22 @@ class UserRepository {
 
   Future<auth.UserCredential> signInWithGoogle() async {
     try {
+      if (kIsWeb) {
+        final provider = auth.GoogleAuthProvider();
+        final userCredential = await _firebaseAuth.signInWithPopup(provider);
+        final user = userCredential.user;
+        if (user == null) {
+          throw Exception('Google sign in aborted');
+        }
+
+        await _upsertUserDocument(
+          firebaseUser: user,
+          googleAuth: null,
+        );
+
+        return userCredential;
+      }
+
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         throw Exception('Google sign in aborted');
@@ -63,7 +79,7 @@ class UserRepository {
 
   Future<void> _upsertUserDocument({
     required auth.User firebaseUser,
-    required GoogleSignInAuthentication googleAuth,
+    required GoogleSignInAuthentication? googleAuth,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final overlayX = prefs.getDouble('overlay.pos.x') ?? 0.0;
@@ -76,7 +92,7 @@ class UserRepository {
       'email': firebaseUser.email ?? '',
       'display_name': firebaseUser.displayName ?? '',
       'google_tokens': {
-        'access_token': googleAuth.accessToken,
+        'access_token': googleAuth?.accessToken,
         'refresh_token': null,
         'expiry': null,
       },
@@ -128,24 +144,22 @@ class UserRepository {
     }, SetOptions(merge: true));
   }
 
-  Future<void> updateDigestTimes(List<TimeOfDay> digestTimes) async {
+  Future<void> updateDigestTimes(
+    List<TimeOfDay> times, {
+    List<String> utcSlots = const [],
+  }) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
-
-    final normalized = digestTimes
-        .map((t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}')
-        .toSet()
-        .toList()
-      ..sort();
-
-    final first = normalized.isEmpty ? '09:00' : normalized.first;
-    await _firestore.collection('users').doc(user.uid).set({
-      'digest_time': first,
-      'digest_times': normalized,
-      'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
-    }, SetOptions(merge: true));
+    if (user == null) return;
+    final data = <String, dynamic>{
+      'digest_times': times.map((t) =>
+          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}').toList(),
+      'digest_times_utc': utcSlots,
+      'updated_at': FieldValue.serverTimestamp(),
+    };
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .set(data, SetOptions(merge: true));
   }
 
   Future<void> updateOverlayVisibility(bool visible) async {
