@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
@@ -29,11 +30,14 @@ class FcmSyncService {
   final FirebaseMessaging _messaging;
   final UserRepository _users;
   final FirestoreNoteSyncService _noteSync;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   bool _initialized = false;
+  bool _tokenBootstrapAttempted = false;
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<RemoteMessage>? _messageSub;
   StreamSubscription<RemoteMessage>? _messageOpenedSub;
+  StreamSubscription<User?>? _authSub;
 
   Future<void> initialize() async {
     ensureFcmBackgroundHandlerRegistered();
@@ -43,7 +47,70 @@ class FcmSyncService {
     }
     _initialized = true;
 
-    // Android 13+ and iOS require runtime notification permission.
+    // Set up listeners once. Token bootstrap is deferred until the user is
+    // signed in so fresh installs do not hit Google Play Services unnecessarily.
+    try {
+      _authSub ??= _auth.authStateChanges().listen((user) {
+        if (user != null) {
+          unawaited(_bootstrapTokenAndPermissions());
+        }
+      });
+    } catch (e) {
+      debugPrint('[FcmSyncService] auth subscription error: $e');
+    }
+
+    _messageSub ??= FirebaseMessaging.onMessage.listen(_handleRemoteMessage);
+    _messageOpenedSub ??= FirebaseMessaging.onMessageOpenedApp.listen(
+      _handleRemoteMessage,
+    );
+
+    try {
+      await _bootstrapTokenAndPermissions();
+    } catch (e) {
+      debugPrint('[FcmSyncService] initialize error: $e');
+    }
+  }
+
+  Future<NotificationSettings> requestPermission() {
+    return _messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+  }
+
+  Future<NotificationSettings> getNotificationSettings() {
+    return _messaging.getNotificationSettings();
+  }
+
+  Future<void> dispose() async {
+    await _tokenRefreshSub?.cancel();
+    await _messageSub?.cancel();
+    await _messageOpenedSub?.cancel();
+    await _authSub?.cancel();
+    _tokenRefreshSub = null;
+    _messageSub = null;
+    _messageOpenedSub = null;
+    _authSub = null;
+    _initialized = false;
+    _tokenBootstrapAttempted = false;
+  }
+
+  Future<void> _bootstrapTokenAndPermissions() async {
+    if (_tokenBootstrapAttempted) {
+      return;
+    }
+    if (_auth.currentUser == null) {
+      debugPrint('[FcmSyncService] Skipping token bootstrap until sign-in');
+      return;
+    }
+
+    _tokenBootstrapAttempted = true;
+
     try {
       final current = await _messaging.getNotificationSettings();
 
@@ -87,37 +154,6 @@ class FcmSyncService {
     _tokenRefreshSub ??= _messaging.onTokenRefresh.listen((token) async {
       await _users.updateFcmToken(token);
     });
-
-    _messageSub ??= FirebaseMessaging.onMessage.listen(_handleRemoteMessage);
-    _messageOpenedSub ??= FirebaseMessaging.onMessageOpenedApp.listen(
-      _handleRemoteMessage,
-    );
-  }
-
-  Future<NotificationSettings> requestPermission() {
-    return _messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-  }
-
-  Future<NotificationSettings> getNotificationSettings() {
-    return _messaging.getNotificationSettings();
-  }
-
-  Future<void> dispose() async {
-    await _tokenRefreshSub?.cancel();
-    await _messageSub?.cancel();
-    await _messageOpenedSub?.cancel();
-    _tokenRefreshSub = null;
-    _messageSub = null;
-    _messageOpenedSub = null;
-    _initialized = false;
   }
 
   Future<void> _handleRemoteMessage(RemoteMessage message) async {
