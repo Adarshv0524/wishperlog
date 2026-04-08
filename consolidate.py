@@ -53,6 +53,7 @@ def collect_android_files(android_dir: Path) -> list[Path]:
         # Android manifests and configuration
         "**/AndroidManifest.xml",
         "**/*.xml",  # All XML configs
+        "**/*.json",
         # Properties and config
         "**/local.properties",
         "**/proguard-rules.pro",
@@ -71,10 +72,39 @@ def collect_android_files(android_dir: Path) -> list[Path]:
     return sorted(collected_files)
 
 
+def collect_cloudfare_files(cloudfare_dir: Path) -> list[Path]:
+    """Collect TypeScript and config files from cloudfare directory."""
+    allowed_suffixes = {
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".json",
+        ".toml",
+        ".yml",
+        ".yaml",
+    }
+    excluded_parts = {"build", ".wrangler", "generated", "intermediates", "outputs", "tmp"}
+
+    collected_files = set()
+
+    for file_path in cloudfare_dir.rglob("*"):
+        if file_path.is_file() and file_path.suffix.lower() in allowed_suffixes:
+            if file_path.name == "package-lock.json":
+                continue
+            if not any(part in excluded_parts for part in file_path.parts):
+                collected_files.add(file_path)
+
+    return sorted(collected_files)
+
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parent
     lib_dir = repo_root / "lib"
     android_dir = repo_root / "android"
+    cloudfare_dir = repo_root / "cloudfare"
     output_path = repo_root / "consolidated-code.json"
 
     if not lib_dir.exists():
@@ -83,11 +113,15 @@ def main() -> int:
     if not android_dir.exists():
         raise FileNotFoundError(f"Missing android directory: {android_dir}")
 
+    if not cloudfare_dir.exists():
+        raise FileNotFoundError(f"Missing cloudfare directory: {cloudfare_dir}")
+
     # Collect files
     dart_files = collect_dart_files(lib_dir)
     android_files = collect_android_files(android_dir)
+    cloudfare_files = collect_cloudfare_files(cloudfare_dir)
     
-    all_files = dart_files + android_files
+    all_files = dart_files + android_files + cloudfare_files
     
     if not all_files:
         print("Warning: No files found to consolidate")
@@ -124,11 +158,13 @@ def main() -> int:
     
     dart_count = len(dart_files)
     android_count = len(android_files)
+    cloudfare_count = len(cloudfare_files)
     total = len(file_objects)
     
     print(f"✓ Consolidated {total} files:")
     print(f"  • Dart files: {dart_count}")
     print(f"  • Android files: {android_count}")
+    print(f"  • Cloudfare files: {cloudfare_count}")
 
     if android_files:
         kotlin_package_files = [
@@ -147,8 +183,16 @@ def main() -> int:
             rel_path = android_file.relative_to(repo_root).as_posix()
             if android_file.suffix == ".kts":
                 print(f"  • {rel_path} (user .kts)")
+            elif android_file.suffix == ".json":
+                print(f"  • {rel_path} (JSON)")
             else:
                 print(f"  • {rel_path}")
+
+    if cloudfare_files:
+        print("✓ Cloudfare files included:")
+        for cloudfare_file in cloudfare_files:
+            rel_path = cloudfare_file.relative_to(repo_root).as_posix()
+            print(f"  • {rel_path}")
 
     print(f"✓ Output: {output_path}")
     print(f"✓ Format: JSON array with multiline code blocks")

@@ -515,9 +515,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: _themeModeLabel(context),
                 leading: const Icon(Icons.palette_outlined),
                 trailing: BlocBuilder<ThemeCubit, ThemeMode>(
+                  bloc: sl<ThemeCubit>(),
                   builder: (context, mode) => Switch(
                     value: mode == ThemeMode.dark,
-                    onChanged: (_) => context.read<ThemeCubit>().toggleLightDark(),
+                    onChanged: (_) => sl<ThemeCubit>().toggleLightDark(),
                     activeThumbColor: AppColors.tasks,
                   ),
                 ),
@@ -979,7 +980,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _themeModeLabel(BuildContext context) {
-    final mode = context.read<ThemeCubit>().state;
+    final mode = sl<ThemeCubit>().state;
     return switch (mode) {
       ThemeMode.dark => 'Dark',
       ThemeMode.light => 'Light',

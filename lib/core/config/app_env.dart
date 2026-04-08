@@ -27,6 +27,12 @@ class AppEnv {
       _readTelegramBotUsername();
 
   static String get googleWebClientId {
+    const fromDefine = String.fromEnvironment(
+      'GOOGLE_WEB_CLIENT_ID',
+      defaultValue: '982731246537-6a8ov59qm6n6f6v7rakq4su2eje8g9au.apps.googleusercontent.com',
+    );
+    final trimmedDefine = fromDefine.trim();
+    if (trimmedDefine.isNotEmpty) return trimmedDefine;
     final fromEnv = dotenv.maybeGet('GOOGLE_WEB_CLIENT_ID')?.trim();
     return fromEnv == null || fromEnv.isEmpty ? '' : fromEnv;
   }

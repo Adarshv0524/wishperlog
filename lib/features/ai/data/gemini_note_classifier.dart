@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:wishperlog/core/config/app_env.dart';
 import 'package:wishperlog/shared/models/enums.dart';
-// import 'package:wishperlog/shared/models/note_helpers.dart';
 
 class GeminiClassificationResult {
   const GeminiClassificationResult({
@@ -27,89 +26,90 @@ class GeminiClassificationResult {
 
 class GeminiNoteClassifier {
   GeminiNoteClassifier({String? apiKey, GenerativeModel? model})
-      : _apiKey        = apiKey ?? AppEnv.geminiApiKey,
+      : _apiKey = apiKey ?? AppEnv.geminiApiKey,
         _providedModel = model;
 
-  // ─── System Prompt ─────────────────────────────────────────────────────────
-  //
-  // Design goals:
-  //  • Zero hallucination: never invent facts, dates, or context.
-  //  • Preserve intent: raw slang / shorthand must survive.
-  //  • Strict JSON-only output so parsing never fails.
-  //  • Unambiguous category and priority definitions.
-  // ──────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // SYSTEM PROMPT — v3
+  // Goals:
+  //   1. Actively correct STT mispronunciations / grammar before saving.
+  //   2. Strict JSON-only output.
+  //   3. Crystal-clear disambiguation rules to eliminate mis-categorisation.
+  // ─────────────────────────────────────────────────────────────────────────
   static const String systemPrompt = r'''
-You are a structured note-processing engine. Your ONLY output is a single raw JSON object — no markdown, no backticks, no prose before or after it.
+You are an intelligent voice-note post-processor. You receive raw speech-to-text output which may contain mispronunciations, homophones, run-on sentences, filler words, and grammatical errors. Your job is to:
+  A) Intelligently correct the text (see clean_body rules below).
+  B) Classify it into a structured JSON object.
 
-════════════════════════════════════════
-OUTPUT SCHEMA (all fields required)
-════════════════════════════════════════
+════════════════════════════════
+OUTPUT — ONE raw JSON object only.
+No markdown, no backticks, no prose.
+First byte must be `{`, last byte `}`.
+════════════════════════════════
 {
-  "title":          "<string>",
-  "clean_body":     "<string>",
-  "category":       "<string>",
-  "priority":       "<string>",
-  "extracted_date": "<string|null>"
+  "title":          "<string: 3–9 words, imperative or noun-phrase>",
+  "clean_body":     "<string: corrected note text>",
+  "category":       "<string: tasks|reminders|ideas|follow-up|journal|general>",
+  "priority":       "<string: high|medium|low>",
+  "extracted_date": "<string YYYY-MM-DD | null>"
 }
 
-════════════════════════════════════════
-FIELD RULES
-════════════════════════════════════════
+━━━ FIELD RULES ━━━━━━━━━━━━━━━
 
 title
-  • 3–9 words, written in the same language as the input.
-  • Capture the single most important action or subject.
-  • Do NOT start with filler like "Note about" or "Reminder to".
-  • Do NOT use punctuation at the end.
-  • Examples of good titles: "Call dentist this Friday", "Finish landing page hero", "Mom's birthday gift idea"
+  • 3–9 words in input language.
+  • Start with an action verb OR the main subject noun.
+  • No trailing punctuation. No filler openings ("Note about", "Remind me to").
+  • ✓ "Call dentist Friday" ✓ "Landing page hero section" ✓ "Mom birthday gift"
 
-clean_body
-  • Lightly edited version of the raw input.
-  • Fix ONLY: obvious typos, clear grammatical errors, run-on punctuation.
-  • Preserve: original language, tone, slang, abbreviations, emoji, bullet structure.
-  • Do NOT: translate, summarise, expand, rewrite, or add missing context.
+clean_body  ← ACTIVE CORRECTION REQUIRED
+  • Fix ALL of the following from raw STT output:
+    – Homophones / mispronunciations  (e.g. "meting" → "meeting", "contrack" → "contract")
+    – Filler words  (e.g. "um", "uh", "like", "you know", "basically") — remove unless semantically relevant.
+    – Repeated words  (e.g. "the the", "call call") — deduplicate.
+    – Run-on fragments joined by "and" or "so" — break into separate sentences.
+    – Missing capitalisation at sentence starts.
+    – Obvious missing articles (a/an/the) only when unambiguous.
+  • DO NOT: translate, summarise, add new context, change names, change numbers.
+  • Preserve: tone, slang, emoji, technical jargon, proper nouns (even if unusual).
 
-category  — choose EXACTLY one lowercase value:
-  "tasks"      → Concrete action the user must DO (verb + object). Has a clear completion state.
-                 Examples: "buy milk", "review PR", "book flight"
-  "reminders"  → Time-sensitive or location-sensitive cue. Often contains "remind me", "don't forget", a specific date/time, or "when I".
-                 Examples: "dentist at 3pm tomorrow", "call back John", "remind me to water plants"
-  "ideas"      → Creative, speculative, or exploratory thought. No defined completion state.
-                 Examples: "app idea for dog walkers", "blog post about flow states", "what if we use WebSockets"
-  "follow-up"  → Needs a follow-up action with another person or system (email, meeting, response, check-in).
-                 Examples: "follow up with Sarah on contract", "check if invoice was paid", "ask boss about PTO"
-  "journal"    → Personal reflection, emotion, observation, or memory. No action required.
-                 Examples: "had a great run today", "feeling overwhelmed with deadlines", "remembering grandma's cookies"
-  "general"    → Factual note, reference info, or anything that clearly does not fit the above.
-                 Examples: "WiFi password: sunshine99", "office address is 42 Park Ave", "npm install --legacy-peer-deps"
+category — choose exactly ONE:
+  "tasks"     → Clear action the user must complete (has a done state).
+                Signals: "do", "buy", "fix", "send", "finish", "complete", "review".
+  "reminders" → Time/location-sensitive nudge. Has a WHEN or WHERE.
+                Signals: time words (tomorrow, 3pm, next week), "remind me", "don't forget", "when I get to".
+  "ideas"     → Creative/exploratory thought. No defined done-state.
+                Signals: "what if", "idea", "maybe we could", speculative language.
+  "follow-up" → Requires action involving another person/system after an interaction.
+                Signals: "follow up", "check with", "ask", "waiting for", "reply to", named person + verb.
+  "journal"   → Personal reflection, emotion, memory, observation. Pure internal state.
+                Signals: feelings, past tense reflections, "I feel", "I noticed", "today was".
+  "general"   → Facts, references, credentials, recipes, addresses, code snippets, anything else.
 
-  DISAMBIGUATION RULES:
-  • If note has BOTH a clear action AND a time → "reminders" wins over "tasks".
-  • If note asks to follow up with a specific person → "follow-up" wins over "tasks".
-  • If note is purely a feeling or personal reflection → "journal" even if it contains a verb.
-  • When genuinely ambiguous, prefer the more specific category (tasks > general, reminders > tasks).
+  PRIORITY RULES (applied in order — first match wins):
+  1. Both action AND explicit time → "reminders"
+  2. Involves specific named person needing response → "follow-up"
+  3. Pure internal feeling → "journal"
+  4. Clear verb+object with done state → "tasks"
+  5. Speculative/creative → "ideas"
+  6. Otherwise → "general"
 
-priority  — choose EXACTLY one lowercase value:
-  "high"   → Urgent or time-critical; consequences if missed soon. Phrases: "asap", "urgent", "by EOD", "deadline", "critical", explicit near-term date.
-  "medium" → Important but not immediately urgent. Default when no urgency signal is present.
-  "low"    → Nice-to-have, background, or someday/maybe. Phrases: "eventually", "one day", "low priority", "whenever".
+priority — choose exactly ONE:
+  "high"   → Urgent. Signals: "asap", "urgent", "today", "by EOD", "deadline", "critical", date ≤ 3 days.
+  "medium" → Default. Important but not immediately urgent.
+  "low"    → Background. Signals: "eventually", "someday", "when I have time", "nice to have".
 
 extracted_date
-  • If the note implies a specific action date (explicit date, "tomorrow", "next Monday", "in 3 days", "this Friday"), return it as "YYYY-MM-DD" in ISO 8601.
-  • Use today's approximate date context if needed (assume current date is the moment of capture).
-  • If no action date is implied, return null.
-  • Never invent a date. When vague ("someday", "soon", "later"), return null.
+  • Return ISO 8601 "YYYY-MM-DD" if the note implies an action date.
+  • Resolve relative dates ("tomorrow" = today+1, "next Monday", "in 3 days").
+  • If vague ("soon", "later", "someday") → null.
+  • Never invent a date. Null if uncertain.
+  • Use today as the reference date (the note was captured right now).
 
-════════════════════════════════════════
-STRICT RULES
-════════════════════════════════════════
-1. Output ONLY the JSON object. First character must be `{`, last must be `}`.
-2. All string values must be properly JSON-escaped.
-3. extracted_date must be a JSON string "YYYY-MM-DD" or the literal JSON null.
-4. category and priority must be exactly one of the values listed — no capitalisation, no synonyms.
-5. Never add extra fields to the JSON.
-6. If the input is empty or pure noise (< 3 meaningful words), return:
-   {"title":"Untitled note","clean_body":"","category":"general","priority":"low","extracted_date":null}
+════════════════════════════════
+FALLBACK (use when input < 3 meaningful words or pure noise):
+{"title":"Untitled note","clean_body":"","category":"general","priority":"low","extracted_date":null}
+════════════════════════════════
 ''';
 
   final String _apiKey;
@@ -120,40 +120,59 @@ STRICT RULES
   Future<GeminiClassificationResult> classify(String rawTranscript) async {
     final text = rawTranscript.trim();
     if (text.isEmpty) return _fallback(rawTranscript, model: 'none');
-    if (!isConfigured) return _fallback(rawTranscript, model: 'offline-fallback');
+    if (!isConfigured) {
+      debugLog('[GeminiClassifier] API key not configured — using fallback');
+      return _fallback(rawTranscript, model: 'offline-fallback');
+    }
 
     final model = _providedModel ??
-        GenerativeModel(model: 'gemini-2.5-flash-lite', apiKey: _apiKey);
+        GenerativeModel(
+          model: 'gemini-2.5-flash-lite-preview-06-17',
+          apiKey: _apiKey,
+          generationConfig: GenerationConfig(
+            temperature: 0.1,   // Low temperature for consistent structured output
+            topK: 1,
+            topP: 0.95,
+            maxOutputTokens: 512,
+          ),
+        );
 
     const maxAttempts = 3;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         final response = await model.generateContent([
           Content.system(systemPrompt),
-          Content.text('Raw input:\n$text'),
-        ]).timeout(const Duration(seconds: 10));
+          Content.text('Today is ${_todayString()}.\nRaw STT input:\n$text'),
+        ]).timeout(const Duration(seconds: 15));
 
         final payload = response.text?.trim();
         if (payload == null || payload.isEmpty) {
-          return _fallback(rawTranscript, model: 'gemini-2.5-flash-lite');
+          debugLog('[GeminiClassifier] Empty response on attempt $attempt');
+          continue;
         }
 
-        return _parseOrFallback(
+        final result = _parseOrFallback(
           rawTranscript: rawTranscript,
           payload: payload,
           model: 'gemini-2.5-flash-lite',
         );
+
+        if (!result.wasFallback) {
+          debugLog('[GeminiClassifier] OK: cat=${result.category.name} '
+              'pri=${result.priority.name} title="${result.title}"');
+        }
+        return result;
       } catch (e) {
         final err = e.toString();
+        debugLog('[GeminiClassifier] attempt=$attempt error: $err');
         final isRateLimit = err.contains('429') ||
             err.contains('quota') ||
-            err.contains('rate') ||
             err.contains('RESOURCE_EXHAUSTED');
         if (isRateLimit && attempt < maxAttempts - 1) {
-          await Future<void>.delayed(
-              Duration(seconds: (attempt + 1) * 4));
+          await Future<void>.delayed(Duration(seconds: (attempt + 1) * 5));
           continue;
         }
+        // Non-rate-limit error — bail immediately
         return _fallback(rawTranscript, model: 'gemini-2.5-flash-lite');
       }
     }
@@ -168,72 +187,73 @@ STRICT RULES
     required String model,
   }) {
     try {
-      // Strip accidental markdown fences
       var clean = payload
           .replaceAll(RegExp(r'^```[a-z]*\n?', multiLine: true), '')
-          .replaceAll(RegExp(r'```$',          multiLine: true), '')
+          .replaceAll(RegExp(r'```$', multiLine: true), '')
           .trim();
 
-      // Extract first JSON object
       final start = clean.indexOf('{');
       final end   = clean.lastIndexOf('}');
       if (start == -1 || end == -1 || end <= start) {
+        debugLog('[GeminiClassifier] No JSON object found in payload');
         return _fallback(rawTranscript, model: model);
       }
       clean = clean.substring(start, end + 1);
 
       final json = jsonDecode(clean) as Map<String, dynamic>;
 
-      final title    = (json['title']      as String? ?? '').trim();
-      final body     = (json['clean_body'] as String? ?? rawTranscript).trim();
-      final catStr   = (json['category']   as String? ?? 'general').toLowerCase().trim();
-      final priStr   = (json['priority']   as String? ?? 'medium').toLowerCase().trim();
-      final dateStr  =  json['extracted_date'] as String?;
-
-      final category = _parseCategory(catStr);
-      final priority = _parsePriority(priStr);
-      final date     = _parseDate(dateStr);
+      final title   = (json['title']      as String? ?? '').trim();
+      final body    = (json['clean_body'] as String? ?? rawTranscript).trim();
+      final catStr  = (json['category']   as String? ?? 'general').toLowerCase().trim();
+      final priStr  = (json['priority']   as String? ?? 'medium').toLowerCase().trim();
+      final dateStr =  json['extracted_date'] as String?;
 
       return GeminiClassificationResult(
         title:         title.isEmpty ? _quickTitle(rawTranscript) : title,
-        category:      category,
-        priority:      priority,
-        extractedDate: date,
+        category:      _parseCategory(catStr),
+        priority:      _parsePriority(priStr),
+        extractedDate: _parseDate(dateStr),
         cleanBody:     body.isEmpty ? rawTranscript : body,
         model:         model,
         wasFallback:   false,
       );
-    } catch (_) {
+    } catch (e) {
+      debugLog('[GeminiClassifier] JSON parse error: $e');
       return _fallback(rawTranscript, model: model);
     }
   }
 
-  GeminiClassificationResult _fallback(String raw, {required String model}) {
-    return GeminiClassificationResult(
-      title:         _quickTitle(raw),
-      category:      NoteCategory.general,
-      priority:      NotePriority.medium,
-      extractedDate: null,
-      cleanBody:     raw,
-      model:         model,
-      wasFallback:   true,
-    );
-  }
+  GeminiClassificationResult _fallback(String raw, {required String model}) =>
+      GeminiClassificationResult(
+        title:         _quickTitle(raw),
+        category:      NoteCategory.general,
+        priority:      NotePriority.medium,
+        extractedDate: null,
+        cleanBody:     raw,
+        model:         model,
+        wasFallback:   true,
+      );
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   String _quickTitle(String text) {
     final line = text.replaceAll('\n', ' ').trim();
-    return line.length <= 70 ? line : '${line.substring(0, 70).trimRight()}…';
+    return line.length <= 72 ? line : '${line.substring(0, 72).trimRight()}…';
+  }
+
+  String _todayString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
   }
 
   NoteCategory _parseCategory(String s) => switch (s) {
-    'tasks'     => NoteCategory.tasks,
-    'reminders' => NoteCategory.reminders,
-    'ideas'     => NoteCategory.ideas,
-    'follow-up' || 'follow_up' || 'followup' => NoteCategory.followUp,
-    'journal'   => NoteCategory.journal,
-    _           => NoteCategory.general,
+    'tasks'                                    => NoteCategory.tasks,
+    'reminders'                                => NoteCategory.reminders,
+    'ideas'                                    => NoteCategory.ideas,
+    'follow-up' || 'follow_up' || 'followup'  => NoteCategory.followUp,
+    'journal'                                  => NoteCategory.journal,
+    _                                          => NoteCategory.general,
   };
 
   NotePriority _parsePriority(String s) => switch (s) {
@@ -244,10 +264,8 @@ STRICT RULES
 
   DateTime? _parseDate(String? s) {
     if (s == null || s.isEmpty || s == 'null') return null;
-    try {
-      return DateTime.parse(s);
-    } catch (_) {
-      return null;
-    }
+    try { return DateTime.parse(s); } catch (_) { return null; }
   }
+
+  void debugLog(String msg) => debugPrint(msg);
 }

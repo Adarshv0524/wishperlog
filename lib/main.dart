@@ -190,6 +190,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, ThemeMode>(
+      bloc: sl<ThemeCubit>(),
       builder: (context, themeMode) {
         return BlocProvider<CaptureUiController>.value(
           value: sl<CaptureUiController>(),
