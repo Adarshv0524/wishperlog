@@ -8,6 +8,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/models/note_helpers.dart';
 
 part 'capture_ui_state.dart';
 
@@ -179,6 +180,8 @@ class CaptureUiController extends Cubit<CaptureUiState> {
       emit(CaptureUiSaved(
         title: savedNote?.title ?? captured,
         category: savedNote?.category ?? NoteCategory.general,
+        originPrefix: saveOriginPrefix(savedNote?.aiModel ?? ''),
+        noteId: savedNote?.noteId,
       ));
     } catch (error) {
       emit(CaptureUiError(message: 'Failed to save: $error'));
@@ -279,7 +282,12 @@ class CaptureUiController extends Cubit<CaptureUiState> {
   }) {
     _recordingTimer?.cancel();
     _autoReturnTimer?.cancel();
-    emit(CaptureUiSaved(title: title, category: category, noteId: noteId));
+    emit(CaptureUiSaved(
+      title: title,
+      category: category,
+      originPrefix: saveOriginPrefix(model ?? ''),
+      noteId: noteId,
+    ));
     _autoReturnTimer = Timer(AppDurations.notchAutoReturn, () {
       if (state is CaptureUiSaved) emit(const CaptureUiIdle());
     });

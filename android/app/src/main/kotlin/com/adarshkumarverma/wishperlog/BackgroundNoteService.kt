@@ -133,9 +133,10 @@ class BackgroundNoteService : Service() {
                     result.success(null)
                     val title    = call.argument<String>("title")    ?: ""
                     val category = call.argument<String>("category") ?: "general"
+                    val prefix   = call.argument<String>("prefix")   ?: "AI"
                     if (title.isNotEmpty()) {
-                        Log.d(TAG, "done: notifying island — title='$title' category='$category'")
-                        OverlayForegroundService.notifyBackgroundSaved(title, category)
+                        Log.d(TAG, "done: notifying island — title='$title' category='$category' prefix='$prefix'")
+                        OverlayForegroundService.notifyBackgroundSaved(title, category, prefix)
                     } else {
                         Log.d(TAG, "done: no title, dismissing island")
                         OverlayForegroundService.dismissIslandFromBackground()

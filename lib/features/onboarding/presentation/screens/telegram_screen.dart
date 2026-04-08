@@ -11,6 +11,7 @@ import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/features/sync/data/telegram_service.dart';
+import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
@@ -178,41 +179,47 @@ class _TelegramScreenState extends State<TelegramScreen> {
       backgroundColor: Colors.transparent,
       body: GlassPageBackground(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(Icons.telegram, size: 56, color: AppColors.tasks),
-                const SizedBox(height: 16),
-                Text(
-                  'Connect Telegram',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: context.textPri,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: GlassContainer(
+                borderRadius: BorderRadius.circular(28),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(Icons.telegram, size: 56, color: AppColors.tasks),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Connect Telegram',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: context.textPri,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Get your daily note digest sent directly to Telegram.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: context.textSec, fontSize: 14, height: 1.45),
+                    ),
+                    const SizedBox(height: 32),
+                    _buildStepContent(context),
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: () => context.go('/home'),
+                      child: Text(
+                        _step == _Step.success ? 'Continue' : 'Skip for now',
+                        style: TextStyle(color: context.textSec),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Get your daily note digest sent directly to Telegram.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: context.textSec, fontSize: 14),
-                ),
-                const SizedBox(height: 40),
-                _buildStepContent(context),
-                const SizedBox(height: 24),
-                TextButton(
-                  onPressed: () => context.go('/home'),
-                  child: Text(
-                    _step == _Step.success ? 'Continue' : 'Skip for now',
-                    style: TextStyle(color: context.textSec),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -293,11 +300,11 @@ class _TelegramScreenState extends State<TelegramScreen> {
         ),
       _Step.error => Column(
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.errorStatus),
             const SizedBox(height: 12),
             Text(
               _errorMessage ?? 'Something went wrong',
-              style: const TextStyle(color: Colors.redAccent),
+              style: const TextStyle(color: AppColors.errorStatus),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),

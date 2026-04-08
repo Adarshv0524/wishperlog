@@ -7,6 +7,7 @@ import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
+import 'package:wishperlog/shared/models/note_helpers.dart';
 
 class QuickNoteEditor extends StatefulWidget {
   const QuickNoteEditor({super.key});
@@ -58,6 +59,7 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
           sl<CaptureUiController>().notifyExternalRecordingSaved(
               title:    saved?.title    ?? 'Quick note',
               category: saved?.category ?? NoteCategory.general,
+              model:    saved?.aiModel,
               noteId:   saved?.noteId,
           );
 
@@ -67,6 +69,7 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
                   await sl<OverlayNotifier>().notifyNativeSaved(
                       saved.title,
                       saved.category,
+                    prefix: saveOriginPrefix(saved.aiModel),
                   );
               } catch (_) {}
           }
@@ -79,6 +82,7 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
               await sl<OverlayNotifier>().notifyNativeSaved(
                   'Error saving note',
                   NoteCategory.general,
+                  prefix: 'sys',
               );
           } catch (_) {}
           if (mounted) {

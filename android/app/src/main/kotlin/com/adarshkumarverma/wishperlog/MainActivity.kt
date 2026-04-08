@@ -1,6 +1,7 @@
 package com.adarshkumarverma.wishperlog
 
 import android.Manifest
+import android.graphics.BitmapFactory
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -8,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import java.io.ByteArrayOutputStream
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -90,8 +92,9 @@ class MainActivity : FlutterActivity() {
                 "notifySaved" -> {
                     val title      = call.argument<String>("title")      ?: ""
                     val category   = call.argument<String>("category")   ?: "general"
+                    val prefix     = call.argument<String>("prefix")     ?: "AI"
                     val collection = call.argument<String>("collection") ?: "notes"
-                    OverlayForegroundService.notifySaved(title, category, collection)
+                    OverlayForegroundService.notifySaved(title, category, prefix, collection)
                     result.success(null)
                 }
 
@@ -143,6 +146,22 @@ class MainActivity : FlutterActivity() {
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     } catch (_: Exception) {}
                     result.success(null)
+                }
+
+                "getLauncherIcon" -> {
+                    try {
+                        val bitmap = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+                        if (bitmap == null) {
+                            result.success(null)
+                        } else {
+                            val stream = ByteArrayOutputStream()
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
+                            result.success(stream.toByteArray())
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "getLauncherIcon failed", e)
+                        result.success(null)
+                    }
                 }
 
                 // ── Flush pending notes saved while engine was dead ───────────

@@ -1,5 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/features/home/presentation/home_screen_layout.dart';
 import 'package:wishperlog/features/notes/presentation/screens/folder_screen.dart';
@@ -13,52 +13,142 @@ import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/features/overlay/presentation/system_banner_overlay.dart';
 
+CustomTransitionPage<T> _buildPage<T>({
+  required LocalKey key,
+  required Widget child,
+  Offset beginOffset = const Offset(0.04, 0.03),
+  Duration duration = const Duration(milliseconds: 360),
+}) {
+  return CustomTransitionPage<T>(
+    key: key,
+    transitionDuration: duration,
+    reverseTransitionDuration: const Duration(milliseconds: 280),
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(begin: beginOffset, end: Offset.zero).animate(curved),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.985, end: 1.0).animate(curved),
+            child: child,
+          ),
+        ),
+      );
+    },
+  );
+}
+
 final GoRouter router = GoRouter(
   routes: [
-    GoRoute(path: '/', builder: (context, state) => const SignInScreen()),
-    GoRoute(path: '/signin', builder: (context, state) => const SignInScreen()),
+    GoRoute(
+      path: '/',
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const SignInScreen(),
+        beginOffset: const Offset(0, 0.04),
+      ),
+    ),
+    GoRoute(
+      path: '/signin',
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const SignInScreen(),
+        beginOffset: const Offset(0, 0.04),
+      ),
+    ),
     GoRoute(
       path: '/permissions',
-      builder: (context, state) => const PermissionsScreen(),
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const PermissionsScreen(),
+        beginOffset: const Offset(0, 0.06),
+      ),
     ),
     GoRoute(
       path: '/telegram',
-      builder: (context, state) => const TelegramScreen(),
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const TelegramScreen(),
+        beginOffset: const Offset(0, 0.06),
+      ),
     ),
     GoRoute(
       path: '/home',
-      builder: (context, state) => const HomeScreenLayout(),
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const HomeScreenLayout(),
+        beginOffset: const Offset(0.02, 0.035),
+        duration: const Duration(milliseconds: 420),
+      ),
     ),
-    GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
+    GoRoute(
+      path: '/search',
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const SearchScreen(),
+        beginOffset: const Offset(0.03, 0.08),
+      ),
+    ),
     GoRoute(
       path: '/notes/:noteId',
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final noteId = state.pathParameters['noteId'] ?? '';
-        return NoteDetailScreen(noteId: noteId);
+        return _buildPage(
+          key: state.pageKey,
+          child: NoteDetailScreen(noteId: noteId),
+          beginOffset: const Offset(0.04, 0.02),
+          duration: const Duration(milliseconds: 380),
+        );
       },
     ),
     GoRoute(
       path: '/folder',
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final extra = state.extra;
         if (extra is NoteCategory) {
-          return FolderScreen(category: extra);
+          return _buildPage(
+            key: state.pageKey,
+            child: FolderScreen(category: extra),
+            beginOffset: const Offset(0.05, 0.04),
+            duration: const Duration(milliseconds: 400),
+          );
         }
 
         final raw =
             state.uri.queryParameters['category'] ??
             state.pathParameters['category'] ??
             'general';
-        return FolderScreen(category: parseCategory(raw));
+        return _buildPage(
+          key: state.pageKey,
+          child: FolderScreen(category: parseCategory(raw)),
+          beginOffset: const Offset(0.05, 0.04),
+          duration: const Duration(milliseconds: 400),
+        );
       },
     ),
     GoRoute(
       path: '/settings',
-      builder: (context, state) => const SettingsScreen(),
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const SettingsScreen(),
+        beginOffset: const Offset(0.02, 0.05),
+      ),
     ),
     GoRoute(
       path: '/system_banner',
-      builder: (context, state) => const SystemBannerOverlay(),
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const SystemBannerOverlay(),
+        beginOffset: const Offset(0, 0.08),
+        duration: const Duration(milliseconds: 260),
+      ),
     ),
   ],
   redirect: (context, state) {

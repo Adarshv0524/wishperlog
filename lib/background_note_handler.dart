@@ -10,6 +10,7 @@ import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/firebase_options.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
+import 'package:wishperlog/shared/models/note_helpers.dart';
 
 /// Dart entry-point for [BackgroundNoteService].
 ///
@@ -33,6 +34,7 @@ Future<void> backgroundNoteCallback() async {
   // Track last successfully saved note so we can report it to the island.
   String lastTitle = '';
   String lastCategory = 'general';
+  String lastPrefix = 'AI';
 
   try {
     debugPrint('[BgNoteHandler] Initialising…');
@@ -78,10 +80,12 @@ Future<void> backgroundNoteCallback() async {
                 if (enriched != null) {
                   lastTitle = enriched.title;
                   lastCategory = enriched.category.name;
+                    lastPrefix = saveOriginPrefix(enriched.aiModel);
                 } else {
                   // ingestRawCapture succeeded but AI failed — use quick title.
                   lastTitle = note.title;
                   lastCategory = note.category.name;
+                    lastPrefix = 'sys';
                 }
               }
             } catch (e, st) {
@@ -100,6 +104,7 @@ Future<void> backgroundNoteCallback() async {
           await bgChannel.invokeMethod<void>('done', {
             'title':    lastTitle,
             'category': lastCategory,
+            'prefix':   lastPrefix,
           });
       }
     });

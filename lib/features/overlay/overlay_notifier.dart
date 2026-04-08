@@ -6,9 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:wishperlog/app/router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
+import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/models/note_helpers.dart';
 
 /// Lightweight state holder for the in-app floating overlay.
 /// Has ZERO knowledge of BuildContext or the widget tree.
@@ -28,8 +31,10 @@ class OverlayNotifier extends ChangeNotifier {
 
   Timer? _persistDebounce;
   StreamSubscription<CaptureUiState>? _captureStateSub;
+  StreamSubscription<String>? _noteUpdatedSub;
   String _lastNativeState = 'idle';
   bool _nativeSessionActive = false;
+  String? _lastSavedNoteId;
 
   final MethodChannel _channel = const MethodChannel('wishperlog/overlay');
   final List<VoidCallback> _openEditorCallbacks = [];
@@ -101,6 +106,12 @@ class OverlayNotifier extends ChangeNotifier {
         _captureStateSub = captureCtrl.stream.listen(_onCaptureStateChanged);
       } catch (e) {
         debugPrint('[OverlayNotifier] capture state subscription error: $e');
+      }
+
+      try {
+        _noteUpdatedSub = NoteEventBus.instance.onNoteUpdated.listen(_onNoteUpdated);
+      } catch (e) {
+        debugPrint('[OverlayNotifier] note update subscription error: $e');
       }
 
       if (_isEnabled) {
@@ -226,6 +237,7 @@ class OverlayNotifier extends ChangeNotifier {
   void dispose() {
     _persistDebounce?.cancel();
     _captureStateSub?.cancel();
+    _noteUpdatedSub?.cancel();
     _openEditorCallbacks.clear();
     super.dispose();
   }
@@ -260,6 +272,7 @@ class OverlayNotifier extends ChangeNotifier {
           );
 
           if (saved == null) {
+              _lastSavedNoteId = null;
               try { sl<CaptureUiController>().resetToIdle(); } catch (_) {}
               // Cancel any stuck "Classifying..." on the native island.
               try {
@@ -270,6 +283,7 @@ class OverlayNotifier extends ChangeNotifier {
 
           debugPrint('[OverlayNotifier] Note saved from overlay: $source '
               'title="${saved.title}"');
+            _lastSavedNoteId = saved.noteId;
 
           // Update Flutter Dynamic Island to saved state.
           try {
@@ -283,7 +297,11 @@ class OverlayNotifier extends ChangeNotifier {
 
           // Update native island pill (works even when app is backgrounded,
           // because OverlayForegroundService is a persistent foreground service).
-          await notifyNativeSaved(saved.title, saved.category);
+            await notifyNativeSaved(
+              saved.title,
+              saved.category,
+              prefix: saveOriginPrefix(saved.aiModel),
+            );
       } catch (e) {
           debugPrint('[OverlayNotifier] _saveOverlayNote error: $e');
           try { sl<CaptureUiController>().resetToIdle(); } catch (_) {}
@@ -296,11 +314,16 @@ class OverlayNotifier extends ChangeNotifier {
   /// Pushes the save result to the native OverlayForegroundService so it can
   /// show the category pill on the native island overlay.
   /// Uses the dedicated `notifySaved` channel method added to MainActivity.
-  Future<void> notifyNativeSaved(String title, NoteCategory category) async {
+  Future<void> notifyNativeSaved(
+    String title,
+    NoteCategory category, {
+    String prefix = 'AI',
+  }) async {
     try {
       await _channel.invokeMethod('notifySaved', {
         'title': title,
         'category': category.name, // e.g. "tasks", "ideas", "reminders"
+        'prefix': prefix,
         'collection': 'users/{uid}/notes', // informational label for the island
       });
     } catch (e) {
@@ -312,6 +335,36 @@ class OverlayNotifier extends ChangeNotifier {
           'message': title,
         });
       } catch (_) {}
+    }
+  }
+
+  Future<void> _onNoteUpdated(String noteId) async {
+    if (noteId.trim().isEmpty || noteId != _lastSavedNoteId) {
+      return;
+    }
+
+    try {
+      final note = await IsarNoteStore.instance.getById(noteId);
+      if (note == null) return;
+
+      _lastSavedNoteId = note.noteId;
+
+      try {
+        sl<CaptureUiController>().notifyExternalRecordingSaved(
+          title: note.title,
+          category: note.category,
+          model: note.aiModel,
+          noteId: note.noteId,
+        );
+      } catch (_) {}
+
+      await notifyNativeSaved(
+        note.title,
+        note.category,
+        prefix: saveOriginPrefix(note.aiModel),
+      );
+    } catch (e) {
+      debugPrint('[OverlayNotifier] _onNoteUpdated error: $e');
     }
   }
 
@@ -402,7 +455,12 @@ class OverlayNotifier extends ChangeNotifier {
       }
       // Use notifySaved path so native shows category emoji + collection.
       _lastNativeState = 'idle';
-      unawaited(notifyNativeSaved(state.title, state.category));
+      _lastSavedNoteId = state.noteId;
+      unawaited(notifyNativeSaved(
+        state.title,
+        state.category,
+        prefix: state.originPrefix,
+      ));
       return;
     }
 

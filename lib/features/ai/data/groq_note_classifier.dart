@@ -7,11 +7,16 @@ import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 
-/// Calls Groq Chat API (OpenAI-compatible) to classify notes.
-/// Uses llama-3.3-70b-versatile by default.
+/// Groq Chat API classifier (OpenAI-compatible).
+/// Primary model: llama-3.3-70b-versatile
+/// Fallback model: llama-3.1-8b-instant (if 70b hits rate limit)
+///
+/// Uses the shared GeminiNoteClassifier.buildSystemPrompt() so both
+/// providers use identical prompt logic including temporal context.
 class GroqNoteClassifier {
-  static const _baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
-  static const _model = 'llama-3.3-70b-versatile';
+  static const _baseUrl      = 'https://api.groq.com/openai/v1/chat/completions';
+  static const _primaryModel = 'llama-3.3-70b-versatile';
+  static const _fallbackModel = 'llama-3.1-8b-instant';
 
   final String _apiKey;
 
@@ -22,77 +27,103 @@ class GroqNoteClassifier {
   Future<GeminiClassificationResult?> classify(String rawTranscript) async {
     if (!isConfigured || rawTranscript.trim().isEmpty) return null;
 
+    // Try primary model, fallback to smaller model on 429 rate-limit.
+    final result = await _callApi(rawTranscript, _primaryModel);
+    if (result != null) return result;
+
+    debugPrint('[GroqClassifier] Primary model failed, trying fallback model');
+    return _callApi(rawTranscript, _fallbackModel);
+  }
+
+  Future<GeminiClassificationResult?> _callApi(String rawTranscript, String model) async {
     try {
+      final systemPrompt = GeminiNoteClassifier.buildSystemPrompt();
+
       final response = await http.post(
         Uri.parse(_baseUrl),
         headers: {
           'Authorization': 'Bearer $_apiKey',
-          'Content-Type': 'application/json',
+          'Content-Type':  'application/json',
         },
         body: jsonEncode({
-          'model': _model,
+          'model': model,
           'messages': [
-            {'role': 'system', 'content': GeminiNoteClassifier.systemPrompt},
-            {'role': 'user', 'content': 'Raw input: ${rawTranscript.trim()}'},
+            {'role': 'system', 'content': systemPrompt},
+            {'role': 'user',   'content': 'Raw input: ${rawTranscript.trim()}'},
           ],
-          'temperature': 0.3,
-          'max_tokens': 512,
+          'temperature':  0.2,
+          'max_tokens':   512,
+          // JSON mode — Groq supports this for llama models.
+          'response_format': {'type': 'json_object'},
         }),
       ).timeout(const Duration(seconds: 15));
 
+      if (response.statusCode == 429) {
+        debugPrint('[GroqClassifier] Rate limit hit on $model');
+        return null; // caller will try fallback
+      }
+
       if (response.statusCode != 200) {
-        debugPrint('[GroqClassifier] API error ${response.statusCode}: ${response.body}');
+        debugPrint('[GroqClassifier] API error ${response.statusCode} on $model: ${response.body}');
         return null;
       }
 
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final body    = jsonDecode(response.body) as Map<String, dynamic>;
       final content = (body['choices'] as List?)?.first?['message']?['content'] as String?;
       if (content == null || content.isEmpty) return null;
 
-      return _parse(rawTranscript, content.trim());
+      return _parse(rawTranscript, content.trim(), model: 'groq-$model');
     } catch (e) {
-      debugPrint('[GroqClassifier] classify error: $e');
+      debugPrint('[GroqClassifier] classify error on $model: $e');
       return null;
     }
   }
 
-  GeminiClassificationResult? _parse(String raw, String payload) {
+  GeminiClassificationResult? _parse(String raw, String payload, {required String model}) {
     try {
       final noFence = payload
-          .replaceAll('```json', '')
+          .replaceAll(RegExp(r'```json\s*'), '')
           .replaceAll('```', '')
           .trim();
       final start = noFence.indexOf('{');
-      final end = noFence.lastIndexOf('}');
-      if (start < 0 || end < start) return null;
+      final end   = noFence.lastIndexOf('}');
+      if (start < 0 || end <= start) return null;
 
-      final decoded = jsonDecode(noFence.substring(start, end + 1)) as Map<String, dynamic>;
-      final title = (decoded['title'] as String?)?.trim();
+      final decoded   = jsonDecode(noFence.substring(start, end + 1)) as Map<String, dynamic>;
+      final title     = (decoded['title']      as String?)?.trim();
       final cleanBody = (decoded['clean_body'] as String?)?.trim();
+      final categoryText = (decoded['category'] as String?) ?? NoteCategory.general.name;
+      final inferredCategory = parseCategory(categoryText);
+      final textForHeuristics = [raw, title, cleanBody].whereType<String>().join(' ');
+
       return GeminiClassificationResult(
-        title: (title == null || title.isEmpty) ? _fallbackTitle(raw) : title,
-        category: parseCategory((decoded['category'] as String?) ?? NoteCategory.general.name),
-        priority: parsePriority((decoded['priority'] as String?) ?? NotePriority.medium.name),
+        title:         title?.isNotEmpty == true ? title! : _fallbackTitle(raw),
+        category:      inferredCategory == NoteCategory.general
+            ? inferCategoryFromText(textForHeuristics)
+            : inferredCategory,
+        priority:      parsePriority((decoded['priority']  as String?) ?? NotePriority.medium.name),
         extractedDate: _parseDate(decoded['extracted_date']),
-        cleanBody: (cleanBody == null || cleanBody.isEmpty) ? raw.trim() : cleanBody,
-        model: 'groq/$_model',
-        wasFallback: false,
+        cleanBody:     cleanBody?.isNotEmpty == true ? cleanBody! : raw.trim(),
+        model:         model,
+        wasFallback:   false,
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[GroqClassifier] parse error: $e');
       return null;
     }
   }
 
-  DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
-    final raw = value.toString().trim();
-    if (raw.isEmpty || raw.toLowerCase() == 'null') return null;
-    return DateTime.tryParse(raw)?.toLocal();
+  String _fallbackTitle(String raw) {
+    final words = raw.trim().split(RegExp(r'\s+')).take(6).toList();
+    return words.isEmpty ? 'Quick note' : words.join(' ');
   }
 
-  String _fallbackTitle(String text) {
-    final oneLine = text.replaceAll('\n', ' ').trim();
-    if (oneLine.length <= 60) return oneLine;
-    return '${oneLine.substring(0, 60).trimRight()}...';
+  DateTime? _parseDate(dynamic value) {
+    if (value == null || value.toString().toLowerCase() == 'null') return null;
+    try {
+      return DateTime.parse(value.toString().trim());
+    } catch (_) {
+      return null;
+    }
   }
 }

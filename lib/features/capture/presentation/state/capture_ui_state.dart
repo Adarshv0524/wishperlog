@@ -66,12 +66,14 @@ class CaptureUiSaved extends CaptureUiState {
   const CaptureUiSaved({
     required this.title,
     required this.category,
+    required this.originPrefix,
     this.collection = 'notes',
     this.noteId,
   });
 
   final String title;
   final NoteCategory category;
+  final String originPrefix;
   final String collection;
   final String? noteId;
 
@@ -82,6 +84,7 @@ class CaptureUiSaved extends CaptureUiState {
           runtimeType == other.runtimeType &&
           title == other.title &&
           category == other.category &&
+          originPrefix == other.originPrefix &&
           collection == other.collection &&
           noteId == other.noteId;
 
@@ -89,6 +92,7 @@ class CaptureUiSaved extends CaptureUiState {
   int get hashCode =>
       title.hashCode ^
       category.hashCode ^
+      originPrefix.hashCode ^
       collection.hashCode ^
       noteId.hashCode;
 }

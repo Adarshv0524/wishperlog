@@ -30,17 +30,17 @@ String categoryLabel(NoteCategory category) {
 String categoryEmoji(NoteCategory category) {
   switch (category) {
     case NoteCategory.tasks:
-      return '✅';
+      return 'Tasks';
     case NoteCategory.reminders:
-      return '🔔';
+      return 'Reminders';
     case NoteCategory.ideas:
-      return '💡';
+      return 'Ideas';
     case NoteCategory.followUp:
-      return '📥';
+      return 'Follow-up';
     case NoteCategory.journal:
-      return '📖';
+      return 'Journal';
     case NoteCategory.general:
-      return '📂';
+      return 'General';
   }
 }
 
@@ -74,17 +74,129 @@ String normalizeEnumToken(String raw) {
       .trim();
 }
 
+String _normalizeInferenceText(String raw) {
+  return normalizeEnumToken(raw)
+      .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
+bool _hasPhrase(String text, List<String> phrases) {
+  for (final phrase in phrases) {
+    if (RegExp(r'\b' + RegExp.escape(phrase) + r'\b').hasMatch(text)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+NoteCategory inferCategoryFromText(String raw) {
+  final text = _normalizeInferenceText(raw);
+  if (text.isEmpty) return NoteCategory.general;
+
+  if (_hasPhrase(text, const [
+    'follow up',
+    'followup',
+    'check in',
+    'check with',
+    'ping',
+    'any update on',
+    'touch base',
+    'get back to',
+  ])) {
+    return NoteCategory.followUp;
+  }
+
+  final hasDateSignal = _hasPhrase(text, const [
+    'today',
+    'tomorrow',
+    'tonight',
+    'next monday',
+    'next tuesday',
+    'next wednesday',
+    'next thursday',
+    'next friday',
+    'next saturday',
+    'next sunday',
+    'this monday',
+    'this tuesday',
+    'this wednesday',
+    'this thursday',
+    'this friday',
+    'this saturday',
+    'this sunday',
+    'this week',
+    'next week',
+    'remind me',
+    'reminder',
+  ]) ||
+      RegExp(r'\b\d{1,2}(:\d{2})?\s?(am|pm)?\b').hasMatch(text) ||
+      RegExp(r'\b\d{4}-\d{2}-\d{2}\b').hasMatch(text);
+  if (hasDateSignal) {
+    return NoteCategory.reminders;
+  }
+
+  final actionVerbAtStart = RegExp(
+    r'^(call|buy|book|send|email|text|reply|fix|finish|review|update|draft|write|prepare|submit|pay|schedule|move|order|install|create|check|clean|plan|meet|join|ring)\b',
+  ).hasMatch(text);
+  final actionSignal = actionVerbAtStart || _hasPhrase(text, const [
+    'to do',
+    'todo',
+    'need to',
+    'must',
+    'should',
+    'have to',
+    'remember to',
+  ]);
+  if (actionSignal) {
+    return NoteCategory.tasks;
+  }
+
+  if (_hasPhrase(text, const [
+    'idea',
+    'brainstorm',
+    'what if',
+    'could be',
+    'maybe',
+    'explore',
+    'consider',
+  ])) {
+    return NoteCategory.ideas;
+  }
+
+  if (_hasPhrase(text, const [
+    'i feel',
+    'today i',
+    'grateful',
+    'frustrated',
+    'happy',
+    'sad',
+    'reflect',
+    'reflection',
+    'note to self',
+    'learned',
+  ])) {
+    return NoteCategory.journal;
+  }
+
+  return NoteCategory.general;
+}
+
 NoteCategory parseCategory(String raw) {
   final value = normalizeEnumToken(raw);
   switch (value) {
+    case 'task':
     case 'tasks':
       return NoteCategory.tasks;
+    case 'reminder':
     case 'reminders':
       return NoteCategory.reminders;
+    case 'idea':
     case 'ideas':
       return NoteCategory.ideas;
     case 'followup':
     case 'follow up':
+    case 'follow-up':
       return NoteCategory.followUp;
     case 'journal':
       return NoteCategory.journal;
@@ -104,6 +216,17 @@ NotePriority parsePriority(String raw) {
     default:
       return NotePriority.medium;
   }
+}
+
+String saveOriginPrefix(String aiModel, {bool wasFallback = false}) {
+  final model = normalizeEnumToken(aiModel);
+  if (wasFallback ||
+      model.startsWith('local') ||
+      model.contains('fallback') ||
+      model.startsWith('sys')) {
+    return 'sys';
+  }
+  return 'AI';
 }
 
 NoteStatus parseStatus(String raw) {

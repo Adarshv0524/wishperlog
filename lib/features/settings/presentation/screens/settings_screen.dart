@@ -11,6 +11,7 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
@@ -470,13 +471,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _signOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('Your local notes will remain on this device.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Sign out')),
-        ],
+      barrierColor: Colors.black.withValues(alpha: 0.42),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: GlassContainer(
+          borderRadius: BorderRadius.circular(24),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.reminders.withValues(alpha: 0.14),
+                    ),
+                    child: Icon(Icons.logout_rounded, color: AppColors.reminders, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Sign out of WishperLog?',
+                      style: TextStyle(
+                        color: context.textPri,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Your local notes stay on this device. Cloud sync pauses until you sign in again.',
+                style: TextStyle(
+                  color: context.textSec,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.tonal(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.reminders.withValues(alpha: 0.15),
+                        foregroundColor: AppColors.reminders,
+                      ),
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Sign out'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
 
@@ -509,6 +572,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 32),
             children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: AppDurations.screenTransition,
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  return Opacity(
+                    opacity: value,
+                    child: Transform.translate(
+                      offset: Offset(0, (1 - value) * 12),
+                      child: child,
+                    ),
+                  );
+                },
+                child: GlassContainer(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [AppColors.tasks, Color(0xFF57C7FF)],
+                          ),
+                        ),
+                        child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Settings',
+                              style: TextStyle(
+                                color: context.textPri,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Overlay, speech, sync, and digest controls in one place.',
+                              style: TextStyle(
+                                color: context.textSec,
+                                fontSize: 12,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               _SectionHeader(label: 'Appearance'),
               _SettingsTile(
                 title: 'Theme',
@@ -942,7 +1067,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
               Center(
                 child: Text(
-                  'WhisperLog',
+                  'WishperLog',
                   style: TextStyle(
                     color: context.textSec,
                     fontSize: 12,

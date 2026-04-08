@@ -177,6 +177,46 @@ class IsarNoteStore {
     return null;
   }
 
+  Future<Note?> getById(String noteId) => getByNoteId(noteId);
+
+  Future<Note?> findByGtaskId(String gtaskId) async {
+    if (gtaskId.trim().isEmpty) {
+      return null;
+    }
+
+    if (_useFirestoreOnly) {
+      final uid = _getCurrentUserId();
+      if (uid == null) {
+        debugPrint('[IsarNoteStore] findByGtaskId() - null, user not authenticated');
+        return null;
+      }
+      _firestore ??= FirebaseFirestore.instance;
+
+      final query = await _firestore!
+          .collection('users')
+          .doc(uid)
+          .collection('notes')
+          .where('gtask_id', isEqualTo: gtaskId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) return null;
+      final doc = query.docs.first;
+      try {
+        return Note.fromFirestoreJson(doc.data(), uid: uid, noteId: doc.id);
+      } catch (e) {
+        debugPrint('[IsarNoteStore] Error parsing note by gtaskId: $e');
+        return null;
+      }
+    }
+
+    final isar = await init();
+    if (isar.isOpen) {
+      return isar.notes.filter().gtaskIdEqualTo(gtaskId).findFirst();
+    }
+    return null;
+  }
+
   /// Get all notes - uses Firestore if in fallback mode
   Future<List<Note>> getAllNotes() async {
     if (_useFirestoreOnly) {

@@ -196,8 +196,20 @@ class _SearchScreenState extends State<SearchScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(categoryEmoji(note.category)),
-                                      const SizedBox(width: 8),
+                                      Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: categoryColor(note.category).withValues(alpha: 0.14),
+                                        ),
+                                        child: Icon(
+                                          categoryIcon(note.category),
+                                          size: 16,
+                                          color: categoryColor(note.category),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
                                           note.title,

@@ -7,13 +7,24 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
-import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
-import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 
+/// ─────────────────────────────────────────────────────────────────────────────
+/// AiProcessingService — orchestrates the full note enrichment pipeline.
+///
+/// Pipeline for each note:
+///   1. Fetch raw note from Isar (status = pendingAi).
+///   2. Classify via AiClassifierRouter (Gemini → Groq → local fallback).
+///      Temporal context (today's date/time) is auto-injected by the router.
+///   3. Update note in Isar + Firestore with enriched fields.
+///   4. Kick off ExternalSyncService.syncSingleNote() to push to Google.
+///   5. Emit NoteEventBus.emitNoteUpdated() for UI refresh.
+///
+/// Concurrency: max 2 notes in-flight to avoid hammering APIs.
+/// ─────────────────────────────────────────────────────────────────────────────
 class AiProcessingService {
   AiProcessingService({
     FirebaseAuth? auth,
@@ -22,36 +33,39 @@ class AiProcessingService {
     ExternalSyncService? externalSync,
     NoteEventBus? noteEventBus,
     AiClassifierRouter? aiRouter,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
+  })  : _auth          = auth     ?? FirebaseAuth.instance,
+        _firestore     = firestore ?? FirebaseFirestore.instance,
         _isarNoteStore = isarNoteStore ?? IsarNoteStore.instance,
-        _externalSync = externalSync ??
+        _externalSync  = externalSync  ??
             (sl.isRegistered<ExternalSyncService>()
                 ? sl<ExternalSyncService>()
                 : ExternalSyncService()),
-        _noteEventBus = noteEventBus ?? NoteEventBus.instance,
-        _aiRouter = aiRouter ??
+        _noteEventBus  = noteEventBus ?? NoteEventBus.instance,
+        _aiRouter      = aiRouter ??
             (sl.isRegistered<AiClassifierRouter>()
                 ? sl<AiClassifierRouter>()
                 : AiClassifierRouter());
 
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
-  final IsarNoteStore _isarNoteStore;
+  final FirebaseAuth       _auth;
+  final FirebaseFirestore  _firestore;
+  final IsarNoteStore      _isarNoteStore;
   final ExternalSyncService _externalSync;
-  final NoteEventBus _noteEventBus;
+  final NoteEventBus       _noteEventBus;
   final AiClassifierRouter _aiRouter;
 
-  StreamSubscription<String>? _noteSavedSubscription;
-  final Set<String> _inFlightNoteIds = {};
-  bool _sweepRunning = false;
+  StreamSubscription<String>? _noteSavedSub;
+  final Set<String> _inFlight  = {};
+  bool _sweepRunning            = false;
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
 
   void start() {
-    // Sweep existing pending notes shortly after startup
-    Future.delayed(const Duration(seconds: 2), _sweepPendingOnce);
-    // Listen for new saves
-    _noteSavedSubscription ??= _noteEventBus.onNoteSaved.listen((noteId) {
-      Future.delayed(const Duration(milliseconds: 300), () {
+    // Sweep any notes that were saved before AI was ready (e.g. app restart).
+    Future<void>.delayed(const Duration(seconds: 2), _sweepPendingOnce);
+
+    // Listen for new saves and process them immediately.
+    _noteSavedSub ??= _noteEventBus.onNoteSaved.listen((noteId) {
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
         unawaited(processNoteById(noteId));
       });
     });
@@ -60,9 +74,12 @@ class AiProcessingService {
   Future<void> flushPendingQueue() => _sweepPendingOnce();
 
   void dispose() {
-    _noteSavedSubscription?.cancel();
-    _noteSavedSubscription = null;
+    _noteSavedSub?.cancel();
+    _noteSavedSub = null;
+    _inFlight.clear();
   }
+
+  // ── Sweep ────────────────────────────────────────────────────────────────────
 
   Future<void> _sweepPendingOnce() async {
     if (_sweepRunning) return;
@@ -71,153 +88,139 @@ class AiProcessingService {
       final pending = await _isarNoteStore.getPendingAiNotes();
       if (pending.isEmpty) return;
       debugPrint('[AiProcessingService] Sweeping ${pending.length} pending notes');
-      // Process in batches of 2 to avoid hammering Gemini
+      // Process in batches of 2 — avoids hammering Gemini quota.
       for (var i = 0; i < pending.length; i += 2) {
         final chunk = pending.sublist(i, (i + 2).clamp(0, pending.length));
         await Future.wait(chunk.map((n) => processNoteById(n.noteId)));
-        if (i + 2 < pending.length) {
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-        }
       }
-    } catch (e, st) {
-      debugPrint('[AiProcessingService] sweep error: $e');
-      debugPrintStack(stackTrace: st);
+    } catch (e) {
+      debugPrint('[AiProcessingService] _sweepPendingOnce error: $e');
     } finally {
       _sweepRunning = false;
     }
   }
 
-  Future<void> processNoteById(String noteId) async {
-    final id = noteId.trim();
-    if (id.isEmpty || _inFlightNoteIds.contains(id)) return;
+  // ── Core processing ───────────────────────────────────────────────────────────
 
-    _inFlightNoteIds.add(id);
+  Future<void> processNoteById(String noteId) async {
+    if (_inFlight.contains(noteId)) return;
+    _inFlight.add(noteId);
     try {
-      final note = await _isarNoteStore.getByNoteId(id);
+      final note = await _isarNoteStore.getById(noteId);
       if (note == null) {
-        debugPrint('[AiProcessingService] Note not found: $id');
+        debugPrint('[AiProcessingService] Note $noteId not found — skipping');
         return;
       }
       if (note.status != NoteStatus.pendingAi) {
-        debugPrint('[AiProcessingService] Skipping $id — status=${note.status.name}');
+        debugPrint('[AiProcessingService] Note $noteId not pendingAi (${note.status}) — skipping');
         return;
       }
-
-      debugPrint('[AiProcessingService] Classifying: $id');
-
-      // ── Run AI on the main isolate so plugin state & env vars are accessible ─
-      // (google_generative_ai is stateless; safe to call here)
-      final result = await _aiRouter.classify(note.rawTranscript);
-
-      debugPrint('[AiProcessingService] Classified: $id → '
-          'cat=${result.category.name} pri=${result.priority.name} '
-          'model=${result.model} fallback=${result.wasFallback}');
-
-      final now = DateTime.now();
-      final activeNote = note.copyWith(
-        title: result.title,
-        category: result.category,
-        priority: result.priority,
-        extractedDate: result.extractedDate,
-        clearExtractedDate: result.extractedDate == null,
-        cleanBody: result.cleanBody,
-        aiModel: result.model,
-        status: NoteStatus.active,
-        updatedAt: now,
-        syncedAt: now,
-      );
-
-      await _isarNoteStore.put(activeNote);
-      debugPrint('[AiProcessingService] Saved to Isar: $id');
-
-      // ── Notify UI ──────────────────────────────────────────────────────────
-      try {
-        sl<CaptureUiController>().notifyExternalRecordingSaved(
-          title: activeNote.title,
-          category: activeNote.category,
-          model: activeNote.aiModel.trim().isNotEmpty ? activeNote.aiModel : 'AI',
-          noteId: activeNote.noteId,
-        );
-      } catch (_) {}
-
-      try {
-        await sl<OverlayNotifier>().notifyNativeSaved(
-          activeNote.title,
-          activeNote.category,
-        );
-      } catch (_) {}
-
-      // ── Background: Firestore + external sync (fire-and-forget) ───────────
-      unawaited(_syncAll(activeNote));
-    } catch (e, st) {
-      debugPrint('[AiProcessingService] Error processing $id: $e');
-      debugPrintStack(stackTrace: st);
-      // Mark as active with fallback so it won't be retried forever
-      try {
-        final note = await _isarNoteStore.getByNoteId(id);
-        if (note != null && note.status == NoteStatus.pendingAi) {
-          await _isarNoteStore.put(note.copyWith(
-            status: NoteStatus.active,
-            aiModel: 'error-fallback',
-            updatedAt: DateTime.now(),
-          ));
-        }
-      } catch (_) {}
-    } finally {
-      _inFlightNoteIds.remove(id);
-    }
-  }
-
-  // ── Sync helpers ──────────────────────────────────────────────────────────
-
-  Future<void> _syncAll(Note note) async {
-    await Future.wait([
-      _syncToFirestore(note),
-      _syncToExternal(note),
-    ]);
-  }
-
-  Future<void> _syncToExternal(Note note) async {
-    try {
-      final changed = await _externalSync.syncNoteToExternal(note);
-      if (changed != null && changed.noteId == note.noteId) {
-        // External sync updated gtaskId or gcalEventId — persist those back
-        await _isarNoteStore.put(changed);
-        await _syncToFirestore(changed);
-      }
+      await _processNote(note);
     } catch (e) {
-      debugPrint('[AiProcessingService] external sync error for ${note.noteId}: $e');
+      debugPrint('[AiProcessingService] processNoteById error for $noteId: $e');
+      // Mark as synced with original content to avoid getting stuck in pending.
+      await _markFallback(noteId);
+    } finally {
+      _inFlight.remove(noteId);
     }
   }
 
-  Future<bool> _syncToFirestore(Note note) async {
-    var user = _auth.currentUser;
-    if (user == null) {
-      try {
-        user = await _auth
-            .authStateChanges()
-            .firstWhere((u) => u != null, orElse: () => null as User?)
-            .timeout(const Duration(seconds: 3));
-      } catch (_) {}
+  Future<void> _processNote(Note note) async {
+    debugPrint('[AiProcessingService] Classifying note ${note.noteId}');
+
+    // ── STEP 1: Classify ───────────────────────────────────────────────────────
+    // Temporal context is auto-injected by AiClassifierRouter via
+    // GeminiNoteClassifier.buildSystemPrompt() — no extra work needed here.
+    final GeminiClassificationResult result;
+    try {
+      result = await _aiRouter.classify(note.rawTranscript);
+    } catch (e) {
+      debugPrint('[AiProcessingService] classify failed for ${note.noteId}: $e');
+      await _markFallback(note.noteId);
+      return;
     }
 
-    final uid = user?.uid ?? note.uid;
-    if (uid.isEmpty || uid == 'local_anonymous') {
-      debugPrint('[AiProcessingService] Firestore sync skipped: not authenticated');
-      return false;
-    }
+    // ── STEP 2: Build enriched note ────────────────────────────────────────────
+    final enriched = note.copyWith(
+      title:         result.title,
+      cleanBody:     result.cleanBody,
+      category:      result.category,
+      priority:      result.priority,
+      extractedDate: result.extractedDate,
+      aiModel:       result.model,
+      status:        NoteStatus.active,
+      updatedAt:     DateTime.now(),
+    );
 
+    // ── STEP 3: Persist locally ────────────────────────────────────────────────
+    await _isarNoteStore.put(enriched);
+    debugPrint('[AiProcessingService] Saved enriched note ${enriched.noteId} '
+        '[${enriched.category.name}] via ${enriched.aiModel}');
+
+    // ── STEP 4: Push to Firestore ──────────────────────────────────────────────
+    unawaited(_pushToFirestore(enriched));
+
+    // ── STEP 5: External sync (Google Tasks / Calendar) ────────────────────────
+    unawaited(_externalSync.syncSingleNote(enriched).then((r) {
+      if (r.noteChanged) {
+        unawaited(_isarNoteStore.put(r.note));
+        unawaited(_pushToFirestore(r.note));
+      }
+    }).catchError((e) {
+      debugPrint('[AiProcessingService] externalSync error for ${enriched.noteId}: $e');
+    }));
+
+    // ── STEP 6: Notify UI ──────────────────────────────────────────────────────
+    _noteEventBus.emitNoteUpdated(enriched.noteId);
+  }
+
+  Future<void> _markFallback(String noteId) async {
+    try {
+      final note = await _isarNoteStore.getById(noteId);
+      if (note == null || note.status != NoteStatus.pendingAi) return;
+      final fallback = note.copyWith(
+        status:    NoteStatus.active,
+        aiModel:   'local',
+        updatedAt: DateTime.now(),
+      );
+      await _isarNoteStore.put(fallback);
+      unawaited(_pushToFirestore(fallback));
+      _noteEventBus.emitNoteUpdated(noteId);
+    } catch (e) {
+      debugPrint('[AiProcessingService] _markFallback error for $noteId: $e');
+    }
+  }
+
+  Future<void> _pushToFirestore(Note note) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
     try {
       await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('notes')
-          .doc(note.noteId)
-          .set(note.toFirestoreJson(), SetOptions(merge: true));
-      return true;
+          .collection('users').doc(uid)
+          .collection('notes').doc(note.noteId)
+          .set(_noteToFirestoreMap(note), SetOptions(merge: true));
     } catch (e) {
-      debugPrint('[AiProcessingService] Firestore error: $e');
-      return false;
+      debugPrint('[AiProcessingService] Firestore push error for ${note.noteId}: $e');
     }
   }
+
+  Map<String, dynamic> _noteToFirestoreMap(Note note) => {
+    'note_id':        note.noteId,
+    'uid':            note.uid,
+    'raw_transcript': note.rawTranscript,
+    'title':          note.title,
+    'clean_body':     note.cleanBody,
+    'category':       note.category.name,
+    'priority':       note.priority.name,
+    'ai_model':       note.aiModel,
+    'status':         note.status.name,
+    'source':         note.source.name,
+    'extracted_date': note.extractedDate?.toIso8601String(),
+    'created_at':     note.createdAt.toIso8601String(),
+    'updated_at':     note.updatedAt.toIso8601String(),
+    'synced_at':      note.syncedAt?.toIso8601String(),
+    'gtask_id':       note.gtaskId,
+    'gcal_event_id':  note.gcalEventId,
+    'is_deleted':     note.status == NoteStatus.deleted,
+  };
 }

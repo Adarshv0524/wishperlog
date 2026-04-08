@@ -10,6 +10,7 @@ class ThoughtCanvas extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onSave,
+    required this.onSubmit,
     required this.onMicPressStart,
     required this.onMicPressEnd,
     required this.isSaving,
@@ -20,6 +21,7 @@ class ThoughtCanvas extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onSave;
+  final VoidCallback onSubmit;
   final VoidCallback onMicPressStart;
   final VoidCallback onMicPressEnd;
   final bool isSaving;
@@ -87,10 +89,17 @@ class ThoughtCanvas extends StatelessWidget {
                   controller: controller,
                   focusNode: focusNode,
                   keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
+                  textInputAction: TextInputAction.send,
+                  textCapitalization: TextCapitalization.sentences,
+                  autocorrect: true,
                   maxLines: null,
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
+                  onSubmitted: (_) {
+                    if (controller.text.trim().isNotEmpty && !isSaving) {
+                      onSubmit();
+                    }
+                  },
                   style: TextStyle(
                     color: context.textPri,
                     fontSize: 15,
@@ -100,7 +109,7 @@ class ThoughtCanvas extends StatelessWidget {
                     filled: false,
                     hintText: isRecording
                         ? 'Listening...'
-                        : "What's on your mind...",
+                        : 'Type a note, task, or reminder',
                     hintStyle: TextStyle(
                       color: context.textSec.withValues(alpha: 0.7),
                       fontSize: 15,

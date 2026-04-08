@@ -5,6 +5,9 @@ class AppTheme {
   static ThemeData _base(ColorScheme scheme) {
     final isDark = scheme.brightness == Brightness.dark;
     final outline = scheme.outline.withValues(alpha: 0.65);
+    final surfaceTint = isDark
+        ? AppColors.darkGlass1.withValues(alpha: 0.9)
+        : AppColors.lightGlass1.withValues(alpha: 0.98);
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
@@ -20,9 +23,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         shadowColor: Colors.transparent,
-        color: isDark
-            ? AppColors.darkGlass2
-            : AppColors.lightGlass2,
+        color: surfaceTint,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: outline, width: 0.7),
@@ -68,25 +69,32 @@ class AppTheme {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: isDark
-            ? AppColors.darkGlass2.withValues(alpha: 0.92)
-            : AppColors.lightGlass1.withValues(alpha: 0.95),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: outline, width: 0.8),
-        ),
-      ),
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: isDark
-            ? AppColors.darkGlass2.withValues(alpha: 0.92)
-            : AppColors.lightGlass1.withValues(alpha: 0.96),
-        modalBackgroundColor: isDark
-            ? AppColors.darkGlass2.withValues(alpha: 0.92)
-            : AppColors.lightGlass1.withValues(alpha: 0.96),
+        backgroundColor: surfaceTint.withValues(alpha: 0.96),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
           side: BorderSide(color: outline, width: 0.8),
         ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: surfaceTint.withValues(alpha: 0.98),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: outline, width: 0.7),
+        ),
+        textStyle: TextStyle(color: scheme.onSurface),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: surfaceTint.withValues(alpha: 0.96),
+        modalBackgroundColor: surfaceTint.withValues(alpha: 0.96),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: outline, width: 0.8),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: Colors.transparent,
+        contentTextStyle: TextStyle(color: scheme.onSurface),
+        behavior: SnackBarBehavior.floating,
       ),
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,

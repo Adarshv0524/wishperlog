@@ -82,14 +82,14 @@ class GlassBubble extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: isActive
-                  ? const [Color(0xFF4C6FFF), Color(0xFF7B4BFF)]
+                  ? [AppColors.tasks, AppColors.journal]
                   : idleGradient,
             ),
             border: Border.all(
               color: isActive
-                  ? const Color(0xFFD6DDFF)
+                  ? (isDark ? AppColors.darkTextPri : AppColors.lightTextPri).withValues(alpha: 0.18)
                   : isError
-                  ? const Color(0xFFFFCFCF)
+                  ? AppColors.errorStatus.withValues(alpha: 0.42)
                   : Colors.white.withValues(alpha: isDark ? 0.72 : 0.86),
               width: isActive ? 2.0 : 1.3,
             ),

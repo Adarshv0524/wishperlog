@@ -1,21 +1,33 @@
-name = "wishperlog-digest"
-main = "src/worker.ts"
-compatibility_date = "2024-09-01"
+name             = "wishperlog-digest"
+main             = "src/worker.ts"
+compatibility_date  = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
+account_id       = "112486d346c988fbdaf8923c083a85d8"
 
-# ── Cron Triggers ──────────────────────────────────────────────────────────
-# Fires every 15 minutes so we can match any user-configured digest slot.
+# ── Workers URL ────────────────────────────────────────────────────────────────
+# Deployed at: wishperlog-digest.veerbhadra0524.workers.dev
+
+# ── Cron Triggers ──────────────────────────────────────────────────────────────
+# Fires EVERY MINUTE — the Worker matches HH:MM against each user's saved slots.
+# This replaces the old 15-minute granularity with precise per-minute scheduling.
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["* * * * *"]
 
-# ── KV Namespace ───────────────────────────────────────────────────────────
-# Stores "already sent today" dedup keys.
+# ── KV Namespace ───────────────────────────────────────────────────────────────
+# Stores per-user per-minute dedup keys ("already sent today").
+# Key format: "YYYY-MM-DD:HH:MM:<uid>"  TTL: 93 600 s (26 h)
 [[kv_namespaces]]
 binding = "DIGEST_SENT"
-id      = "dca05ac5722b4be0a11d33f1070fa50d"          # replace after `wrangler kv namespace create DIGEST_SENT`
+id      = "dca05ac5722b4be0a11d33f1070fa50d"
 
-# ── Secrets (set via `wrangler secret put <NAME>`) ─────────────────────────
-# TELEGRAM_BOT_TOKEN       — bot token from @BotFather
-# FIREBASE_PROJECT_ID      — e.g. wishperlog-prod
-# FIREBASE_CLIENT_EMAIL    — service account email
-# FIREBASE_PRIVATE_KEY     — service account private key (PEM, newlines as \n)
+# ── Secrets (set via `wrangler secret put <NAME>`) ─────────────────────────────
+# TELEGRAM_BOT_TOKEN    — bot token from @BotFather
+# FIREBASE_PROJECT_ID   — GCP project ID (e.g. "wishperlog-prod")
+# FIREBASE_CLIENT_EMAIL — service account email
+# FIREBASE_PRIVATE_KEY  — service account private key PEM (newlines as literal \n)
+#
+# Deployment:
+#   npx wrangler deploy
+#
+# Test locally:
+#   npx wrangler dev  →  curl http://localhost:8787/trigger

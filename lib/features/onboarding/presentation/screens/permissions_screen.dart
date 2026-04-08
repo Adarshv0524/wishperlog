@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 
@@ -41,10 +42,10 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final titleColor = isDark ? Colors.white : const Color(0xFF102037);
     final subtitleColor = isDark
-        ? Colors.white.withValues(alpha: 0.82)
-        : const Color(0xFF374151);
+      ? Colors.white.withValues(alpha: 0.78)
+      : const Color(0xFF4E6485);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -60,6 +61,23 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        color: AppColors.followUp.withValues(alpha: 0.12),
+                      ),
+                      child: Text(
+                        'LAST STEP',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : AppColors.followUp,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     Text(
                       'Finish setup',
                       style: TextStyle(
@@ -71,8 +89,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'You can start using WhisperLog now. Additional capture tools '
-                      'will be added in a later update.',
+                      'You can start using WhisperLog now. The last calibration is only here to make the launch feel complete.',
                       style: TextStyle(
                         color: subtitleColor,
                         fontSize: 14,

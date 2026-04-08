@@ -9,6 +9,7 @@ import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/models/note.dart';
 
 class CaptureService {
@@ -64,6 +65,7 @@ class CaptureService {
       final now = DateTime.now();
       final user = _auth?.currentUser;
       final noteId = '${now.microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
+      final inferredCategory = inferCategoryFromText(trimmed);
 
       // STEP 1: Instant local save with fallback title.
       final quickTitle = _quickTitle(trimmed);
@@ -73,7 +75,7 @@ class CaptureService {
         rawTranscript: trimmed,
         title: quickTitle,
         cleanBody: trimmed,
-        category: NoteCategory.general,
+        category: inferredCategory,
         priority: NotePriority.medium,
         extractedDate: null,
         createdAt: now,

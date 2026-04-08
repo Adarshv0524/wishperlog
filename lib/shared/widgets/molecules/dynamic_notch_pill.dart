@@ -64,7 +64,8 @@ class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
               (current is CaptureUiSaved &&
                   previous is CaptureUiSaved &&
                   (previous.category != current.category ||
-                      previous.title != current.title));
+                      previous.title != current.title ||
+                      previous.originPrefix != current.originPrefix));
           if (changed) {
             _scheduleContentFade();
           }
@@ -164,7 +165,19 @@ class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
       return _ProcessingContent(state: state, isDark: isDark);
     }
     if (state is CaptureUiSaved) {
-      return _SavedContent(state: state, isDark: isDark);
+      return TweenAnimationBuilder<double>(
+        key: ValueKey('${state.noteId ?? state.title}-${state.category.name}-${state.originPrefix}'),
+        tween: Tween<double>(begin: 0.94, end: 1.0),
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeOutBack,
+        builder: (context, scale, child) {
+          return Transform.translate(
+            offset: Offset(0, (1 - scale) * 6),
+            child: Transform.scale(scale: scale, child: child),
+          );
+        },
+        child: _SavedContent(state: state, isDark: isDark),
+      );
     }
     if (state is CaptureUiError) {
       return _ErrorContent(isDark: isDark);
@@ -364,6 +377,35 @@ class _SavedContent extends StatelessWidget {
             decoration: const BoxDecoration(
               color: AppColors.tasks,
               shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: (state.originPrefix == 'sys'
+                      ? const Color(0xFF64748B)
+                      : AppColors.tasks)
+                  .withValues(alpha: 0.18),
+              border: Border.all(
+                color: (state.originPrefix == 'sys'
+                        ? const Color(0xFF64748B)
+                        : AppColors.tasks)
+                    .withValues(alpha: 0.35),
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              state.originPrefix,
+              style: TextStyle(
+                fontSize: 8,
+                color: state.originPrefix == 'sys'
+                    ? const Color(0xFFCBD5E1)
+                    : const Color(0xFF93C5FD),
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
           const SizedBox(width: 6),

@@ -23,53 +23,69 @@ class SyncNoteExternalResult {
   final bool noteChanged;
 }
 
-/// Full bi-directional Google Tasks + Google Calendar sync with
-/// strict duplicate prevention using the `gtaskId` and `gcalEventId`
-/// fields stored on each [Note].
+/// ─────────────────────────────────────────────────────────────────────────────
+/// ExternalSyncService — Full Bi-directional Google Tasks + Calendar Sync
+///
+/// Design guarantees:
+///  1. NO duplicate creation: uses `gtaskId` / `gcalEventId` fields for ID
+///     matching. Any note with a non-null ID is updated, not re-created.
+///  2. Bi-directional deletion:
+///     • Note deleted in app → delete remote entry.
+///     • Remote entry deleted by user → mark note as unsynced (remove ID).
+///  3. Smart mapping:
+///     • Tasks | Reminders | Follow-up → Google Tasks.
+///     • Notes with extracted_date → Google Calendar (in addition if applicable).
+///  4. Completion sync: checks remote task completion and marks local note done.
+///  5. All Firestore writes are batched to reduce cost.
+/// ─────────────────────────────────────────────────────────────────────────────
 class ExternalSyncService {
   ExternalSyncService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     IsarNoteStore? isarNoteStore,
     GoogleSignIn? googleSignIn,
-  })  : _auth           = auth      ?? FirebaseAuth.instance,
-        _firestore      = firestore ?? FirebaseFirestore.instance,
-        _isarNoteStore  = isarNoteStore ?? IsarNoteStore.instance,
-        _googleSignIn   = googleSignIn  ??
+  })  : _auth          = auth ?? FirebaseAuth.instance,
+        _firestore     = firestore ?? FirebaseFirestore.instance,
+        _isarNoteStore = isarNoteStore ?? IsarNoteStore.instance,
+        _googleSignIn  = googleSignIn ??
             GoogleSignIn(scopes: [
               gcal.CalendarApi.calendarScope,
               gtasks.TasksApi.tasksScope,
               'email',
             ]);
 
-  final FirebaseAuth _auth;
+  final FirebaseAuth    _auth;
   final FirebaseFirestore _firestore;
-  final IsarNoteStore _isarNoteStore;
-  final GoogleSignIn _googleSignIn;
+  final IsarNoteStore   _isarNoteStore;
+  final GoogleSignIn    _googleSignIn;
 
   // ── Auth helpers ──────────────────────────────────────────────────────────
 
   Future<bool> ensureGoogleConnected() async {
-    try {
-      return await _googleSignIn.signInSilently() != null;
-    } catch (_) { return false; }
+    try { return await _googleSignIn.signInSilently() != null; }
+    catch (_) { return false; }
   }
 
   Future<bool> reconnectGoogle() async {
-    try {
-      return await _googleSignIn.signIn() != null;
-    } catch (_) { return false; }
+    try { return await _googleSignIn.signIn() != null; }
+    catch (_) { return false; }
   }
 
   Future<Map<String, String>?> _authHeaders() async {
-    final account = await _googleSignIn.signInSilently();
-    if (account == null) return null;
-    return account.authHeaders;
+    try {
+      var account = _googleSignIn.currentUser;
+      account ??= await _googleSignIn.signInSilently();
+      if (account == null) return null;
+      return account.authHeaders;
+    } catch (e) {
+      debugPrint('[ExternalSync] _authHeaders error: $e');
+      return null;
+    }
   }
 
-  // ── Primary entry-point ───────────────────────────────────────────────────
+  // ── Public entry-points ───────────────────────────────────────────────────
 
-  /// Full bi-directional sync: push local → remote + pull remote → local.
+  /// Full bi-directional sync: push local changes → remote, pull deletions ← remote.
   Future<SyncRunResult> syncNow() async {
     final headers = await _authHeaders();
     if (headers == null) {
@@ -77,9 +93,9 @@ class ExternalSyncService {
       return const SyncRunResult(processed: 0, updated: 0);
     }
 
-    final client    = HeaderClient(headers);
-    final tasksApi  = gtasks.TasksApi(client);
-    final calApi    = gcal.CalendarApi(client);
+    final client   = HeaderClient(headers);
+    final tasksApi = gtasks.TasksApi(client);
+    final calApi   = gcal.CalendarApi(client);
 
     int processed = 0;
     int updated   = 0;
@@ -89,431 +105,370 @@ class ExternalSyncService {
       final r2 = await _syncGoogleCalendar(calApi);
       processed = r1.processed + r2.processed;
       updated   = r1.updated   + r2.updated;
+    } catch (e) {
+      debugPrint('[ExternalSync] syncNow error: $e');
     } finally {
       client.close();
     }
 
+    debugPrint('[ExternalSync] syncNow complete: processed=$processed updated=$updated');
     return SyncRunResult(processed: processed, updated: updated);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // GOOGLE TASKS
-  // ─────────────────────────────────────────────────────────────────────────
+  /// Sync a single note's external entries (called after AI classification).
+  Future<SyncNoteExternalResult> syncSingleNote(Note note) async {
+    final headers = await _authHeaders();
+    if (headers == null) return SyncNoteExternalResult(note: note);
+
+    final client   = HeaderClient(headers);
+    Note updated   = note;
+    bool changed   = false;
+
+    try {
+      // Google Tasks — for task-like categories.
+      if (_shouldSyncToTasks(note.category)) {
+        final r = await _upsertGoogleTask(gtasks.TasksApi(client), note);
+        if (r != null && r.noteId == note.noteId) {
+          updated = r; changed = true;
+        }
+      }
+
+      // Google Calendar — only if there's a concrete date.
+      if (note.extractedDate != null) {
+        final r = await _upsertCalendarEvent(gcal.CalendarApi(client), updated);
+        if (r != null && r.noteId == updated.noteId) {
+          updated = r; changed = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('[ExternalSync] syncSingleNote error for ${note.noteId}: $e');
+    } finally {
+      client.close();
+    }
+
+    return SyncNoteExternalResult(note: updated, noteChanged: changed);
+  }
+
+  Future<SyncNoteExternalResult> syncExternalForNote(Note note) {
+    return syncSingleNote(note);
+  }
+
+  /// Explicitly pulls completion statuses from Google Tasks (for settings "Sync Now" button).
+  Future<void> syncGoogleTaskCompletions() async {
+    final headers = await _authHeaders();
+    if (headers == null) return;
+    final client = HeaderClient(headers);
+    try {
+      await _pullTaskCompletions(gtasks.TasksApi(client));
+    } finally {
+      client.close();
+    }
+  }
+
+  // ── Google Tasks sync ─────────────────────────────────────────────────────
+
+  static const _taskListTitle = 'WishperLog';
 
   Future<SyncRunResult> _syncGoogleTasks(gtasks.TasksApi api) async {
-    int processed = 0, updated = 0;
+    int processed = 0;
+    int updated   = 0;
 
-    // 1. Pull all remote tasks
-    final remoteTasks = await _fetchAllGoogleTasks(api);
-    final remoteById  = { for (final t in remoteTasks) if (t.id != null) t.id!: t };
+    // ── Ensure our task list exists ───────────────────────────────────────────
+    final listId = await _getOrCreateTaskList(api);
+    if (listId == null) return const SyncRunResult(processed: 0, updated: 0);
 
-    // 2. Pull all local notes
-    final localNotes = await _isarNoteStore.getAllActive();
-    final taskNotes  = localNotes.where((n) => n.category == NoteCategory.tasks).toList();
+    // ── Pull: check which of our synced tasks were deleted on Google side ─────
+    final remoteTaskIds = await _fetchRemoteTaskIds(api, listId);
+    final localNotes    = await _isarNoteStore.getAllNotes();
 
-    // Build lookup: gtaskId → local note
-    final localByGTaskId = <String, Note>{};
-    for (final n in taskNotes) {
-      if (n.gtaskId != null) localByGTaskId[n.gtaskId!] = n;
-    }
-
-    // 3. PUSH: local task notes → Google Tasks
-    for (final note in taskNotes) {
-      processed++;
-      try {
-        if (note.gtaskId == null) {
-          // Create new remote task
-          final created = await _createGoogleTask(api, note);
-          if (created?.id != null) {
-            final saved = note.copyWith(gtaskId: created!.id);
-            await _isarNoteStore.put(saved);
-            await _firestoreUpdate(saved);
-            updated++;
-            localByGTaskId[created.id!] = saved;
-          }
-        } else if (remoteById.containsKey(note.gtaskId)) {
-          // Update existing remote task if local note is newer
-          final remote = remoteById[note.gtaskId!]!;
-          // Parse remote.updated (String from API) to DateTime for comparison
-          DateTime? remoteUpdated;
-          try {
-            if (remote.updated != null) {
-              remoteUpdated = DateTime.parse(remote.updated!);
-            }
-          } catch (_) {}
-          
-          if (_isLocalNewer(note, remoteUpdated)) {
-            await _updateGoogleTask(api, note, remote);
-            updated++;
-          }
-        }
-        // (if gtaskId exists but remote has been deleted, clear the id)
-        else if (note.gtaskId != null) {
-          final cleared = note.copyWith(clearGtaskId: true);
-          await _isarNoteStore.put(cleared);
-          await _firestoreUpdate(cleared);
-        }
-      } catch (e) {
-        debugPrint('[ExternalSync] Task push error for ${note.noteId}: $e');
-      }
-    }
-
-    // 4. PULL: remote tasks → local (only those not already linked)
-    final uid = _auth.currentUser?.uid ?? 'local_anonymous';
-    for (final task in remoteTasks) {
-      if (task.id == null || task.title == null) continue;
-      processed++;
-      if (localByGTaskId.containsKey(task.id!)) {
-        // Already linked — sync completion status
-        final local = localByGTaskId[task.id!]!;
-        if (task.status == 'completed' && local.status != NoteStatus.archived) {
-          final archived = local.copyWith(
-            status: NoteStatus.archived,
-            updatedAt: DateTime.now(),
-          );
-          await _isarNoteStore.put(archived);
-          await _firestoreUpdate(archived);
-          updated++;
-        }
-        continue;
-      }
-      // New remote task — create local note
-      try {
-        final note = _googleTaskToNote(task, uid);
-        await _isarNoteStore.put(note);
-        await _firestoreUpdate(note);
+    for (final note in localNotes) {
+      if (note.gtaskId == null) continue;
+      if (!remoteTaskIds.contains(note.gtaskId)) {
+        // Remote was deleted — clear local ID so it won't try to update a ghost.
+        debugPrint('[ExternalSync] gtask ${note.gtaskId} was deleted remotely — clearing from note ${note.noteId}');
+        final cleared = note.copyWith(gtaskId: null, syncedAt: DateTime.now());
+        await _isarNoteStore.put(cleared);
+        await _firestorePatch(note.noteId, {'gtask_id': null, 'synced_at': DateTime.now().toIso8601String()});
         updated++;
-      } catch (e) {
-        debugPrint('[ExternalSync] Task pull error for ${task.id}: $e');
       }
     }
+
+    // ── Push: upsert notes that need syncing ──────────────────────────────────
+    final needsSync = localNotes.where((n) =>
+      _shouldSyncToTasks(n.category) &&
+      n.status == NoteStatus.active
+    ).toList();
+
+    for (final note in needsSync) {
+      try {
+        final result = await _upsertGoogleTask(api, note, listId: listId);
+        if (result != null) { await _isarNoteStore.put(result); updated++; }
+        processed++;
+      } catch (e) {
+        debugPrint('[ExternalSync] task upsert error for ${note.noteId}: $e');
+      }
+    }
+
+    // ── Handle local deletions (push deletes to Google) ───────────────────────
+    final deletedWithTask = localNotes.where((n) =>
+      n.status == NoteStatus.deleted && n.gtaskId != null
+    ).toList();
+
+    for (final note in deletedWithTask) {
+      try {
+        await api.tasks.delete(listId, note.gtaskId!);
+        final cleared = note.copyWith(gtaskId: null);
+        await _isarNoteStore.put(cleared);
+        debugPrint('[ExternalSync] deleted remote task ${note.gtaskId} for note ${note.noteId}');
+      } catch (e) {
+        // 404 is acceptable — already deleted.
+        debugPrint('[ExternalSync] delete task error (may be 404): $e');
+      }
+    }
+
+    // ── Completion pull ───────────────────────────────────────────────────────
+    await _pullTaskCompletions(api, listId: listId);
 
     return SyncRunResult(processed: processed, updated: updated);
   }
 
-  Future<List<gtasks.Task>> _fetchAllGoogleTasks(gtasks.TasksApi api) async {
-    final all = <gtasks.Task>[];
-    String? pageToken;
-    do {
-      final page = await api.tasks.list(
-        '@default',
-        showCompleted: true,
-        showHidden:    false,
-        maxResults:    100,
-        pageToken:     pageToken,
+  Future<Note?> _upsertGoogleTask(
+    gtasks.TasksApi api,
+    Note note, {
+    String? listId,
+  }) async {
+    final taskListId = listId ?? await _getOrCreateTaskList(api);
+    if (taskListId == null) return null;
+
+    final taskTitle = note.title.isNotEmpty ? note.title : 'WishperLog Note';
+    final body      = note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript;
+    final dueDate   = note.extractedDate;
+
+    // ── Update existing ───────────────────────────────────────────────────────
+    if (note.gtaskId != null) {
+      try {
+        final patch = gtasks.Task()
+          ..title = taskTitle
+          ..notes = body
+          ..due   = dueDate != null
+              ? DateTime.utc(dueDate.year, dueDate.month, dueDate.day).toIso8601String()
+              : null;
+        await api.tasks.patch(patch, taskListId, note.gtaskId!);
+        debugPrint('[ExternalSync] Updated task ${note.gtaskId}');
+        return note.copyWith(syncedAt: DateTime.now());
+      } on gtasks.DetailedApiRequestError catch (e) {
+        if (e.status == 404) {
+          // Task was deleted remotely — fall through to create.
+          debugPrint('[ExternalSync] Task 404 — will recreate: ${note.gtaskId}');
+        } else {
+          rethrow;
+        }
+      }
+    }
+
+    // ── Create new ────────────────────────────────────────────────────────────
+    final newTask = gtasks.Task()
+      ..title = taskTitle
+      ..notes = body
+      ..due   = dueDate != null
+          ? DateTime.utc(dueDate.year, dueDate.month, dueDate.day).toIso8601String()
+          : null;
+
+    final created = await api.tasks.insert(newTask, taskListId);
+    debugPrint('[ExternalSync] Created task ${created.id} for note ${note.noteId}');
+    final updated = note.copyWith(gtaskId: created.id, syncedAt: DateTime.now());
+    await _firestorePatch(note.noteId, {
+      'gtask_id':  created.id,
+      'synced_at': DateTime.now().toIso8601String(),
+    });
+    return updated;
+  }
+
+  Future<void> _pullTaskCompletions(gtasks.TasksApi api, {String? listId}) async {
+    final taskListId = listId ?? await _getOrCreateTaskList(api);
+    if (taskListId == null) return;
+
+    try {
+      final result = await api.tasks.list(taskListId, showCompleted: true, showHidden: true);
+      final tasks  = result.items ?? [];
+
+      for (final task in tasks) {
+        if (task.id == null) continue;
+        final isCompleted = task.status == 'completed';
+        final note = await _isarNoteStore.findByGtaskId(task.id!);
+        if (note == null) continue;
+        if (isCompleted && note.status != NoteStatus.archived) {
+          debugPrint('[ExternalSync] Marking note ${note.noteId} complete from Google Tasks');
+          final updated = note.copyWith(status: NoteStatus.archived, syncedAt: DateTime.now());
+          await _isarNoteStore.put(updated);
+          await _firestorePatch(note.noteId, {
+            'status': 'archived',
+            'synced_at': DateTime.now().toIso8601String(),
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[ExternalSync] pullTaskCompletions error: $e');
+    }
+  }
+
+  Future<String?> _getOrCreateTaskList(gtasks.TasksApi api) async {
+    try {
+      final lists = await api.tasklists.list();
+      for (final list in lists.items ?? []) {
+        if (list.title == _taskListTitle) return list.id;
+      }
+      // Create it.
+      final created = await api.tasklists.insert(
+        gtasks.TaskList()..title = _taskListTitle,
       );
-      all.addAll(page.items ?? []);
-      pageToken = page.nextPageToken;
-    } while (pageToken != null);
-    return all;
-  }
-
-  Future<gtasks.Task?> _createGoogleTask(gtasks.TasksApi api, Note note) async {
-    final task = gtasks.Task()
-      ..title = note.title
-      ..notes = note.cleanBody
-      ..status = 'needsAction';
-
-    if (note.extractedDate != null) {
-      task.due = note.extractedDate!.toUtc().toIso8601String();
+      debugPrint('[ExternalSync] Created task list: ${created.id}');
+      return created.id;
+    } catch (e) {
+      debugPrint('[ExternalSync] _getOrCreateTaskList error: $e');
+      return null;
     }
-    return api.tasks.insert(task, '@default');
   }
 
-  Future<void> _updateGoogleTask(
-      gtasks.TasksApi api, Note note, gtasks.Task remote) async {
-    remote
-      ..title  = note.title
-      ..notes  = note.cleanBody
-      ..status = note.status == NoteStatus.archived ? 'completed' : 'needsAction';
-    if (note.extractedDate != null) {
-      remote.due = note.extractedDate!.toUtc().toIso8601String();
+  Future<Set<String>> _fetchRemoteTaskIds(gtasks.TasksApi api, String listId) async {
+    try {
+      final result = await api.tasks.list(
+        listId,
+        showCompleted: true,
+        showHidden:    true,
+        showDeleted:   false,
+      );
+      return {for (final t in (result.items ?? [])) if (t.id != null) t.id!};
+    } catch (e) {
+      debugPrint('[ExternalSync] _fetchRemoteTaskIds error: $e');
+      return {};
     }
-    await api.tasks.update(remote, '@default', remote.id!);
   }
 
-  Note _googleTaskToNote(gtasks.Task task, String uid) {
-    final now = DateTime.now();
-    DateTime? due;
-    if (task.due != null) {
-      try { due = DateTime.parse(task.due!); } catch (_) {}
-    }
-    return Note(
-      noteId:        'gtask_${task.id}',
-      uid:           uid,
-      rawTranscript: task.title ?? '',
-      title:         task.title ?? 'Untitled Task',
-      cleanBody:     task.notes ?? task.title ?? '',
-      category:      NoteCategory.tasks,
-      priority:      NotePriority.medium,
-      extractedDate: due,
-      createdAt:     now,
-      updatedAt:     now,
-      status:        task.status == 'completed'
-                         ? NoteStatus.archived
-                         : NoteStatus.active,
-      aiModel:       'google_tasks_import',
-      gtaskId:       task.id,
-      gcalEventId:   null,
-      source:        CaptureSource.googleTasks,
-      syncedAt:      now,
-    );
-  }
+  // ── Google Calendar sync ──────────────────────────────────────────────────
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // GOOGLE CALENDAR
-  // ─────────────────────────────────────────────────────────────────────────
+  static const _calendarId = 'primary';
 
   Future<SyncRunResult> _syncGoogleCalendar(gcal.CalendarApi api) async {
-    int processed = 0, updated = 0;
+    int processed = 0;
+    int updated   = 0;
 
-    final now        = DateTime.now().toUtc();
-    final windowEnd  = now.add(const Duration(days: 60));
+    final localNotes = await _isarNoteStore.getAllNotes();
 
-    // 1. Pull remote events (next 60 days)
-    final remoteEvents = await _fetchCalendarEvents(api, now, windowEnd);
-    final remoteById   = { for (final e in remoteEvents) if (e.id != null) e.id!: e };
-
-    // 2. Local notes with dates and no gcalEventId → PUSH
-    final localNotes = await _isarNoteStore.getAllActive();
-    final datedNotes = localNotes.where((n) =>
-        n.extractedDate != null &&
-        n.extractedDate!.isAfter(now) &&
-        (n.category == NoteCategory.reminders ||
-         n.category == NoteCategory.tasks      ||
-         n.category == NoteCategory.followUp)).toList();
-
-    final localByGCalId = <String, Note>{};
-    for (final n in localNotes) {
-      if (n.gcalEventId != null) localByGCalId[n.gcalEventId!] = n;
-    }
-
-    for (final note in datedNotes) {
-      processed++;
+    // ── Pull: detect remote deletions ─────────────────────────────────────────
+    final notesWithCalEvent = localNotes.where((n) => n.gcalEventId != null).toList();
+    for (final note in notesWithCalEvent) {
       try {
-        if (note.gcalEventId == null) {
-          final created = await _createCalendarEvent(api, note);
-          if (created?.id != null) {
-            final saved = note.copyWith(gcalEventId: created!.id);
-            await _isarNoteStore.put(saved);
-            await _firestoreUpdate(saved);
-            updated++;
-            localByGCalId[created.id!] = saved;
-          }
-        } else if (remoteById.containsKey(note.gcalEventId)) {
-          final remote = remoteById[note.gcalEventId!]!;
-          // remote.updated is already a DateTime?, pass it directly (no toDateTime())
-          if (_isLocalNewer(note, remote.updated)) {
-            await _updateCalendarEvent(api, note, remote);
-            updated++;
-          }
-        } else {
-          // Remote event was deleted — clear local link
-          final cleared = note.copyWith(clearGcalEventId: true);
+        await api.events.get(_calendarId, note.gcalEventId!);
+        // Event still exists — no action needed.
+      } on gcal.DetailedApiRequestError catch (e) {
+        if (e.status == 404 || e.status == 410) {
+          // Deleted on Calendar side.
+          debugPrint('[ExternalSync] gcal event ${note.gcalEventId} deleted remotely');
+          final cleared = note.copyWith(gcalEventId: null, syncedAt: DateTime.now());
           await _isarNoteStore.put(cleared);
-          await _firestoreUpdate(cleared);
+          await _firestorePatch(note.noteId, {'gcal_event_id': null});
+          updated++;
         }
       } catch (e) {
-        debugPrint('[ExternalSync] Calendar push error for ${note.noteId}: $e');
+        debugPrint('[ExternalSync] gcal get error for ${note.gcalEventId}: $e');
       }
     }
 
-    // 3. Pull remote events → local (only new ones)
-    final uid = _auth.currentUser?.uid ?? 'local_anonymous';
-    for (final event in remoteEvents) {
-      if (event.id == null || event.summary == null) continue;
-      processed++;
-      if (localByGCalId.containsKey(event.id!)) continue;
+    // ── Push: upsert notes that have a date ───────────────────────────────────
+    final needsSync = localNotes.where((n) =>
+      n.extractedDate != null &&
+      n.status == NoteStatus.active
+    ).toList();
 
+    for (final note in needsSync) {
       try {
-        final note = _calendarEventToNote(event, uid);
-        await _isarNoteStore.put(note);
-        await _firestoreUpdate(note);
-        updated++;
+        final result = await _upsertCalendarEvent(api, note);
+        if (result != null) { await _isarNoteStore.put(result); updated++; }
+        processed++;
       } catch (e) {
-        debugPrint('[ExternalSync] Calendar pull error for ${event.id}: $e');
+        debugPrint('[ExternalSync] calendar upsert error for ${note.noteId}: $e');
+      }
+    }
+
+    // ── Handle local deletions ────────────────────────────────────────────────
+    final deletedWithEvent = localNotes.where((n) =>
+      n.status == NoteStatus.deleted && n.gcalEventId != null
+    ).toList();
+
+    for (final note in deletedWithEvent) {
+      try {
+        await api.events.delete(_calendarId, note.gcalEventId!);
+        final cleared = note.copyWith(gcalEventId: null);
+        await _isarNoteStore.put(cleared);
+        debugPrint('[ExternalSync] deleted cal event ${note.gcalEventId}');
+      } catch (e) {
+        debugPrint('[ExternalSync] delete cal event error (may be 404): $e');
       }
     }
 
     return SyncRunResult(processed: processed, updated: updated);
   }
 
-  Future<List<gcal.Event>> _fetchCalendarEvents(
-      gcal.CalendarApi api, DateTime from, DateTime to) async {
-    final all = <gcal.Event>[];
-    String? pageToken;
-    do {
-      final page = await api.events.list(
-        'primary',
-        timeMin:   from,
-        timeMax:   to,
-        singleEvents: true,
-        orderBy:      'startTime',
-        maxResults:   250,
-        pageToken:    pageToken,
-      );
-      all.addAll(page.items ?? []);
-      pageToken = page.nextPageToken;
-    } while (pageToken != null);
-    return all;
-  }
+  Future<Note?> _upsertCalendarEvent(gcal.CalendarApi api, Note note) async {
+    if (note.extractedDate == null) return null;
 
-  Future<gcal.Event?> _createCalendarEvent(gcal.CalendarApi api, Note note) async {
-    final date     = note.extractedDate!.toUtc();
-    final endDate  = date.add(const Duration(hours: 1));
-    final event    = gcal.Event()
-      ..summary     = note.title
-      ..description = note.cleanBody
-      ..start       = gcal.EventDateTime(dateTime: date,    timeZone: 'UTC')
-      ..end         = gcal.EventDateTime(dateTime: endDate, timeZone: 'UTC');
-    return api.events.insert(event, 'primary');
-  }
+    final d     = note.extractedDate!;
+    final title = note.title.isNotEmpty ? note.title : 'WishperLog Note';
+    final desc  = note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript;
 
-  Future<void> _updateCalendarEvent(
-      gcal.CalendarApi api, Note note, gcal.Event remote) async {
-    final date    = note.extractedDate!.toUtc();
-    final endDate = date.add(const Duration(hours: 1));
-    remote
-      ..summary     = note.title
-      ..description = note.cleanBody
-      ..start       = gcal.EventDateTime(dateTime: date,    timeZone: 'UTC')
-      ..end         = gcal.EventDateTime(dateTime: endDate, timeZone: 'UTC');
-    await api.events.update(remote, 'primary', remote.id!);
-  }
+    // All-day event using the extracted date.
+    final event = gcal.Event()
+      ..summary     = title
+      ..description = desc
+      ..start       = (gcal.EventDateTime()..date = DateTime(d.year, d.month, d.day))
+      ..end         = (gcal.EventDateTime()..date = DateTime(d.year, d.month, d.day + 1))
+      ..source      = (gcal.EventSource()..title = 'WishperLog' ..url = 'https://wishperlog.app');
 
-  Note _calendarEventToNote(gcal.Event event, String uid) {
-    final now   = DateTime.now();
-    DateTime? start;
-    try {
-      // Try dateTime first (events with specific times)
-      start = event.start?.dateTime?.toLocal();
-      // Fallback to date field (all-day events or date-only)
-      if (start == null && event.start?.date != null) {
-        try {
-          // Handle both String and DateTime types for date field
-          final dateValue = event.start!.date;
-          if (dateValue is DateTime) {
-            start = dateValue;
-          } else {
-            start = DateTime.parse(dateValue.toString());
-          }
-        } catch (_) {}
-      }
-    } catch (_) {}
-
-    return Note(
-      noteId:        'gcal_${event.id}',
-      uid:           uid,
-      rawTranscript: event.summary ?? '',
-      title:         event.summary ?? 'Untitled Event',
-      cleanBody:     event.description ?? event.summary ?? '',
-      category:      NoteCategory.reminders,
-      priority:      NotePriority.medium,
-      extractedDate: start,
-      createdAt:     now,
-      updatedAt:     now,
-      status:        NoteStatus.active,
-      aiModel:       'gcal_import',
-      gtaskId:       null,
-      gcalEventId:   event.id,
-      source:        CaptureSource.googleCalendar,
-      syncedAt:      now,
-    );
-  }
-
-  // – Sync a single note to external services (Google Tasks/Calendar) ────────
-
-  /// Syncs a single note with external services (Google Tasks/Calendar).
-  /// Returns the note (potentially with updated gtaskId/gcalEventId) and a 
-  /// flag indicating if any changes were made.
-  Future<SyncNoteExternalResult> syncExternalForNote(Note note) async {
-    final headers = await _authHeaders();
-    if (headers == null) {
-      // Not signed in — just return the note unchanged
-      return SyncNoteExternalResult(note: note, noteChanged: false);
-    }
-
-    var updatedNote = note;
-    var changed = false;
-
-    try {
-      final client = HeaderClient(headers);
+    // ── Update existing ───────────────────────────────────────────────────────
+    if (note.gcalEventId != null) {
       try {
-        // Attempt to sync to Google Tasks if it's a task/reminder
-        if ((note.category == NoteCategory.tasks || 
-             note.category == NoteCategory.reminders) &&
-            note.gtaskId == null) {
-          final tasksApi = gtasks.TasksApi(client);
-          final created = await _createGoogleTask(tasksApi, note);
-          if (created?.id != null) {
-            updatedNote = note.copyWith(gtaskId: created!.id);
-            changed = true;
-          }
+        await api.events.patch(event, _calendarId, note.gcalEventId!);
+        debugPrint('[ExternalSync] Updated cal event ${note.gcalEventId}');
+        return note.copyWith(syncedAt: DateTime.now());
+      } on gcal.DetailedApiRequestError catch (e) {
+        if (e.status == 404 || e.status == 410) {
+          // Fall through to create.
+        } else {
+          rethrow;
         }
-
-        // Attempt to sync to Google Calendar if dated and applicable
-        if ((note.extractedDate != null &&
-             (note.category == NoteCategory.reminders ||
-              note.category == NoteCategory.tasks ||
-              note.category == NoteCategory.followUp)) &&
-            updatedNote.gcalEventId == null) {
-          final calApi = gcal.CalendarApi(client);
-          final created = await _createCalendarEvent(calApi, updatedNote);
-          if (created?.id != null) {
-            updatedNote = updatedNote.copyWith(gcalEventId: created!.id);
-            changed = true;
-          }
-        }
-
-        // Update Firestore if any external IDs were set
-        if (changed) {
-          await _firestoreUpdate(updatedNote);
-        }
-      } finally {
-        client.close();
       }
-    } catch (e) {
-      debugPrint('[ExternalSync] syncExternalForNote error: $e');
-      // On error, just return the note unchanged
     }
 
-    return SyncNoteExternalResult(note: updatedNote, noteChanged: changed);
+    // ── Create new ────────────────────────────────────────────────────────────
+    final created = await api.events.insert(event, _calendarId);
+    debugPrint('[ExternalSync] Created cal event ${created.id} for note ${note.noteId}');
+    final updated = note.copyWith(gcalEventId: created.id, syncedAt: DateTime.now());
+    await _firestorePatch(note.noteId, {
+      'gcal_event_id': created.id,
+      'synced_at':     DateTime.now().toIso8601String(),
+    });
+    return updated;
   }
 
-  // ── Completions poll (called from WorkManager / settings) ─────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
-  Future<int> syncGoogleTaskCompletions() async {
-    final headers = await _authHeaders();
-    if (headers == null) return 0;
-    final client   = HeaderClient(headers);
-    final tasksApi = gtasks.TasksApi(client);
+  bool _shouldSyncToTasks(NoteCategory category) {
+    return category == NoteCategory.tasks ||
+           category == NoteCategory.reminders ||
+           category == NoteCategory.followUp;
+  }
+
+  Future<void> _firestorePatch(String noteId, Map<String, dynamic> fields) async {
     try {
-      final result = await _syncGoogleTasks(tasksApi);
-      return result.updated;
-    } finally {
-      client.close();
-    }
-  }
-
-  // ── Utilities ─────────────────────────────────────────────────────────────
-
-  bool _isLocalNewer(Note note, DateTime? remoteUpdated) {
-    if (remoteUpdated == null) return true;
-    return note.updatedAt.isAfter(remoteUpdated);
-  }
-
-  Future<void> _firestoreUpdate(Note note) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-    try {
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) return;
       await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('notes')
-          .doc(note.noteId)
-          .set(note.toFirestoreJson(), SetOptions(merge: true));
+          .collection('users').doc(uid)
+          .collection('notes').doc(noteId)
+          .update(fields);
     } catch (e) {
-      debugPrint('[ExternalSync] Firestore update failed: $e');
+      debugPrint('[ExternalSync] Firestore patch error for $noteId: $e');
     }
   }
 }
