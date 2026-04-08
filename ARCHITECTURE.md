@@ -1,446 +1,639 @@
-# WhisperLog Architecture (As-Built Audit)
+# WhisperLog Architecture
 
-Version: 3.2 (implementation-audited)
-Date: 2026-04-05
-Status: Current-state architecture from repository audit
+Version: current implementation audit
+Date: 2026-04-08
+Status: Current runtime wiring
 
 ## 1. Scope
 
-This document describes the architecture currently implemented in the codebase.
-It replaces blueprint-only assumptions with audited runtime behavior, concrete wiring, and operational constraints.
+This is the consolidated architecture audit for WhisperLog.
+It replaces the older split docs and collects the current implementation across startup, routing, capture, overlay, AI enrichment, sync, background jobs, settings, and Telegram flows.
+
+Important normalization note: the current app uses Isar as the local source of truth for reads and writes. Older SQLite wording in prior docs is stale and should be ignored.
 
 ## 2. System Goals
 
 WhisperLog is an AI-first capture and organization app with:
 - raw transcript capture from overlay, editor, or dictation
-- AI classification before persistence when possible
-- Isar as the local source of truth for app reads and writes
+- local-first persistence so the UI updates immediately
+- AI classification before cloud mirroring when possible
 - Firestore as a background cloud mirror and cross-device event source
-- optional Google/Telegram integrations
+- Google Calendar and Google Tasks integration for dated or task notes
+- Telegram digest and bot command support
 - Android-first floating overlay capture
 
-## 3. Runtime Topology
+## 3. Visual Index
+
+This document includes 11 high-information visuals covering:
+1. runtime topology
+2. startup sequence
+3. dependency graph
+4. navigation and guards
+5. capture lifecycle
+6. overlay fallback chain
+7. AI enrichment pipeline
+8. sync push/pull flow
+9. background jobs
+10. Telegram linking
+11. settings and persistence
+
+## 4. Runtime Topology
 
 ```mermaid
 flowchart LR
   UI[Flutter UI] --> Repo[NoteRepository]
-  UI --> Capture[CaptureService/NoteSaveService]
-  Capture --> Isar[(IsarNoteStore)]
-  Repo --> Isar
+  UI --> Capture[CaptureService / NoteSaveService]
+  UI --> Overlay[OverlayNotifier]
+  UI --> Settings[SettingsScreen]
+  Capture --> Store[(IsarNoteStore)]
+  Repo --> Store
   Capture --> Firestore[(Firestore)]
   Repo --> Firestore
-  FireListener[FirestoreNoteSyncService] --> Firestore
-  FireListener --> Isar
-  FCM[FcmSyncService] --> FireListener
-  WM[WorkManager tasks] --> Isar
+  FireSync[FirestoreNoteSyncService] --> Firestore
+  FireSync --> Store
+  FCM[FcmSyncService] --> FireSync
+  AI[AiProcessingService] --> Store
+  AI --> Firestore
+  WM[WorkManagerService] --> AI
+  WM --> External[ExternalSyncService]
+  External --> Store
+  Native[OverlayForegroundService] --> Bridge[MethodChannel wishperlog/overlay]
+  Bridge --> Overlay
+  Overlay --> Capture
+  Telegram[TelegramService] --> Firestore
+  Settings --> Telegram
+  Settings --> Overlay
 ```
 
-## 3.1 App Entrypoints
+## 5. App Entrypoints
 
-- Primary app entrypoint: lib/main.dart
-- Native Overlay service entrypoint: android/../OverlayForegroundService.kt
-- Native Intent router: android/../MainActivity.kt
-- Background worker entrypoint: callbackDispatcher in lib/core/background/work_manager_service.dart
-- FCM background entrypoint: firebaseMessagingBackgroundHandler in lib/features/sync/data/fcm_sync_service.dart
-- Server-side complement (optional): functions/index.js
+- Primary app entrypoint: [lib/main.dart](lib/main.dart)
+- Native overlay service entrypoint: Android `OverlayForegroundService`
+- Native intent router: Android `MainActivity`
+- Background worker entrypoint: `callbackDispatcher` in [lib/core/background/work_manager_service.dart](lib/core/background/work_manager_service.dart)
+- FCM background entrypoint: `firebaseMessagingBackgroundHandler` in [lib/features/sync/data/fcm_sync_service.dart](lib/features/sync/data/fcm_sync_service.dart)
+- Server-side complement: [functions/index.js](functions/index.js)
 
-## 3.2 Startup Sequence (Main Process)
+## 6. Startup Sequence
 
-Implemented in lib/main.dart:
-1. Register FCM background handler.
-2. Load .env via AppEnv.load().
-3. Initialize Firebase.
-4. Initialize DI container via init().
-5. Hydrate OverlayNotifier state (fetches preferences).
-6. Request overlay permission via MethodChannel if needed.
-7. Hydrate ThemeCubit.
-8. Start WorkManager services asynchronously.
-9. Start AiProcessingService event listeners asynchronously for fallback/pending notes.
-10. Start ConnectivitySyncCoordinator asynchronously.
-11. Initialize FcmSyncService asynchronously.
-12. Run MaterialApp.router.
+The current startup sequence in [lib/main.dart](lib/main.dart) is:
+1. register the FCM background handler
+2. load environment values with `AppEnv.load()`
+3. initialize Firebase
+4. initialize dependency injection
+5. hydrate `OverlayNotifier`
+6. initialize Isar
+7. hydrate `ThemeCubit`
+8. initialize WorkManager
+9. initialize local notifications and request permission when supported
+10. run the app
+11. drain pending native overlay notes
+12. register periodic WorkManager syncs
+13. start `AiProcessingService`
+14. start `ConnectivitySyncCoordinator`
+15. start `FirestoreNoteSyncService`
+16. initialize `FcmSyncService`
 
-Failure handling is defensive: many startup steps are wrapped in try/catch and logged without crashing (except critical Firebase/DI failures).
+```mermaid
+sequenceDiagram
+  participant OS as OS / Launcher
+  participant Main as main.dart
+  participant Env as AppEnv
+  participant FB as Firebase
+  participant DI as GetIt
+  participant Overlay as OverlayNotifier
+  participant Store as IsarNoteStore
+  participant WM as WorkManagerService
+  participant AI as AiProcessingService
+  participant Sync as FirestoreNoteSyncService
+  participant FCM as FcmSyncService
 
-## 4. Dependency Injection and Service Graph
+  OS->>Main: app launch
+  Main->>Env: load()
+  Main->>FB: initializeApp()
+  Main->>DI: init()
+  Main->>Overlay: hydrate()
+  Main->>Store: init()
+  Main->>WM: initialize()
+  Main->>Main: runApp()
+  Main->>Overlay: drainPendingNativeNotes()
+  Main->>WM: registerPeriodicGoogleTasksSync()
+  Main->>AI: start()
+  Main->>Sync: start()
+  Main->>FCM: initialize()
+```
 
-Registered in lib/core/di/injection_container.dart.
+Failure handling is defensive. Most startup steps are wrapped in `try/catch` and logged without crashing, except the critical Firebase and dependency injection bootstrap.
 
-Repositories/services:
-- AppPreferencesRepository
-- UserRepository
-- NoteRepository
-- SpeechToText
-- ExternalSyncService
-- NoteEventBus (singleton event stream)
-- CaptureService
-- NoteSaveService
-- OverlayNotifier
-- SystemBannerOverlay (Route)
-- FirestoreNoteSyncService
-- AiProcessingService
-- FcmSyncService
-- ConnectivitySyncCoordinator
-- ThemeCubit
+## 7. Dependency Injection and Service Graph
+
+Registered in [lib/core/di/injection_container.dart](lib/core/di/injection_container.dart).
+
+Core services and repositories:
+- `AppPreferencesRepository`
+- `UserRepository`
+- `NoteRepository`
+- `SpeechToText`
+- `ExternalSyncService`
+- `NoteEventBus`
+- `CaptureService`
+- `NoteSaveService`
+- `OverlayNotifier`
+- `FirestoreNoteSyncService`
+- `AiProcessingService`
+- `FcmSyncService`
+- `ConnectivitySyncCoordinator`
+- `ThemeCubit`
+- `TelegramService`
+
+```mermaid
+flowchart TD
+  DI[GetIt container] --> Prefs[AppPreferencesRepository]
+  DI --> Users[UserRepository]
+  DI --> Notes[NoteRepository]
+  DI --> STT[SpeechToText]
+  DI --> Ext[ExternalSyncService]
+  DI --> Bus[NoteEventBus]
+  DI --> Capture[CaptureService]
+  DI --> Save[NoteSaveService]
+  DI --> Overlay[OverlayNotifier]
+  DI --> Sync[FirestoreNoteSyncService]
+  DI --> AI[AiProcessingService]
+  DI --> FCM[FcmSyncService]
+  DI --> Conn[ConnectivitySyncCoordinator]
+  DI --> Theme[ThemeCubit]
+  DI --> Telegram[TelegramService]
+```
 
 Notes:
 - DI uses GetIt lazy singletons.
-- DI uses GetIt lazy singletons.
-- Overlay state is communicated via `MethodChannel("wishperlog/overlay")` and managed by `OverlayNotifier`.
+- Overlay state is communicated through `MethodChannel("wishperlog/overlay")`.
+- The overlay bridge is initialized in `OverlayNotifier.hydrate()`.
 
-## 5. Navigation Architecture
+## 8. Navigation Architecture
 
-Router is defined in lib/app/router.dart using go_router.
+Router is defined in [lib/app/router.dart](lib/app/router.dart) using go_router.
 
-Declared routes:
-- / -> SignInScreen
-- /signin -> SignInScreen
-- /permissions -> PermissionsScreen
-- /telegram -> TelegramScreen
-- /home -> HomeScreenLayout
-- /folder -> FolderScreen (category from extra or query/path fallback)
-- /settings -> SettingsScreen
+Routes:
+- `/` -> SignInScreen
+- `/signin` -> SignInScreen
+- `/permissions` -> PermissionsScreen
+- `/telegram` -> TelegramScreen
+- `/home` -> HomeScreenLayout
+- `/search` -> SearchScreen
+- `/notes/:noteId` -> NoteDetailScreen
+- `/folder` -> FolderScreen
+- `/settings` -> SettingsScreen
+- `/system_banner` -> SystemBannerOverlay
 
 Redirect policy:
-- If unauthenticated and route is not onboarding route, redirect to /.
-- If authenticated and route is onboarding route, redirect to /home.
-- Auth check failures are logged and router stays on current route.
-
-## 6. Data Architecture
-
-## 6.0 Data Layer (Current Migration State)
-
-The app has transitioned to Isar-first for local reads and writes.
+- If unauthenticated and the route is not onboarding, redirect to `/`.
+- If authenticated and the route is onboarding, redirect to `/home`.
+- Auth check failures are logged and the router stays on the current route.
 
 ```mermaid
-graph LR
-  UI[Capture/Edit Flows] --> Repo[NoteRepository / Services]
-  Repo --> Isar[IsarNoteStore - Local Source of Truth]
-  Firestore[Firestore - Cloud Mirror] --> FireSync[FirestoreNoteSyncService]
-  FireSync --> Isar
-  Isar --> Reads[UI Read Paths]
+flowchart TD
+  A[Route request] --> B{Authenticated?}
+  B -->|No| C{Onboarding route?}
+  C -->|Yes| D[Allow route]
+  C -->|No| E[Redirect to /]
+  B -->|Yes| F{Onboarding route?}
+  F -->|Yes| G[Redirect to /home]
+  F -->|No| H[Allow route]
 ```
 
-- `IsarNoteStore` is the active local source for app reads and writes.
-- Firestore sync runs as a background listener and upserts remote changes into Isar.
-- SQLite remains in the codebase only for staged cleanup and startup migration compatibility.
+## 9. Data Architecture
 
-### Migration Plan
+### 9.1 Canonical Domain Model
 
-1. Completed: one-time startup backfill copied historical SQLite notes to Isar.
-2. Completed: UI reads switched to Isar reactive streams.
-3. Completed: core write paths switched to Isar.
-4. Next: remove SQLite package and remaining legacy bootstrap code once rollout confidence is complete.
-
-## 6.1 Canonical Domain Model
-
-Note model in lib/shared/models/note.dart.
+Source: [lib/shared/models/note.dart](lib/shared/models/note.dart)
 
 Key fields:
 - noteId, uid
 - rawTranscript, title, cleanBody
 - category, priority, extractedDate
 - createdAt, updatedAt
-- status (active, archived, pendingAi)
+- status
 - aiModel
 - gcalEventId, gtaskId
-- source (voiceOverlay, textOverlay, homeWritingBox)
+- source
 - syncedAt
 
-Serialization:
-- toSqliteMap()/fromSqliteMap()
-- toFirestoreJson()/fromFirestoreJson()
+### 9.2 Enums and Shared Values
 
-## 6.2 Local Persistence (System of Record)
+Source: [lib/shared/models/enums.dart](lib/shared/models/enums.dart)
 
-Store: lib/core/storage/isar_note_store.dart
-DB: Isar local store in app documents directory
+Current enums:
+- `NoteCategory`: tasks, reminders, ideas, followUp, journal, general
+- `NotePriority`: high, medium, low
+- `NoteStatus`: active, archived, pendingAi, deleted
+- `CaptureSource`: voiceOverlay, textOverlay, homeWritingBox, shortcutTile, notification, googleTasks, googleCalendar
+- `AiProvider`: auto, gemini, groq, huggingface
+
+```mermaid
+classDiagram
+  class Note {
+    +String noteId
+    +String uid
+    +String rawTranscript
+    +String title
+    +String cleanBody
+    +NoteCategory category
+    +NotePriority priority
+    +DateTime? extractedDate
+    +DateTime createdAt
+    +DateTime updatedAt
+    +NoteStatus status
+    +String aiModel
+    +String? gcalEventId
+    +String? gtaskId
+    +CaptureSource source
+    +DateTime? syncedAt
+  }
+
+  class NoteCategory
+  class NotePriority
+  class NoteStatus
+  class CaptureSource
+  class AiProvider
+
+  Note --> NoteCategory
+  Note --> NotePriority
+  Note --> NoteStatus
+  Note --> CaptureSource
+```
+
+### 9.3 Local Persistence
+
+Store: `IsarNoteStore`
 
 Traits:
-- Isar collection-backed note store with unique index on `noteId`
-- index-based upserts (`putByNoteId`, `putAllByNoteId`) for idempotent writes
-- reactive query streams (`watchActive`, `watchAll`) feeding UI directly
-- helper queries for pending AI queue and digest/background tasks
+- collection-backed local note store
+- unique index on `noteId`
+- idempotent upserts by noteId
+- reactive streams for active/all notes
+- pending-AI queue queries for background work
 
-## 6.3 Cloud Mirror (Best Effort)
+### 9.4 Cloud Mirror
 
 Firestore path:
-users/{uid}/notes/{noteId}
+`users/{uid}/notes/{noteId}`
 
-Cloud writes are merge-based and intentionally non-blocking for local UX.
-Firestore is no longer the UI read source; remote changes are mirrored into Isar by `FirestoreNoteSyncService`.
-Local save success is never rolled back by cloud failure.
+Policy:
+- local save first
+- Firestore write is best-effort and merge-based
+- cloud failure does not roll back local success
+- remote changes are mirrored back into Isar by `FirestoreNoteSyncService`
 
-## 7. Capture and Processing Flows
+## 10. Capture and Overlay Runtime
 
-## 7.1 Home Capture Flow
+### 10.1 Native / Flutter Overlay Bridge
 
-Home UI is implemented in lib/features/home/presentation/screens/home_screen.dart.
+The current overlay path is centered on `OverlayNotifier` plus the native foreground service.
 
-- User types in Thought Canvas or long-presses mic for dictation.
-- Save action uses NoteSaveService.saveNote(..., source: homeWritingBox).
-- Transcript is classified first by AiClassifierRouter.
-- Enriched note is written to Isar and mirrored to Firestore.
-- If AI falls back, the note stays pendingAi and the fallback enrichment pipeline can retry it.
-- Top notch success UI shown immediately via showTopNotchSavedMessage.
+MethodChannel calls used by the bridge:
+- Native -> Flutter: `notifyRecordingStarted`, `notifyRecordingTranscript`, `notifyRecordingStopped`, `notifyRecordingFailed`, `captureNote`, `promptMicrophonePermission`
+- Flutter -> Native: `show`, `hide`, `checkPermission`, `requestPermission`, `updateIslandState`, `notifySaved`, `flushPendingNotes`
 
-## 7.2 Overlay Capture Flow
-
-Overlay orchestration is handled by Native Android:
-- Native Service: `OverlayForegroundService.kt` (renders the Floating UI view via WindowManager).
-- Intent Gateway: `MainActivity.kt` bridges Android Intents to Flutter MethodChannels.
-- State Manager: `OverlayNotifier` (Dart) syncs toggles via SharedPreferences and controls native service visibility.
-
-Flow:
-- Native Background Recording (Hold): Triggers `ACTION_RECORD`/`ACTION_STOP_RECORD` via intents to start Flutter `CaptureUiController`.
-- Quick Text Input (Double Tap): Triggers `ACTION_QUICK_NOTE`, opens `SystemBannerOverlay` / `QuickNoteEditor` bottom sheet over a transparent `MainActivity`.
+`OverlayNotifier` also routes the overlay editor action to `/system_banner`.
 
 ```mermaid
-sequenceDiagram
-    participant User
-    participant OFS as OverlayForegroundService (Native)
-    participant MA as MainActivity (Native)
-    participant F as Flutter (Dart)
-    
-    User->>OFS: Long Press Bubble
-    OFS->>MA: Start Intent ACTION_RECORD
-    MA->>F: MethodChannel("startRecording")
-    F->>F: CaptureUiController updates state
-    User->>OFS: Release Bubble
-    OFS->>MA: Start Intent ACTION_STOP_RECORD
-    MA->>F: MethodChannel("stopRecording")
-    F->>F: NoteSaveService.saveNote()
-    
-    User->>OFS: Double Tap Bubble
-    OFS->>MA: Start Intent ACTION_QUICK_NOTE
-    MA->>F: MethodChannel("openEditor")
-    F->>F: router.push('/system_banner')
+flowchart TD
+  A[User taps or holds overlay bubble] --> B[OverlayForegroundService]
+  B --> C{Action}
+  C -->|Long press| D[Start recording / transcript updates]
+  C -->|Double tap| E[openEditor -> /system_banner]
+  D --> F[MethodChannel wishperlog/overlay]
+  F --> G[OverlayNotifier]
+  G --> H[CaptureUiController]
+  H --> I[CaptureService.ingestRawCapture]
+  I --> J[Isar save]
+  J --> K[notifySaved to native overlay]
+  K --> L[Saved pill + haptic]
+  D --> M{Flutter engine alive?}
+  M -->|Yes| F
+  M -->|No| N[NoteInputReceiver]
+  N --> O[SharedPreferences queue]
+  O --> P[main.dart drainPendingNativeNotes]
+  P --> F
 ```
-
-## 7.3 Telegram Connect Flow (Deep-Link Token)
-
-WhisperLog now uses a bot deep-link verification flow with no manual chat ID entry during onboarding.
-
-### 7.3.1 Connect Handshake Sequence
-
-```mermaid
-sequenceDiagram
-  participant U as User
-  participant A as App (TelegramScreen)
-  participant F as Firestore users/{uid}
-  participant T as Telegram App
-  participant B as Bot Backend
-
-  U->>A: Tap "Connect in Telegram"
-  A->>A: Generate token (6 chars)
-  A->>F: set pending_telegram {token, expires_at}
-  A->>T: Open t.me/<bot>?start=<token>
-  U->>T: Tap START
-  T->>B: /start <token>
-  B->>F: Resolve token -> uid
-  B->>F: set telegram_chat_id, delete pending_telegram
-  F-->>A: Snapshot update with telegram_chat_id
-  A->>A: Persist local cache + show success
-
-  alt token not used within 10 minutes
-    A->>F: clear pending_telegram
-    A->>U: Show expired state + Retry
-  end
-```
-
-### 7.3.2 Onboarding State Machine
-
-```mermaid
-stateDiagram-v2
-  [*] --> Intro
-  Intro --> Preparing: Tap Connect
-  Preparing --> Waiting: pending_telegram written and deep link launched
-  Preparing --> Error: write or launch failed
-  Waiting --> Success: telegram_chat_id observed from snapshot
-  Waiting --> Expired: 10m timeout
-  Expired --> Preparing: Retry
-  Error --> Preparing: Retry
-  Success --> [*]
-```
-
-Firestore shape:
-- `users/{uid}.telegram_chat_id`: string
-- `users/{uid}.pending_telegram.token`: string
-- `users/{uid}.pending_telegram.expires_at`: timestamp
-
-Client write methods in `UserRepository`:
-- `writePendingTelegramToken(token, expiresAt)`
-- `clearPendingTelegramToken()`
-- `updateTelegramChatId(chatId)` (manual override path in settings)
-
-Runtime notes:
-- Onboarding flow uses Firestore snapshot resolution, not Telegram `getUpdates` polling.
-- Settings manual chat ID input remains as a fallback override for recovery scenarios.
-
-### 7.2.1 Native Overlay Runtime State
 
 ```mermaid
 stateDiagram-v2
   [*] --> Idle
-  Idle --> Armed: Bubble shown
-  Armed --> Recording: Long press >= 350ms
-  Armed --> TextEntry: Double tap
-  Recording --> Processing: Voice stop / final transcript
-  Recording --> Idle: Error or empty transcript
-  TextEntry --> Processing: Submit text
-  Processing --> Saved: CaptureService saves note
-  Processing --> Idle: Timeout / failure
-  Saved --> Idle: Auto-dismiss
+  Idle --> Listening: user holds bubble
+  Listening --> Classifying: speech result received
+  Listening --> Error: timeout / permission denied
+  Classifying --> Saved: save succeeds
+  Classifying --> Error: save or classify fails
+  Saved --> Idle: auto-dismiss
+  Error --> Idle: auto-dismiss
 ```
 
-### 7.2.2 Pending Note Recovery (Engine Unavailable)
+### 10.2 Capture Flow
+
+Flow summary:
+1. User enters text in the home canvas or starts dictation from the overlay bubble.
+2. `CaptureService` validates the raw transcript and creates a `Note` with `status: pendingAi`.
+3. The note is saved into Isar immediately.
+4. `NoteEventBus` emits the save event.
+5. `AiProcessingService` picks up the note asynchronously.
+6. Firestore is updated as a mirror write.
+7. UI feedback is shown through the top notch confirmation and overlay saved pill.
+
+### 10.3 Fallback Chain
+
+The native overlay is designed to survive engine death and app resume gaps.
+
+1. Direct MethodChannel save when Flutter is alive.
+2. LocalBroadcast fallback through `NoteInputReceiver`.
+3. SharedPreferences queue for notes captured while the engine is dead.
+4. `main.dart` drains pending native notes after launch.
+
+This is the main reliability improvement over the older overlay docs.
 
 ```mermaid
 sequenceDiagram
-  participant OFS as OverlayForegroundService
-  participant NIR as NoteInputReceiver
-  participant SP as SharedPreferences
-  participant MA as MainActivity
-  participant CH as FlutterEngineHolder.channel
+  participant User
+  participant Native as OverlayForegroundService
+  participant Receiver as NoteInputReceiver
+  participant Flutter as OverlayNotifier
+  participant Prefs as SharedPreferences
+  participant Main as main.dart
 
-  OFS->>NIR: ACTION_NOTE_CAPTURED(text, source)
-  NIR->>CH: captureNote(payload)
-  alt Channel unavailable
-    NIR->>SP: persist pending_<ts>_text/source
-  else Channel available
-    CH-->>NIR: invoke success/error
+  User->>Native: long press / release
+  Native->>Flutter: captureNote via MethodChannel
+  alt Flutter engine alive
+    Flutter->>Flutter: save note
+  else engine dead
+    Native->>Receiver: LocalBroadcast
+    alt engine returns in time
+      Receiver->>Flutter: captureNote
+    else still dead
+      Receiver->>Prefs: queue note
+      Main->>Prefs: drain on startup
+      Main->>Flutter: replay note
+    end
   end
-
-  MA->>MA: onResume()
-  MA->>SP: read pending note keys
-  MA->>CH: captureNote(text, source)
-  MA->>SP: remove drained keys
 ```
 
-## 7.4 Event-Driven AI Enrichment
+## 11. AI Enrichment and Sync
 
-Service: lib/features/ai/data/ai_processing_service.dart
+### 11.1 Event-Driven AI Enrichment
+
+Service: [lib/features/ai/data/ai_processing_service.dart](lib/features/ai/data/ai_processing_service.dart)
 
 Mechanics:
-- On start(): sweeps pending notes once and subscribes to NoteEventBus.onNoteSaved.
-- For each pending note:
-  1. classify with GeminiNoteClassifier
-  2. update note fields (title/category/priority/body/date/model/status)
-  3. run ExternalSyncService for calendar/task linkage
-  4. persist back to Isar
-  5. mirror to Firestore
+- On start, it sweeps pending notes once.
+- It subscribes to `NoteEventBus.onNoteSaved`.
+- Each note is classified by `AiClassifierRouter` / `GeminiNoteClassifier`.
+- Enriched note fields are written back to Isar.
+- `ExternalSyncService` runs for calendar/task linkage when appropriate.
+- The enriched note is mirrored to Firestore.
 
 Resilience:
-- in-flight note guard prevents duplicate concurrent processing per note.
-- failures keep note as pendingAi for future retry sweeps/events.
-
-## 8. Sync and Background Jobs
-
-## 8.1 External Integration Sync
-
-Service: lib/features/sync/data/external_sync_service.dart
-
-- Uses GoogleSignIn silently when possible.
-- For reminders with extractedDate and no gcalEventId: creates Calendar event (fuzzy duplicate guard).
-- For tasks with no gtaskId: creates Google Task.
-- Writes resulting IDs to note and mirrors to Firestore.
-
-Also includes syncGoogleTaskCompletions() to archive local notes whose linked Google tasks are completed.
-
-## 8.2 Connectivity-Based Retry Trigger
-
-Service: lib/core/background/connectivity_sync_coordinator.dart
-
-- Watches connectivity_plus stream.
-- On offline -> online transition, schedules WorkManager flush task for pending AI queue.
-
-## 8.3 WorkManager Jobs
-
-Defined in lib/core/background/work_manager_service.dart.
-
-Registered tasks:
-- periodic_google_tasks_sync (every 4h)
-- flush_pending_ai (one-off, scheduled on reconnect)
-- telegram_daily_digest (periodic; daily window logic enforced in task code)
-
-Worker callbacks:
-- initialize Firebase and Isar
-- execute per-task workflow
-
-## 8.4 FCM Sync Path
-
-Service: lib/features/sync/data/fcm_sync_service.dart
-
-- initializes token + uploads to user document
-- listens foreground/opened messages
-- background handler processes note events
-
-Supported message types:
-- note_status_changed -> applyStatusFromPush
-- note_updated -> syncNoteById
-
-## 9. Settings and Preferences
-
-- Theme mode persisted via AppPreferencesRepository.
-- Digest time persisted via AppPreferencesRepository and mirrored to user doc.
-- Overlay visibility/position/opacity/size/snap persisted in OverlayV1Preferences.
-- Notification permission and token management handled from SettingsScreen.
-
-## 10. UI Architecture
-
-## 10.1 Current UI Composition
-
-- Home screen is currently monolithic (single screen file) with embedded Thought Canvas + folder grid + search launcher.
-- Folder screen supports archive/priority swipe actions and editing modal.
-- Shared visual primitives: GlassContainer, GlassPageBackground, top notch confirmation.
-- Theme toggling via ThemeCubit and AppTheme.
-
-## 10.2 Overlay UI Components
-
-- `MainActivity` uses `FlutterActivityLaunchConfigs.BackgroundMode.transparent` to allow Flutter modal routes to appear naturally over other apps.
-- Native bubble coordinates inputs via `WindowManager`.
-- `SystemBannerOverlay` displays a Truecaller-style drop-down banner for keyboard text capture or background recording progress.
-- `QuickNoteEditor` provides a bottom sheet layout.
-
-## 11. Security and Reliability Notes
-
-- Local save path is robust with retries for SQLite writes in save services.
-- Firestore writes are guarded for null auth and failures are logged (best effort).
-- Startup intentionally tolerates non-critical dependency failures to keep app responsive.
-- Overlay permissions include plugin request and permission_handler fallback.
-
-## 12. Audit Findings (As-Built)
-
-1. Overlay logic has been unified into a Native WindowManager Service communicating with Flutter via Intents and MethodChannels, rendering `FlutterOverlayService` obsolete.
-2. Flutter background mode is configured as `transparent` to support overlaid app UI on double-tap or events.
-3. Both client-side AI enrichment and server-side Cloud Function enrichment exist; carefully gated.
-4. Firebase and SQLite integrations have been stabilized to retry aggressively and await auth hydrate (preventing ghosting).
-
-## 13. Data Persistence Flow
+- in-flight note guards prevent duplicate processing
+- failures keep the note in `pendingAi` for retry
+- connectivity restoration triggers retry work through WorkManager
 
 ```mermaid
-graph TD
-  UI[Home Writing Box / Overlay Capture] --> Save[CaptureService/NoteSaveService]
-  Save --> AI[AiClassifierRouter]
-  AI --> Isar[(Isar upsert)]
-  AI --> Firestore[(Firestore merge write)]
-  AI --> External[ExternalSyncService]
-  External --> Isar
-  Isar --> Event[NoteEventBus]
-  Event --> Processing[AiProcessingService pending queue]
-  Processing --> Isar
-  Firestore --> Mirror[FirestoreNoteSyncService]
-  Mirror --> Isar
+flowchart TD
+  A[Note saved in Isar] --> B[NoteEventBus emits noteId]
+  B --> C[AiProcessingService]
+  C --> D{Status pendingAi?}
+  D -->|No| Z[Skip]
+  D -->|Yes| E[AiClassifierRouter / GeminiNoteClassifier]
+  E --> F[Enriched note fields]
+  F --> G[Save back to Isar]
+  G --> H[Mirror to Firestore]
+  F --> I[ExternalSyncService]
+  I --> J[Google Calendar / Tasks writes]
+  J --> G
+  G --> K[Emit note updated]
 ```
 
-## 13. Recommended Next Hardening Steps
+### 11.2 Cloud Mirror and Push/Pull Sync
 
-1. Add Firestore query indexes for status/category combinations if the console prompts for them.
-2. Add integration tests for Firebase-backed folder/search reads against the repository stream.
-3. Split HomeScreen into tested presentation components to reduce regression risk.
-4. Add architecture drift checks in CI (route table + DI registration + service contracts).
+Flow:
+- Isar write happens first.
+- `CaptureService` and `AiProcessingService` push merge writes to Firestore.
+- `FirestoreNoteSyncService` listens for remote updates and upserts them into Isar.
+- `FcmSyncService` receives push messages and triggers targeted refreshes.
 
-## 14. Delivery Plan
+Supported FCM message types:
+- `note_status_changed` -> apply status from push
+- `note_updated` -> sync note by id
 
-- See OVERLAY_INTEGRATION_PLAN.md for phase-by-phase implementation and verification status.
+```mermaid
+sequenceDiagram
+  participant Local as IsarNoteStore
+  participant Cap as CaptureService
+  participant AI as AiProcessingService
+  participant FS as Firestore
+  participant Sync as FirestoreNoteSyncService
+  participant FCM as FcmSyncService
 
+  Cap->>Local: put pending note
+  Cap->>FS: merge write
+  AI->>Local: put enriched note
+  AI->>FS: merge write
+  FS-->>Sync: snapshots
+  Sync->>Local: putAll mirrored notes
+  FCM-->>Sync: note_updated / note_status_changed
+  Sync->>Local: targeted refresh
+```
+
+### 11.3 Background Jobs
+
+WorkManager task names:
+- `wishperlog.periodic_google_tasks_sync`
+- `wishperlog.flush_pending_ai`
+- `wishperlog.telegram_daily_digest`
+
+Background jobs currently do the following:
+- periodic Google Tasks sync checks for completed tasks and archives linked notes
+- pending AI flush retries notes after reconnect
+- Telegram digest sends a local daily summary without requiring a server bot runtime
+
+```mermaid
+flowchart LR
+  WM[WorkManager] --> P[periodic_google_tasks_sync]
+  WM --> F[flush_pending_ai]
+  WM --> T[telegram_daily_digest]
+  P --> Ext[ExternalSyncService.syncNow]
+  F --> AI[AiProcessingService.flushPendingQueue]
+  T --> Tel[Telegram digest send]
+  Ext --> Store[(IsarNoteStore)]
+  AI --> Store
+  Tel --> Store
+```
+
+## 12. External Integrations
+
+### 12.1 Google Calendar and Google Tasks
+
+Service: [lib/features/sync/data/external_sync_service.dart](lib/features/sync/data/external_sync_service.dart)
+
+Rules:
+- reminder notes with an extracted date can create Calendar events
+- task notes can create Google Tasks items
+- resulting external IDs are written back to the note and mirrored to Firestore
+
+### 12.2 Telegram
+
+Service: [lib/features/sync/data/telegram_service.dart](lib/features/sync/data/telegram_service.dart)
+
+Current behavior:
+- `resolveBotUsername()` uses configured username first, then falls back to Telegram `getMe`.
+- `resolveChatIdByStartToken()` polls `getUpdates` and matches exact `/start <token>` for no-backend setups.
+- Bot commands are registered locally for help and digest interactions.
+- The digest flow runs as a device-side WorkManager job.
+
+Telegram command surface:
+- start
+- help
+- status
+- digest
+- top
+- today
+- slots
+- stats
+- find
+- agenda
+- menu
+- focus
+- nudge
+- ping
+
+```mermaid
+flowchart TD
+  A[Connect in Telegram] --> B[resolveBotUsername]
+  B --> C[Write pending_telegram token in Firestore]
+  C --> D[Open t.me deep link]
+  D --> E{Backend available?}
+  E -->|Yes| F[Backend resolves /start token]
+  F --> G[Write telegram_chat_id]
+  G --> H[Snapshot success]
+  E -->|No| I[Poll getUpdates]
+  I --> J[Match /start token]
+  J --> G
+  H --> K[Store local cache]
+  G --> K
+```
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant A as App
+  participant T as Telegram API
+  participant FS as Firestore
+  participant S as TelegramService
+  participant B as Bot Backend (optional)
+
+  U->>A: Connect in Telegram
+  A->>S: resolveBotUsername()
+  A->>FS: write pending_telegram token + expiry
+  A->>T: open deep link /start <token>
+  alt backend enabled
+    T->>B: /start <token>
+    B->>FS: write telegram_chat_id
+    FS-->>A: snapshot resolves success
+  else no backend
+    A->>T: poll getUpdates
+    T-->>A: /start <token> update
+    A->>FS: write telegram_chat_id
+  end
+```
+
+## 13. Settings and Preferences
+
+- Theme mode is persisted through `ThemeCubit` and `AppPreferencesRepository`.
+- Overlay enabled state and position are persisted by `OverlayNotifier` in SharedPreferences.
+- Digest time and Telegram chat ID are tracked in Firestore through `UserRepository`.
+- Notification permission and token handling are initialized during startup.
+
+```mermaid
+flowchart TD
+  Settings[SettingsScreen] --> Theme[ThemeCubit]
+  Settings --> Overlay[OverlayNotifier]
+  Settings --> Telegram[TelegramService]
+  Settings --> Sync[ExternalSyncService]
+  Theme --> Prefs[AppPreferencesRepository]
+  Overlay --> SP[SharedPreferences]
+  Telegram --> FS[Firestore user doc]
+  Sync --> FS
+```
+
+## 14. UI Architecture
+
+### 14.1 Current UI Composition
+
+- Home screen combines the thought canvas, folder grid, and overlay-style confirmation surfaces.
+- Folder screen supports category browsing and edit actions.
+- Search screen uses ranked semantic-pragmatic matching across title, body, transcript, and category.
+- System banner overlay is used for quick note editing from the overlay bridge.
+
+### 14.2 Visual Primitives
+
+- Glass surfaces and mesh-gradient backgrounds are part of the current design system.
+- The save notch is a top-center confirmation surface that stays visible for a short confirmation window.
+- Overlay saved states are mirrored between Flutter UI and the native overlay pill.
+
+## 15. Current Invariants
+
+1. Local save must complete before any network-dependent operation.
+2. `NoteEventBus` save events must fire only after local persistence succeeds.
+3. Protected routes must remain inaccessible when unauthenticated.
+4. Background handlers must initialize Firebase before any Firestore operation.
+5. Overlay toggles should only report enabled when the native overlay is actually shown.
+
+## 16. Operational Notes and Risks
+
+1. Isar is the active local store; older SQLite documentation is stale.
+2. The native overlay and Flutter overlay code paths are intentionally decoupled and bridged by MethodChannel.
+3. Telegram no-backend fallback is effective, but a backend poller would compete for `getUpdates` if both are enabled at once.
+4. The local app currently favors reliability over perfect immediate remote consistency.
+5. Retry and error reporting are mostly log-based, so observability is still lightweight.
+
+## 17. Implementation Drift That Has Been Normalized
+
+- Overlay hydration now happens during app startup in `main.dart`.
+- Pending native notes are drained after launch instead of being lost on app resume.
+- Telegram linking no longer depends on a server-only flow.
+- WorkManager covers Google Tasks, pending AI retries, and Telegram digest jobs.
+- Firestore is treated as a mirror and sync source, not the primary local database.
+
+## 18. Implementation Map
+
+| Area | Primary Files | Responsibility |
+|---|---|---|
+| Startup | [lib/main.dart](lib/main.dart) | bootstrap, post-launch services, overlay drain |
+| Routing | [lib/app/router.dart](lib/app/router.dart) | auth guards, routes, transitions |
+| Capture | [lib/features/capture/data/capture_service.dart](lib/features/capture/data/capture_service.dart) | instant local save, Firestore mirror |
+| AI | [lib/features/ai/data/ai_processing_service.dart](lib/features/ai/data/ai_processing_service.dart) | classification, enrichment, retries |
+| Sync | [lib/features/sync/data/firestore_note_sync_service.dart](lib/features/sync/data/firestore_note_sync_service.dart) | Firestore snapshots to Isar |
+| Push | [lib/features/sync/data/fcm_sync_service.dart](lib/features/sync/data/fcm_sync_service.dart) | push handling and targeted refresh |
+| Background | [lib/core/background/work_manager_service.dart](lib/core/background/work_manager_service.dart) | periodic tasks, flush jobs |
+| Overlay | [lib/features/overlay/overlay_notifier.dart](lib/features/overlay/overlay_notifier.dart) | bridge, state sync, native coordination |
+| Telegram | [lib/features/sync/data/telegram_service.dart](lib/features/sync/data/telegram_service.dart) | bot commands, chat linking, digest |
+| Preferences | [lib/features/auth/data/repositories/user_repository.dart](lib/features/auth/data/repositories/user_repository.dart) | user profile and chat ID persistence |
+| Model | [lib/shared/models/note.dart](lib/shared/models/note.dart) | note schema |
+| Enums | [lib/shared/models/enums.dart](lib/shared/models/enums.dart) | canonical values |
+
+## 19. Tech Stack Reference
+
+**Frontend**: Flutter, Material Design 3, GoRouter, BLoC
+**State**: GetIt, Streams, ValueNotifier
+**Storage**: Isar, Firestore
+**AI**: Google Gemini, optional fallback providers
+**Platform**: overlay window, speech-to-text, permission handling
+**Background**: connectivity_plus, workmanager, notifications
+
+## 20. Summary
+
+WhisperLog now has a single runtime model:
+- capture locally first
+- enrich asynchronously
+- mirror to Firestore
+- sync back from cloud events when needed
+- keep overlay, Telegram, and background jobs resilient across app lifecycle boundaries
