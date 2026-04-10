@@ -208,6 +208,11 @@ class MyApp extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeMode>(
       bloc: sl<ThemeCubit>(),
       builder: (context, themeMode) {
+        final brightness = themeMode == ThemeMode.system
+            ? WidgetsBinding.instance.platformDispatcher.platformBrightness
+            : themeMode == ThemeMode.dark
+                ? Brightness.dark
+                : Brightness.light;
         return BlocProvider<CaptureUiController>.value(
           value: sl<CaptureUiController>(),
           child: MaterialApp.router(
@@ -221,7 +226,7 @@ class MyApp extends StatelessWidget {
             builder: (context, child) {
               // Enforce system UI overlays.
               SystemChrome.setSystemUIOverlayStyle(
-                themeMode == ThemeMode.dark
+                brightness == Brightness.dark
                     ? SystemUiOverlayStyle.light
                     : SystemUiOverlayStyle.dark,
               );

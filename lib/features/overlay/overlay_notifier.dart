@@ -62,7 +62,7 @@ class OverlayNotifier extends ChangeNotifier {
     if (_hydrated) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      _isEnabled = prefs.getBool(_kEnabled) ?? true;
+      _isEnabled = prefs.getBool(_kEnabled) ?? false;
       final x = prefs.getDouble(_kPosX) ?? 20.0;
       final y = prefs.getDouble(_kPosY) ?? 200.0;
       _position = Offset(x, y);
@@ -272,12 +272,12 @@ class OverlayNotifier extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kSettings, settings.toJsonString());
-      // Push relevant numeric settings to native overlay channel.
+      // Push the full preset to native Android.
       await _channel.invokeMethod<void>('updateOverlaySettings', {
-        'alpha':      settings.alpha,
-        'blurSigma':  settings.blurSigma,
+        'settingsJson': settings.toJsonString(),
+        'alpha': settings.alpha,
         'growOnHold': settings.animation == OverlayAnimation.sizeGrow,
-        'growScale':  settings.growScale,
+        'growScale': settings.growScale,
       });
     } catch (e) {
       debugPrint('[OverlayNotifier] saveOverlaySettings error: $e');

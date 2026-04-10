@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/search/data/smart_note_search.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
@@ -43,11 +44,8 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final secondaryColor = isDark
-        ? Colors.white.withValues(alpha: 0.72)
-        : const Color(0xFF475569);
+    final titleColor = context.textPri;
+    final secondaryColor = context.textSec;
 
     return Scaffold(
       backgroundColor: Colors.transparent,

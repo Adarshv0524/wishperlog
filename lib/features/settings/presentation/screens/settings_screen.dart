@@ -52,20 +52,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _overlayUpdating = false;
   bool _reconnectingGoogle = false;
   bool _savingDigest = false;
-  bool _savingTelegram = false;
-
-  double _overlayOpacity = 0.85;
-  bool   _overlayGrow = true;
   String _speechLanguage = 'en-US';
   bool   _speechPreferOffline = false;
   // Overlay customisation sheet is driven entirely by OverlayNotifier.
 
   String? _telegramChatId;
 
-  Timer? _overlayApplyDebounce;
   Timer? _speechApplyDebounce;
-
-  final TextEditingController _telegramController = TextEditingController();
 
   static const List<Map<String, String>> _speechLanguageOptions = [
     {'code': 'en-US', 'label': 'English (US)'},
@@ -91,15 +84,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _hydrateLocalPrefs();
     _hydrateNotificationPermission();
     _hydrateTelegramId();
-    _hydrateOverlaySettings();
     _hydrateSpeechSettings();
   }
 
   @override
   void dispose() {
-    _overlayApplyDebounce?.cancel();
     _speechApplyDebounce?.cancel();
-    _telegramController.dispose();
     super.dispose();
   }
 
@@ -139,7 +129,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         setState(() {
           _telegramChatId = chatId.isEmpty ? null : chatId;
-          _telegramController.text = chatId;
         });
       }
     } catch (e) {
@@ -165,34 +154,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _hydrateOverlaySettings() async {
-    try {
-      final values = await _overlayChannel.invokeMapMethod<String, dynamic>(
-        'getOverlaySettings',
-      );
-      if (!mounted || values == null) return;
-      final alpha = (values['alpha'] as num?)?.toDouble() ?? 0.85;
-      final grow = values['growOnHold'] as bool? ?? true;
-      setState(() {
-        _overlayOpacity = alpha.clamp(0.3, 1.0);
-        _overlayGrow = grow;
-      });
-    } catch (e) {
-      debugPrint('[Settings] _hydrateOverlaySettings error: $e');
-    }
-  }
-
-  Future<void> _applyOverlaySettings() async {
-    try {
-      await _overlayChannel.invokeMethod<void>('updateOverlaySettings', {
-        'alpha':      _overlayOpacity,
-        'growOnHold': _overlayGrow,
-      });
-    } catch (e) {
-      debugPrint('[Settings] _applyOverlaySettings error: $e');
-    }
-  }
-
   Future<void> _openOverlayCustomiser() async {
     final notifier = _overlayNotifier;
     await showOverlayCustomisationSheet(
@@ -200,13 +161,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       notifier.overlaySettings,
       (updated) => notifier.saveOverlaySettings(updated),
     );
-  }
-
-  void _scheduleOverlaySettingsApply() {
-    _overlayApplyDebounce?.cancel();
-    _overlayApplyDebounce = Timer(const Duration(milliseconds: 250), () {
-      unawaited(_applyOverlaySettings());
-    });
   }
 
   Future<void> _hydrateSpeechSettings() async {
@@ -355,20 +309,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _saveTelegramId() async {
-    final chatId = _telegramController.text.trim();
-    if (_savingTelegram) return;
-    setState(() => _savingTelegram = true);
+  Future<void> _disconnectTelegram() async {
+    if (_telegramChatId == null) return;
     try {
-      await _users.updateTelegramChatId(chatId);
-      setState(() => _telegramChatId = chatId.isEmpty ? null : chatId);
+      await _users.updateTelegramChatId('');
+      if (!mounted) return;
+      setState(() => _telegramChatId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Telegram connection cleared')),
+      );
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Telegram chat ID saved')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to clear Telegram connection: $e')),
+        );
       }
-    } finally {
-      if (mounted) setState(() => _savingTelegram = false);
     }
   }
 
@@ -518,6 +473,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCompact = MediaQuery.sizeOf(context).width < 720;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -604,11 +560,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 leading: const Icon(Icons.palette_outlined),
                 trailing: BlocBuilder<ThemeCubit, ThemeMode>(
                   bloc: sl<ThemeCubit>(),
-                  builder: (context, mode) => Switch(
-                    value: mode == ThemeMode.dark,
-                    onChanged: (_) => sl<ThemeCubit>().toggleLightDark(),
-                    activeThumbColor: AppColors.tasks,
-                  ),
+                  builder: (context, mode) {
+                    if (isCompact) {
+                      return SizedBox(
+                        width: 124,
+                        child: DropdownButton<ThemeMode>(
+                          value: mode,
+                          isExpanded: true,
+                          icon: Icon(
+                            Icons.expand_more_rounded,
+                            color: context.textSec,
+                          ),
+                          underline: const SizedBox.shrink(),
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          dropdownColor: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          items: const [
+                            DropdownMenuItem(
+                              value: ThemeMode.light,
+                              child: Text('Light'),
+                            ),
+                            DropdownMenuItem(
+                              value: ThemeMode.dark,
+                              child: Text('Dark'),
+                            ),
+                            DropdownMenuItem(
+                              value: ThemeMode.system,
+                              child: Text('System'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            sl<ThemeCubit>().setThemeMode(value);
+                          },
+                        ),
+                      );
+                    }
+
+                    return SegmentedButton<ThemeMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: ThemeMode.light,
+                          icon: Icon(Icons.light_mode_outlined),
+                          label: Text('Light'),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.dark,
+                          icon: Icon(Icons.dark_mode_outlined),
+                          label: Text('Dark'),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.system,
+                          icon: Icon(Icons.phone_android_outlined),
+                          label: Text('System'),
+                        ),
+                      ],
+                      selected: {mode},
+                      onSelectionChanged: (selection) {
+                        if (selection.isEmpty) return;
+                        sl<ThemeCubit>().setThemeMode(selection.first);
+                      },
+                      style: SegmentedButton.styleFrom(
+                        selectedBackgroundColor: AppColors.tasks,
+                        selectedForegroundColor: Colors.white,
+                        backgroundColor: context.surface1,
+                        foregroundColor: context.textSec,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                  },
                 ),
               ),
 
@@ -616,70 +641,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SectionHeader(label: 'Capture Overlay'),
               ListenableBuilder(
                 listenable: _overlayNotifier,
-                builder: (context, _) => _SettingsTile(
-                  title: 'Floating capture button',
-                  subtitle: _overlayNotifier.isEnabled
-                      ? 'Tap bubble to capture • Hold to record voice'
-                      : 'Show a draggable bubble for quick capture',
-                  leading: const Icon(Icons.bubble_chart_outlined),
-                  trailing: _overlayUpdating
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Switch(
-                          value: _overlayNotifier.isEnabled,
-                          onChanged: (_) => _toggleOverlay(),
-                          activeThumbColor: AppColors.tasks,
-                        ),
-                ),
-              ),
-
-              GlassContainer(
-                padding: EdgeInsets.zero,
-                margin: const EdgeInsets.symmetric(vertical: 3),
-                borderRadius: BorderRadius.circular(14),
-                child: Column(
-                  children: [
-                    const ListTile(
-                      title: Text('Bubble Opacity'),
-                      subtitle: Text(
-                        'Visibility of floating bubble outside app',
+                builder: (context, _) => GlassContainer(
+                  margin: const EdgeInsets.symmetric(vertical: 3),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [AppColors.tasks, Color(0xFF57C7FF)],
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.bubble_chart_outlined,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Floating capture button',
+                                  style: TextStyle(
+                                    color: context.textPri,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Use the customiser below to style the bubble and island together or separately.',
+                                  style: TextStyle(
+                                    color: context.textSec,
+                                    fontSize: 12,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Switch(
+                            value: _overlayNotifier.isEnabled,
+                            onChanged: (_) => _toggleOverlay(),
+                            activeThumbColor: AppColors.tasks,
+                          ),
+                        ],
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
-                      child: Slider(
-                        value: _overlayOpacity,
-                        min: 0.3,
-                        max: 1.0,
-                        divisions: 14,
-                        label: '${(_overlayOpacity * 100).round()}%',
-                        onChanged: (value) =>
-                            setState(() => _overlayOpacity = value),
-                        onChangeEnd: (_) => _scheduleOverlaySettingsApply(),
-                      ),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Grow on hold'),
-                      subtitle: const Text(
-                        'Bubble enlarges when recording starts',
-                      ),
-                      value: _overlayGrow,
-                      onChanged: (value) {
-                        setState(() => _overlayGrow = value);
-                        _scheduleOverlaySettingsApply();
-                      },
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
               _buildSettingsTile(
                 icon: Icons.tune_rounded,
                 title: 'Customise Overlay Appearance',
-                subtitle: 'Glass blur, gradients, glow borders, animations',
+                subtitle: 'Style bubble and island in one place',
                 onTap: _openOverlayCustomiser,
               ),
               const SizedBox(height: 8),
@@ -955,56 +986,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _connectTelegramAuto,
-                            icon: const Icon(Icons.link_rounded),
-                            label: const Text('Connect in Telegram'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: _openTelegramBot,
-                          child: const Text('Open bot'),
-                        ),
-                      ],
+                      children: isCompact
+                          ? [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _connectTelegramAuto,
+                                  icon: const Icon(Icons.link_rounded),
+                                  label: const Text('Connect in Telegram'),
+                                ),
+                              ),
+                            ]
+                          : [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _connectTelegramAuto,
+                                  icon: const Icon(Icons.link_rounded),
+                                  label: const Text('Connect in Telegram'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton(
+                                onPressed: _openTelegramBot,
+                                child: const Text('Open bot'),
+                              ),
+                            ],
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Recommended: use Connect in Telegram. Chat ID input is only a fallback override.',
+                      'Connect in Telegram is the supported path. The app now links your verified chat automatically.',
                       style: TextStyle(color: context.textSec, fontSize: 12),
                     ),
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: _telegramController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Optional override if auto-link fails',
-                        hintStyle: TextStyle(color: context.textSec),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                      style: TextStyle(color: context.textPri),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton(
-                        onPressed: _savingTelegram ? null : _saveTelegramId,
-                        child: Text(
-                          _savingTelegram ? 'Saving…' : 'Save override',
-                        ),
-                      ),
-                    ),
                     if (_telegramChatId != null) ...[
                       const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Connected: $_telegramChatId',
+                              style: TextStyle(
+                                color: AppColors.followUp,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _disconnectTelegram,
+                            child: const Text('Disconnect'),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 4),
                       Text(
-                        'Connected: $_telegramChatId',
+                        'Not connected yet.',
                         style: TextStyle(
-                          color: AppColors.followUp,
+                          color: context.textSec,
                           fontSize: 12,
                         ),
                       ),

@@ -236,7 +236,275 @@ function sortPriority(notes) {
 }
 
 function safeTitle(note) {
+function asciiOnly(value) {
+  return (value ?? '')
+    .toString()
+    .normalize('NFKD')
+    .replace(/[^\x00-\x7F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
   return (note.title || '').toString().trim() || 'Untitled note';
+  return asciiOnly((note.title || '').toString().trim() || 'Untitled note');
+}
+
+function normalizeCategoryKey(value) {
+  const normalized = asciiOnly(value).toLowerCase();
+  switch (normalized) {
+    case 'task':
+    case 'tasks':
+    case 'todo':
+    case 'to-do':
+      return 'tasks';
+    case 'reminder':
+    case 'reminders':
+      return 'reminders';
+    case 'idea':
+    case 'ideas':
+      return 'ideas';
+    case 'followup':
+    case 'follow-up':
+    case 'follow_up':
+      return 'follow-up';
+    case 'journal':
+      return 'journal';
+    case 'general':
+      return 'general';
+    default:
+      return normalized;
+  }
+}
+
+function categoryLabel(category) {
+  switch (normalizeCategoryKey(category)) {
+    case 'tasks':
+      return 'Tasks';
+    case 'reminders':
+      return 'Reminders';
+    case 'ideas':
+      return 'Ideas';
+    case 'follow-up':
+      return 'Follow-up';
+    case 'journal':
+      return 'Journal';
+    default:
+      return 'General';
+  }
+}
+
+function priorityLabel(priority) {
+  switch ((priority || '').toString().toLowerCase()) {
+    case 'high':
+      return 'HIGH';
+    case 'low':
+      return 'LOW';
+    default:
+      return 'MED';
+  }
+}
+
+function isActiveNote(note) {
+  return (note.status || 'active') === 'active' && note.is_deleted !== true;
+}
+
+function getNoteCategory(note) {
+  return normalizeCategoryKey(note.category || 'general');
+}
+
+function filterNotesByCategory(notes, category) {
+  const key = normalizeCategoryKey(category);
+  if (key === 'general' || key === 'summary' || key === 'all') {
+    return notes;
+  }
+  return notes.filter((note) => getNoteCategory(note) === key);
+}
+
+function formatNoteLine(note, index) {
+  return `${index + 1}. [${categoryLabel(note.category)}][${priorityLabel(note.priority)}] ${safeTitle(note)}`;
+}
+
+function buildNoteSummaryText(notes, heading, name, now, categoryFilter) {
+  const filtered = categoryFilter ? filterNotesByCategory(notes, categoryFilter) : notes;
+  const topNotes = sortPriority(filtered).slice(0, 3);
+  const counts = filtered.reduce((acc, note) => {
+    const key = getNoteCategory(note);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  const lines = [
+    `${heading} for ${asciiOnly(name || 'there')}`,
+    `Generated ${now.toISOString().replace('T', ' ').slice(0, 16)} UTC`,
+    '',
+    `Active notes: ${filtered.length}`,
+    `Tasks: ${counts.tasks || 0}`,
+    `Reminders: ${counts.reminders || 0}`,
+    `Ideas: ${counts.ideas || 0}`,
+    `Follow-up: ${counts['follow-up'] || 0}`,
+    `Journal: ${counts.journal || 0}`,
+    '',
+    topNotes.length > 0 ? 'Top 3:' : 'No active notes found.',
+  ];
+
+  topNotes.forEach((note, index) => {
+    lines.push(formatNoteLine(note, index));
+  });
+
+  lines.push('', 'Use /summary, /task, /reminder, /idea, /followup, /journal, or /all.');
+  return asciiOnly(lines.join('\n'));
+}
+
+function buildHelpText() {
+  return [
+    'WishperLog commands',
+    '',
+    '/summary - show the top 3 active notes',
+    '/task - top 3 tasks',
+    '/reminder - top 3 reminders',
+    '/idea - top 3 ideas',
+    '/followup - top 3 follow-up notes',
+    '/journal - top 3 journal notes',
+    '/all - top 3 active notes across all categories',
+  ].join('\n');
+}
+
+function parseTelegramCommand(text) {
+  const firstToken = asciiOnly(text).split(/\s+/)[0] || '';
+  const command = firstToken.replace(/^\//, '').split('@')[0].toLowerCase();
+  return command;
+}
+
+async function getUserByChatId(chatId) {
+  const snap = await db
+    .collection('users')
+    .where('telegram_chat_id', '==', String(chatId))
+    .limit(1)
+    .get();
+
+  if (snap.empty) {
+    return null;
+  }
+
+  const doc = snap.docs[0];
+  const data = doc.data() || {};
+  return {
+    uid: doc.id,
+    displayName: asciiOnly(data.display_name || data.displayName || 'there'),
+  };
+}
+
+async function getUserNotes(uid) {
+  const snap = await db
+    .collection('users')
+    .doc(uid)
+    .collection('notes')
+    .get();
+
+  return snap.docs
+    .map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    .filter(isActiveNote);
+}
+
+async function handleTelegramCommand(chatId, text, now) {
+  const command = parseTelegramCommand(text);
+
+  if (!command) {
+    return;
+  }
+
+  if (command === 'help') {
+    await sendTelegramMessage(chatId, buildHelpText());
+    return;
+  }
+
+  if (command === 'start') {
+    await sendTelegramMessage(chatId, buildHelpText());
+    return;
+  }
+
+  const linkedUser = await getUserByChatId(chatId);
+  if (!linkedUser) {
+    await sendTelegramMessage(
+      chatId,
+      'Link your WishperLog account first with /start uid_<your_uid>, then use /summary or /task.',
+    );
+    return;
+  }
+
+  const notes = await getUserNotes(linkedUser.uid);
+  const heading = command === 'summary' || command === 'all' ? 'Summary' : `${categoryLabel(command)} summary`;
+
+  switch (command) {
+    case 'summary':
+    case 'all':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, null),
+        sortPriority(notes).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(notes).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'task':
+    case 'tasks':
+    case 'todo':
+    case 'to-do':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'tasks'),
+        sortPriority(filterNotesByCategory(notes, 'tasks')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'tasks')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'reminder':
+    case 'reminders':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'reminders'),
+        sortPriority(filterNotesByCategory(notes, 'reminders')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'reminders')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'idea':
+    case 'ideas':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'ideas'),
+        sortPriority(filterNotesByCategory(notes, 'ideas')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'ideas')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'followup':
+    case 'follow-up':
+    case 'follow_up':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'follow-up'),
+        sortPriority(filterNotesByCategory(notes, 'follow-up')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'follow-up')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'journal':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'journal'),
+        sortPriority(filterNotesByCategory(notes, 'journal')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'journal')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    default:
+      await sendTelegramMessage(chatId, buildHelpText());
+      return;
+  }
 }
 
 function telegramInlineRows(uid, notes) {
@@ -261,8 +529,7 @@ async function sendTelegramMessage(chatId, text, replyMarkup) {
   const endpoint = `https://api.telegram.org/bot${token}/sendMessage`;
   const payload = {
     chat_id: chatId,
-    text,
-    parse_mode: 'Markdown',
+    text: asciiOnly(text),
     disable_web_page_preview: true,
     reply_markup: replyMarkup,
   };
@@ -386,10 +653,9 @@ exports.sendDailyDigest = onSchedule(
         .collection('users')
         .doc(userDoc.id)
         .collection('notes')
-        .where('status', '==', 'active')
         .get();
 
-      const notes = sortPriority(notesSnap.docs.map((doc) => doc.data()));
+      const notes = sortPriority(notesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter(isActiveNote));
       if (notes.length === 0) {
         await userDoc.ref.set(
           { last_digest_sent_local_date: local.ymd },
@@ -398,20 +664,10 @@ exports.sendDailyDigest = onSchedule(
         continue;
       }
 
-      const topNotes = notes.slice(0, 8);
-      const lines = topNotes.map((note, index) => {
-        const icon = note.priority === 'high' ? '🔴' : note.priority === 'medium' ? '🟡' : '⚪';
-        return `${index + 1}. ${icon} ${safeTitle(note)}`;
-      });
-
-      const text = [
-        '*WhisperLog Daily Digest*',
-        '',
-        ...lines,
-      ].join('\n');
-
-      const inlineKeyboard = telegramInlineRows(userDoc.id, topNotes);
-      await sendTelegramMessage(chatId, text, { inline_keyboard: inlineKeyboard });
+      const topNotes = notes.slice(0, 3);
+      const text = buildNoteSummaryText(notes, 'Daily summary', user.display_name || 'there', nowUtc, null);
+      const inlineKeyboard = topNotes.length > 0 ? { inline_keyboard: telegramInlineRows(userDoc.id, topNotes) } : undefined;
+      await sendTelegramMessage(chatId, text, inlineKeyboard);
 
       await userDoc.ref.set(
         { last_digest_sent_local_date: local.ymd },
@@ -483,7 +739,20 @@ exports.telegramWebhook = onRequest({ region: 'us-central1' }, async (req, res) 
           },
           { merge: true },
         );
+
+        await sendTelegramMessage(
+          chatId,
+          'WishperLog linked. Use /summary, /task, /reminder, /idea, /followup, /journal, or /all.',
+        );
+        res.status(200).json({ ok: true, linked: true });
+        return;
       }
+    }
+
+    if (chatId && text && text.startsWith('/')) {
+      await handleTelegramCommand(chatId, text, new Date());
+      res.status(200).json({ ok: true, command: true });
+      return;
     }
 
     res.status(200).json({ ok: true });

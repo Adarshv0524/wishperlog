@@ -7,10 +7,11 @@ import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
-import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/features/capture/data/note_save_service.dart';
+import 'package:wishperlog/core/theme/app_durations.dart';
+import 'package:wishperlog/features/capture/data/capture_service.dart';
+import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/home/presentation/widgets/folder_grid.dart';
 import 'package:wishperlog/features/home/presentation/widgets/thought_canvas.dart';
 import 'package:wishperlog/features/notes/data/note_repository.dart';
@@ -18,7 +19,6 @@ import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
-import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const MethodChannel _overlayChannel = MethodChannel('wishperlog/overlay');
 
   final NoteRepository _notes = sl<NoteRepository>();
-  late final NoteSaveService _saveService;
+  late final CaptureService _captureService;
   final SpeechToText _speech = SpeechToText();
   final TextEditingController _writingController = TextEditingController();
   final FocusNode _canvasFocusNode = FocusNode();
@@ -40,14 +40,17 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _speechReady = false;
   bool _isDictating = false;
   String _dictationPrefix = '';
+  NoteCategory _quickCategory = NoteCategory.general;
+  NotePriority _quickPriority = NotePriority.medium;
+  DateTime? _quickReminderAt;
   late final Future<Uint8List?> _launcherIconBytesFuture;
 
   @override
   void initState() {
     super.initState();
-    _saveService = sl.isRegistered<NoteSaveService>()
-        ? sl<NoteSaveService>()
-        : NoteSaveService();
+    _captureService = sl.isRegistered<CaptureService>()
+        ? sl<CaptureService>()
+        : CaptureService();
     _launcherIconBytesFuture = _loadLauncherIconBytes();
     _writingController.addListener(() {
       if (mounted) {
@@ -140,8 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final nextText = spoken.isEmpty
         ? _dictationPrefix
         : _dictationPrefix.isEmpty
-        ? spoken
-        : '$_dictationPrefix $spoken';
+            ? spoken
+            : '$_dictationPrefix $spoken';
 
     _writingController.value = TextEditingValue(
       text: nextText,
@@ -164,19 +167,44 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final savedNote = await _saveService.saveNote(
+      final savedNote = await _captureService.ingestRawCapture(
         rawTranscript: textToSave,
         source: CaptureSource.homeWritingBox,
         syncToCloud: true,
+      );
+      if (savedNote == null) {
+        return;
+      }
+
+      final appliedReminder = _quickReminderAt;
+      final shouldApplyMetadata =
+          savedNote.category != _quickCategory ||
+          savedNote.priority != _quickPriority ||
+          savedNote.extractedDate != appliedReminder;
+      if (shouldApplyMetadata) {
+        await _notes.updateEditedNote(
+          noteId: savedNote.noteId,
+          title: savedNote.title,
+          cleanBody: savedNote.cleanBody,
+          category: _quickCategory,
+          priority: _quickPriority,
+          extractedDate: appliedReminder,
+        );
+      }
+
+      final finalNote = savedNote.copyWith(
+        category: _quickCategory,
+        priority: _quickPriority,
+        extractedDate: appliedReminder,
       );
       _writingController.clear();
 
       if (mounted) {
         sl<CaptureUiController>().notifyExternalRecordingSaved(
-          title: savedNote.title,
-          category: savedNote.category,
-          model: savedNote.aiModel,
-          noteId: savedNote.noteId,
+          title: finalNote.title,
+          category: finalNote.category,
+          model: finalNote.aiModel,
+          noteId: finalNote.noteId,
         );
       }
     } finally {
@@ -186,6 +214,170 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     }
+  }
+
+  Future<void> _openCaptureMetadataSheet() async {
+    var category = _quickCategory;
+    var priority = _quickPriority;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          child: GlassPane(
+                    level: 1,
+                    radius: 26,
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            child: StatefulBuilder(
+              builder: (context, setSheetState) => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Capture class',
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        child: const Text('Done'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Set the default category and priority for the next save.',
+                    style: TextStyle(color: context.textSec, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Category',
+                    style: TextStyle(
+                      color: context.textPri,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: kAllNoteCategories.map((entry) {
+                      final isSelected = entry == category;
+                      return FilterChip(
+                        selected: isSelected,
+                        label: Text(categoryLabel(entry)),
+                        onSelected: (_) => setSheetState(() => category = entry),
+                        selectedColor: categoryColor(entry).withValues(alpha: 0.16),
+                        checkmarkColor: categoryColor(entry),
+                        labelStyle: TextStyle(
+                          color: isSelected ? categoryColor(entry) : context.textPri,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Priority',
+                    style: TextStyle(
+                      color: context.textPri,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<NotePriority>(
+                    segments: const [
+                      ButtonSegment(value: NotePriority.high, label: Text('High')),
+                      ButtonSegment(value: NotePriority.medium, label: Text('Medium')),
+                      ButtonSegment(value: NotePriority.low, label: Text('Low')),
+                    ],
+                    selected: {priority},
+                    onSelectionChanged: (selection) {
+                      if (selection.isEmpty) return;
+                      setSheetState(() => priority = selection.first);
+                    },
+                    style: SegmentedButton.styleFrom(
+                      selectedBackgroundColor: AppColors.tasks,
+                      selectedForegroundColor: Colors.white,
+                      backgroundColor: context.surface1,
+                      foregroundColor: context.textPri,
+                      side: BorderSide(color: context.textSec.withValues(alpha: 0.10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () {
+                        setSheetState(() {
+                          category = NoteCategory.general;
+                          priority = NotePriority.medium;
+                        });
+                      },
+                      child: const Text('Reset to default'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _quickCategory = category;
+      _quickPriority = priority;
+    });
+  }
+
+  Future<void> _pickReminder() async {
+    final date = await showDatePicker(
+      context: context,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      initialDate: _quickReminderAt ?? DateTime.now(),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: _quickReminderAt == null
+          ? TimeOfDay.now()
+          : TimeOfDay.fromDateTime(_quickReminderAt!),
+    );
+    if (time == null || !mounted) return;
+
+    setState(() {
+      _quickReminderAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+      if (_quickCategory == NoteCategory.general) {
+        _quickCategory = NoteCategory.reminders;
+      }
+    });
+  }
+
+  void _clearReminder() {
+    setState(() => _quickReminderAt = null);
   }
 
   @override
@@ -222,6 +414,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     };
                     final activeTotal = counts.values.fold<int>(0, (sum, count) => sum + count);
 
+                    final tagActive = _quickCategory != NoteCategory.general ||
+                        _quickPriority != NotePriority.medium;
+                    final tagLabel = tagActive
+                        ? '${categoryLabel(_quickCategory)} • ${_quickPriority.name.toUpperCase()}'
+                        : null;
+                    final reminderLabel = _quickReminderAt != null
+                        ? '${MaterialLocalizations.of(context).formatMediumDate(_quickReminderAt!)} • ${TimeOfDay.fromDateTime(_quickReminderAt!).format(context)}'
+                        : null;
+
                     return Column(
                       children: [
                         SizedBox(
@@ -235,9 +436,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   children: [
                                     Expanded(
                                       child: GlassPane(
-                                        level: 1,
-                                        radius: 22,
-                                        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                                              level: 1,
+                                              radius: 24,
+                                              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                                         tintOverride: context.isDark
                                             ? const Color(0x5F0F2742)
                                             : const Color(0xCBEAF4FF),
@@ -259,20 +460,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     ),
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: AppColors.tasks.withValues(alpha: 0.16),
-                                                        blurRadius: 18,
+                                                        color: AppColors.tasks.withValues(alpha: 0.12),
+                                                        blurRadius: 16,
                                                         spreadRadius: -4,
-                                                        offset: const Offset(0, 6),
+                                                        offset: const Offset(0, 5),
                                                       ),
                                                     ],
                                                   ),
                                                   child: Padding(
-                                                    padding: const EdgeInsets.all(6),
+                                                    padding: const EdgeInsets.all(5),
                                                     child: ClipOval(
                                                       child: iconBytes == null
                                                           ? const Icon(
                                                               Icons.auto_awesome_rounded,
-                                                              size: 20,
+                                                              size: 19,
                                                               color: Colors.white,
                                                             )
                                                           : Image.memory(
@@ -293,17 +494,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     'WishperLog',
                                                     style: TextStyle(
                                                       color: context.textPri,
-                                                      fontSize: 22,
+                                                      fontSize: 21,
                                                       fontWeight: FontWeight.w900,
-                                                      letterSpacing: -0.7,
+                                                      letterSpacing: -0.55,
                                                     ),
                                                   ),
                                                   const SizedBox(height: 2),
                                                   Text(
                                                     'Quick capture, cleaner folders, calmer settings.',
                                                     style: TextStyle(
-                                                      color: context.textSec,
-                                                      fontSize: 11.5,
+                                                      color: context.textSec.withValues(alpha: 0.88),
+                                                      fontSize: 11.2,
                                                       fontWeight: FontWeight.w600,
                                                     ),
                                                   ),
@@ -356,10 +557,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                       focusNode: _canvasFocusNode,
                                       onSave: _saveWritingBox,
                                       onSubmit: _saveWritingBox,
+                                      onTagTap: _openCaptureMetadataSheet,
+                                      onReminderTap: _pickReminder,
+                                      onReminderLongPress: _clearReminder,
                                       onMicPressStart: _startDictation,
                                       onMicPressEnd: () => _stopDictation(submitCaptured: true),
                                       isSaving: _saving,
                                       isRecording: _isDictating,
+                                      tagActive: tagActive,
+                                      reminderActive: _quickReminderAt != null,
+                                      tagLabel: tagLabel,
+                                      reminderLabel: reminderLabel,
                                     ),
                                   ),
                                 ),
@@ -374,8 +582,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             child: GlassPane(
                               level: 2,
-                              radius: 26,
-                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                                radius: 28,
+                                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                               tintOverride: context.isDark
                                   ? const Color(0x4E122D4A)
                                   : const Color(0xA9EDF7FF),

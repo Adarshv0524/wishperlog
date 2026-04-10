@@ -150,9 +150,11 @@ class UserRepository {
     if (user == null) {
       return;
     }
+    final utcSlot = _toUtcSlotFromHm(digestTime);
     await _firestore.collection('users').doc(user.uid).set({
       'digest_time': digestTime,
       'digest_times': [digestTime],
+      'digest_times_utc': [utcSlot],
       'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
     }, SetOptions(merge: true));
   }
@@ -196,6 +198,21 @@ class UserRepository {
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   }
 
+  String _toUtcSlotFromHm(String digestTime) {
+    final parts = digestTime.trim().split(':');
+    if (parts.length != 2) {
+      return digestTime.trim();
+    }
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) {
+      return digestTime.trim();
+    }
+
+    return _toUtcSlot(TimeOfDay(hour: hour, minute: minute));
+  }
+
   Future<void> updateOverlayVisibility(bool visible) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) {
@@ -213,7 +230,9 @@ class UserRepository {
     }
     final normalized = chatId.trim();
     await _firestore.collection('users').doc(user.uid).set({
-      'telegram_chat_id': normalized,
+      'telegram_chat_id': normalized.isEmpty
+          ? FieldValue.delete()
+          : normalized,
     }, SetOptions(merge: true));
 
     final prefs = await SharedPreferences.getInstance();

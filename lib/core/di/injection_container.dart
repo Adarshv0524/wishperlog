@@ -7,7 +7,6 @@ import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_processing_service.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
-import 'package:wishperlog/features/capture/data/note_save_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
@@ -35,9 +34,6 @@ Future<void> init() async {
 
   // ── Capture ────────────────────────────────────────────────────────────────
   sl.registerLazySingleton<CaptureService>(() => CaptureService());
-  sl.registerLazySingleton<NoteSaveService>(
-    () => NoteSaveService(noteEventBus: sl<NoteEventBus>()),
-  );
   sl.registerLazySingleton<CaptureUiController>(
     () => CaptureUiController(
       captureService: sl<CaptureService>(),

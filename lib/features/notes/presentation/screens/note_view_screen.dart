@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
@@ -171,19 +172,19 @@ class NoteViewScreen extends StatelessWidget {
                           level: 3,
                           radius: 14,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          child: Row(
+                          child: Wrap(
+                            spacing: 16,
+                            runSpacing: 8,
                             children: [
                               _MetaItem(
                                 icon: Icons.schedule_rounded,
                                 label: _formatDate(note.createdAt),
                               ),
-                              const SizedBox(width: 16),
                               if (note.aiModel.isNotEmpty) ...[
                                 _MetaItem(
                                   icon: Icons.auto_awesome_rounded,
                                   label: note.aiModel.toUpperCase(),
                                 ),
-                                const SizedBox(width: 16),
                               ],
                               if (note.extractedDate != null)
                                 _MetaItem(
@@ -267,8 +268,8 @@ class _EditFab extends StatelessWidget {
       HapticFeedback.mediumImpact();
       context.push('/notes/$noteId');
     },
-    backgroundColor: const Color(0xFF6366F1),
-    foregroundColor: Colors.white,
+    backgroundColor: AppColors.tasks,
+    foregroundColor: Theme.of(context).colorScheme.onPrimary,
     elevation: 8,
     icon: const Icon(Icons.edit_rounded, size: 18),
     label: const Text(

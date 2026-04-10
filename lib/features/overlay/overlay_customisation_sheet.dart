@@ -274,14 +274,28 @@ class _OverlayCustomisationSheetState
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            'Overlay Customiser',
-                            style: TextStyle(
-                              color: context.textPri,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.4,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Overlay Customiser',
+                                style: TextStyle(
+                                  color: context.textPri,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.4,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Applies to the floating bubble and the dynamic island.',
+                                style: TextStyle(
+                                  color: context.textSec,
+                                  fontSize: 12,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         TextButton(
@@ -454,6 +468,16 @@ class _OverlayCustomisationSheetState
                           value: _s.persistOnReboot,
                           activeThumbColor: AppColors.tasks,
                           onChanged: (v) => setState(() => _s = _s.copyWith(persistOnReboot: v)),
+                        ),
+
+                        _label('TARGET'),
+                        Text(
+                          'These settings currently apply to the bubble and island together.',
+                          style: TextStyle(
+                            color: context.textSec,
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
                         ),
                       ],
                     ),

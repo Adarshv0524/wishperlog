@@ -102,21 +102,41 @@ class MainActivity : FlutterActivity() {
                 "getOverlaySettings" -> {
                     val prefs = getSharedPreferences(
                         "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
+                    val settingsJson = prefs.getString("overlay_settings_json", null)
+                    val settings = OverlayAppearanceSettings.fromJson(settingsJson)
                     result.success(mapOf(
-                        "alpha"     to prefs.getFloat("overlay_bubble_alpha", 0.85f),
-                        "growOnHold" to prefs.getBoolean("overlay_bubble_grow", true)
+                        "alpha" to settings.alpha,
+                        "growOnHold" to settings.growEnabled,
+                        "settingsJson" to settings.toJsonString(),
                     ))
                 }
                 "updateOverlaySettings" -> {
-                    val alpha = (call.argument<Double>("alpha") ?: 0.85).toFloat()
-                    val grow  = call.argument<Boolean>("growOnHold") ?: true
-                    getSharedPreferences(
+                    val prefs = getSharedPreferences(
                         "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
-                        .edit()
-                        .putFloat("overlay_bubble_alpha", alpha)
-                        .putBoolean("overlay_bubble_grow", grow)
+
+                    val incomingJson = call.argument<String>("settingsJson")
+                    val legacyAlpha = (call.argument<Double>("alpha") ?: 0.85).toFloat()
+                    val legacyGrow = call.argument<Boolean>("growOnHold") ?: true
+
+                    val mergedSettings = if (!incomingJson.isNullOrBlank()) {
+                        OverlayAppearanceSettings.fromJson(incomingJson)
+                    } else {
+                        val currentJson = prefs.getString("overlay_settings_json", null)
+                        val current = if (currentJson.isNullOrBlank()) {
+                            OverlayAppearanceSettings.legacy(legacyAlpha, legacyGrow)
+                        } else {
+                            OverlayAppearanceSettings.fromJson(currentJson)
+                        }
+                        current.copyWith(alpha = legacyAlpha, growEnabled = legacyGrow)
+                    }
+
+                    prefs.edit()
+                        .putString("overlay_settings_json", mergedSettings.toJsonString())
+                        .putFloat("overlay_bubble_alpha", mergedSettings.alpha)
+                        .putBoolean("overlay_bubble_grow", mergedSettings.growEnabled)
                         .apply()
-                    OverlayForegroundService.applySettings(alpha, grow)
+
+                    OverlayForegroundService.applySettings(mergedSettings.toJsonString())
                     result.success(null)
                 }
 

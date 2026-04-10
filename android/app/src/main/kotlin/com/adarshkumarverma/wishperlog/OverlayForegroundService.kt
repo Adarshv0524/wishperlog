@@ -74,6 +74,7 @@ class OverlayForegroundService : Service() {
 
         private const val PREF_BUBBLE_ALPHA      = "overlay_bubble_alpha"
         private const val PREF_BUBBLE_GROW       = "overlay_bubble_grow"
+        private const val PREF_SETTINGS_JSON     = "overlay_settings_json"
         private const val PREF_STT_LANGUAGE      = "overlay_stt_language"
         private const val PREF_STT_PREFER_OFFLINE = "overlay_stt_prefer_offline"
         private const val DEFAULT_ALPHA = 0.90f
@@ -106,8 +107,14 @@ class OverlayForegroundService : Service() {
             instance?.get()?.dismissIslandAndReset()
         }
 
+        fun applySettings(settingsJson: String) {
+            instance?.get()?.handleApplySettings(settingsJson)
+        }
+
         fun applySettings(alpha: Float, grow: Boolean) {
-            instance?.get()?.handleApplySettings(alpha, grow)
+            instance?.get()?.handleApplySettings(
+                OverlayAppearanceSettings.legacy(alpha, grow).toJsonString(),
+            )
         }
     }
 
@@ -124,6 +131,8 @@ class OverlayForegroundService : Service() {
     private var bubbleBackground: GradientDrawable? = null
     private var islandLabel:      TextView?         = null
     private var islandBg:         GradientDrawable? = null
+    private var overlaySettings   = OverlayAppearanceSettings()
+    private var islandBaseColor   = Color.parseColor("#6366F1")
 
     // ─── STT state ────────────────────────────────────────────────────────────
 
@@ -247,8 +256,17 @@ class OverlayForegroundService : Service() {
         }
 
         val prefs = getSharedPreferences("com.adarshkumarverma.wishperlog_preferences", MODE_PRIVATE)
-        val bubbleAlpha = prefs.getFloat(PREF_BUBBLE_ALPHA, DEFAULT_ALPHA).coerceIn(0.3f, 1f)
-        bubbleGrowEnabled = prefs.getBoolean(PREF_BUBBLE_GROW, DEFAULT_GROW)
+        val storedSettings = prefs.getString(PREF_SETTINGS_JSON, null)
+        overlaySettings = if (storedSettings.isNullOrBlank()) {
+            OverlayAppearanceSettings.legacy(
+                prefs.getFloat(PREF_BUBBLE_ALPHA, DEFAULT_ALPHA),
+                prefs.getBoolean(PREF_BUBBLE_GROW, DEFAULT_GROW),
+            )
+        } else {
+            OverlayAppearanceSettings.fromJson(storedSettings)
+        }
+        val bubbleAlpha = overlaySettings.alpha.coerceIn(0.3f, 1f)
+        bubbleGrowEnabled = overlaySettings.growEnabled
 
         bubbleParams = WindowManager.LayoutParams(
             dp(54f), dp(54f), overlayType(),
@@ -260,12 +278,7 @@ class OverlayForegroundService : Service() {
             y = prefs.getInt("overlay_y", 200)
         }
 
-        val bg = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            colors = intArrayOf(Color.parseColor("#6366F1"), Color.parseColor("#4F46E5"))
-            orientation = GradientDrawable.Orientation.TL_BR
-            setStroke(dp(1.5f), Color.parseColor("#4DFFFFFF"))
-        }
+        val bg = buildBubbleDrawable(overlaySettings)
         bubbleBackground = bg
 
         val frame = FrameLayout(this).apply {
@@ -602,8 +615,9 @@ class OverlayForegroundService : Service() {
 
         // Reuse existing view if already shown — just update text/colour.
         if (islandView != null && islandLabel != null && islandBg != null) {
+            islandBaseColor = bgColor
             islandLabel?.text = text
-            islandBg?.setColor(bgColor)
+            applyIslandAppearance(bgColor)
             islandView?.animate()
                 ?.scaleX(1.025f)
                 ?.scaleY(1.025f)
@@ -625,11 +639,8 @@ class OverlayForegroundService : Service() {
         val screenW = displayWidth()
         val pillW   = (screenW * 0.75f).toInt().coerceAtLeast(dp(200f))
 
-        val bg = GradientDrawable().apply {
-            cornerRadius = dp(24f).toFloat()
-            setColor(Color.argb(190, Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor)))
-            setStroke(dp(1f), Color.parseColor("#2EFFFFFF"))
-        }
+        islandBaseColor = bgColor
+        val bg = buildIslandDrawable(bgColor, overlaySettings)
         islandBg = bg
 
         val pill = LinearLayout(this).apply {
@@ -791,10 +802,13 @@ class OverlayForegroundService : Service() {
         scheduleIslandDismiss(2_800L)
     }
 
-    fun handleApplySettings(alpha: Float, grow: Boolean) {
+    fun handleApplySettings(settingsJson: String) {
         mainHandler.post {
-            bubbleView?.alpha = alpha.coerceIn(0.3f, 1f)
-            bubbleGrowEnabled = grow
+            overlaySettings = OverlayAppearanceSettings.fromJson(settingsJson)
+            applyBubbleAppearance()
+            if (islandView != null && islandLabel != null && islandBg != null) {
+                applyIslandAppearance(islandBaseColor)
+            }
         }
     }
 
@@ -957,10 +971,92 @@ class OverlayForegroundService : Service() {
         pulseAnimator?.cancel(); pulseAnimator = null
         stopIdleBubblePulse()
         bubbleView?.scaleX = 1f; bubbleView?.scaleY = 1f
-        bubbleBackground?.colors = intArrayOf(Color.parseColor("#6366F1"), Color.parseColor("#4F46E5"))
+        applyBubbleAppearance()
         bubbleIcon?.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.ic_btn_speak_now))
         bubbleIcon?.setColorFilter(Color.WHITE)
         startIdleBubblePulse()
+    }
+
+    private fun applyBubbleAppearance() {
+        val view = bubbleView ?: return
+        bubbleBackground = buildBubbleDrawable(overlaySettings)
+        view.background = bubbleBackground
+        view.alpha = overlaySettings.alpha.coerceIn(0.3f, 1f)
+        bubbleGrowEnabled = overlaySettings.growEnabled
+    }
+
+    private fun applyIslandAppearance(baseColor: Int) {
+        val view = islandView ?: return
+        islandBg = buildIslandDrawable(baseColor, overlaySettings)
+        view.background = islandBg
+    }
+
+    private fun buildBubbleDrawable(settings: OverlayAppearanceSettings): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            applyFill(this, settings, Color.parseColor("#6366F1"), true)
+        }
+    }
+
+    private fun buildIslandDrawable(baseColor: Int, settings: OverlayAppearanceSettings): GradientDrawable {
+        return GradientDrawable().apply {
+            cornerRadius = dp(24f).toFloat()
+            applyFill(this, settings, baseColor, false)
+        }
+    }
+
+    private fun applyFill(
+        drawable: GradientDrawable,
+        settings: OverlayAppearanceSettings,
+        baseColor: Int,
+        isBubble: Boolean,
+    ) {
+        val alpha = settings.alpha.coerceIn(0.3f, 1f)
+        when (settings.colorFill.lowercase(Locale.ROOT)) {
+            "solid" -> {
+                drawable.setColor(applyAlpha(settings.solidColor, alpha))
+            }
+            "lineargradient" -> {
+                drawable.orientation = GradientDrawable.Orientation.TL_BR
+                drawable.colors = intArrayOf(
+                    applyAlpha(settings.gradientStart, alpha),
+                    applyAlpha(settings.gradientEnd, alpha),
+                )
+            }
+            "radialgradient" -> {
+                drawable.gradientType = GradientDrawable.RADIAL_GRADIENT
+                drawable.gradientRadius = if (isBubble) dp(64f).toFloat() else dp(96f).toFloat()
+                drawable.colors = intArrayOf(
+                    applyAlpha(settings.gradientStart, alpha),
+                    applyAlpha(settings.gradientEnd, alpha),
+                )
+            }
+            else -> {
+                drawable.setColor(applyAlpha(baseColor, alpha))
+            }
+        }
+
+        when (settings.borderStyle.lowercase(Locale.ROOT)) {
+            "none" -> drawable.setStroke(0, Color.TRANSPARENT)
+            "hairline" -> drawable.setStroke(
+                dp(1f),
+                applyAlpha(settings.borderColor, 0.5f),
+            )
+            else -> drawable.setStroke(
+                if (isBubble) dp(1.5f) else dp(1f),
+                applyAlpha(settings.borderColor, 0.88f),
+            )
+        }
+    }
+
+    private fun applyAlpha(color: Int, alpha: Float): Int {
+        val clamped = alpha.coerceIn(0f, 1f)
+        return Color.argb(
+            (clamped * 255f).toInt(),
+            Color.red(color),
+            Color.green(color),
+            Color.blue(color),
+        )
     }
 
     // ─── Full reset ───────────────────────────────────────────────────────────

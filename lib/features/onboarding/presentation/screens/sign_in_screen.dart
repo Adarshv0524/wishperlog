@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
@@ -25,7 +26,6 @@ class _SignInScreenState extends State<SignInScreen> {
 
   void _showGlassError(String message) {
     if (!mounted) return;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -40,7 +40,7 @@ class _SignInScreenState extends State<SignInScreen> {
             child: Text(
               message,
               style: TextStyle(
-                color: isDark ? Colors.white : const Color(0xFF111827),
+                color: context.textPri,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
               ),
@@ -80,11 +80,8 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : const Color(0xFF102037);
-    final subtitleColor = isDark
-      ? Colors.white.withValues(alpha: 0.78)
-      : const Color(0xFF4E6485);
+    final titleColor = context.textPri;
+    final subtitleColor = context.textSec;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -184,7 +181,6 @@ class _GoogleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassContainer(
       borderRadius: BorderRadius.circular(999),
       padding: EdgeInsets.zero,
@@ -208,7 +204,7 @@ class _GoogleSignInButton extends StatelessWidget {
                     Text(
                       'Continue with Google',
                       style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF111827),
+                        color: context.textPri,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,

@@ -11,10 +11,17 @@ class ThoughtCanvas extends StatelessWidget {
     required this.focusNode,
     required this.onSave,
     required this.onSubmit,
+    required this.onTagTap,
+    required this.onReminderTap,
+    required this.onReminderLongPress,
     required this.onMicPressStart,
     required this.onMicPressEnd,
     required this.isSaving,
     required this.isRecording,
+    this.tagActive = false,
+    this.reminderActive = false,
+    this.tagLabel,
+    this.reminderLabel,
     super.key,
   });
 
@@ -22,10 +29,17 @@ class ThoughtCanvas extends StatelessWidget {
   final FocusNode focusNode;
   final VoidCallback onSave;
   final VoidCallback onSubmit;
+  final VoidCallback onTagTap;
+  final VoidCallback onReminderTap;
+  final VoidCallback onReminderLongPress;
   final VoidCallback onMicPressStart;
   final VoidCallback onMicPressEnd;
   final bool isSaving;
   final bool isRecording;
+  final bool tagActive;
+  final bool reminderActive;
+  final String? tagLabel;
+  final String? reminderLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -34,16 +48,16 @@ class ThoughtCanvas extends StatelessWidget {
       ? const Color(0x44D4E5FF)
       : const Color(0x26204268);
     final topLayer = isDark
-      ? const Color(0x2AE8F2FF)
-      : const Color(0xE3FFFFFF);
+      ? const Color(0x24E8F2FF)
+      : const Color(0xEEF9FCFF);
     final bottomLayer = isDark
-      ? const Color(0x164E6FA0)
-      : const Color(0xBFEAF2FF);
+      ? const Color(0x144E6FA0)
+      : const Color(0xB8EAF2FF);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
+        filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -54,16 +68,16 @@ class ThoughtCanvas extends StatelessWidget {
                 bottomLayer,
               ],
             ),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: borderColor, width: 0.95),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: borderColor, width: 1),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withValues(alpha: 0.34)
-                    : const Color(0x663D6A97),
-                blurRadius: 30,
+                    ? Colors.black.withValues(alpha: 0.30)
+                    : const Color(0x563D6A97),
+                blurRadius: 28,
                 spreadRadius: -10,
-                offset: const Offset(0, 10),
+                offset: const Offset(0, 9),
               ),
             ],
           ),
@@ -76,9 +90,9 @@ class ThoughtCanvas extends StatelessWidget {
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      Colors.white.withValues(alpha: isDark ? 0.04 : 0.24),
-                      Colors.white.withValues(alpha: isDark ? 0.34 : 0.54),
-                      Colors.white.withValues(alpha: isDark ? 0.04 : 0.24),
+                      Colors.white.withValues(alpha: isDark ? 0.03 : 0.18),
+                      Colors.white.withValues(alpha: isDark ? 0.28 : 0.46),
+                      Colors.white.withValues(alpha: isDark ? 0.03 : 0.18),
                     ],
                   ),
                 ),
@@ -102,7 +116,7 @@ class ThoughtCanvas extends StatelessWidget {
                   },
                   style: TextStyle(
                     color: context.textPri,
-                    fontSize: 15,
+                    fontSize: 15.5,
                     height: 1.5,
                   ),
                   decoration: InputDecoration(
@@ -111,17 +125,17 @@ class ThoughtCanvas extends StatelessWidget {
                         ? 'Listening...'
                         : 'Type a note, task, or reminder',
                     hintStyle: TextStyle(
-                      color: context.textSec.withValues(alpha: 0.7),
-                      fontSize: 15,
+                      color: context.textSec.withValues(alpha: 0.64),
+                      fontSize: 15.2,
                     ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                    contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
                   ),
                 ),
               ),
               // ── Action bar ──────────────────────────────────────────────
               Container(
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
@@ -130,84 +144,105 @@ class ThoughtCanvas extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Tag
-                    _BarBtn(
-                      icon: Icons.label_outline_rounded,
-                      color: context.textSec,
-                      onTap: () {},
-                    ),
-                    const SizedBox(width: 4),
-                    // Reminder
-                    _BarBtn(
-                      icon: Icons.alarm_add_rounded,
-                      color: context.textSec,
-                      onTap: () {},
-                    ),
-                    const Spacer(),
-                    // Mic (long-press to dictate)
-                    GestureDetector(
-                      onLongPressStart: (_) => onMicPressStart(),
-                      onLongPressEnd: (_) => onMicPressEnd(),
-                      child: AnimatedContainer(
-                        duration: AppDurations.microSnap,
-                        width: isRecording ? 44 : 40,
-                        height: isRecording ? 44 : 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isRecording
-                              ? AppColors.tasks.withValues(alpha: 0.85)
-                              : (isDark
-                                ? const Color(0x30FFFFFF)
-                                : const Color(0x22DDEAFF)),
-                          border: Border.all(
-                            color: isRecording ? AppColors.tasks : borderColor,
-                            width: isRecording ? 1.5 : 0.8,
-                          ),
+                    Row(
+                      children: [
+                        // Tag
+                        _BarBtn(
+                          icon: Icons.hexagon_outlined,
+                          color: tagActive ? AppColors.tasks : context.textSec,
+                          active: tagActive,
+                          onTap: onTagTap,
                         ),
-                        child: Icon(
-                          isRecording
-                              ? Icons.graphic_eq_rounded
-                              : Icons.mic_none_rounded,
-                          size: 20,
-                          color: isRecording ? Colors.white : context.textSec,
+                        const SizedBox(width: 4),
+                        // Reminder
+                        _BarBtn(
+                          icon: Icons.alarm_add_rounded,
+                          color: reminderActive ? AppColors.tasks : context.textSec,
+                          active: reminderActive,
+                          onTap: onReminderTap,
+                          onLongPress: onReminderLongPress,
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Send
-                    AnimatedSwitcher(
-                      duration: AppDurations.microSnap,
-                      child: controller.text.trim().isEmpty
-                          ? const SizedBox(width: 40, height: 40)
-                          : GestureDetector(
-                              key: const ValueKey('send'),
-                              onTap: isSaving ? null : onSave,
-                              child: AnimatedContainer(
-                                duration: AppDurations.microSnap,
-                                width: 40,
-                                height: 40,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppColors.tasks,
-                                ),
-                                child: isSaving
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(10),
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.send_rounded,
-                                        color: Colors.white,
-                                        size: 18,
-                                      ),
+                        const Spacer(),
+                        // Mic (long-press to dictate)
+                        GestureDetector(
+                          onLongPressStart: (_) => onMicPressStart(),
+                          onLongPressEnd: (_) => onMicPressEnd(),
+                          child: AnimatedContainer(
+                            duration: AppDurations.microSnap,
+                            width: isRecording ? 46 : 42,
+                            height: isRecording ? 46 : 42,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isRecording
+                                  ? AppColors.tasks.withValues(alpha: 0.85)
+                                  : (isDark
+                                        ? const Color(0x30FFFFFF)
+                                        : const Color(0x22DDEAFF)),
+                              border: Border.all(
+                                color: isRecording ? AppColors.tasks : borderColor,
+                                width: isRecording ? 1.5 : 0.8,
                               ),
                             ),
+                            child: Icon(
+                              isRecording
+                                  ? Icons.graphic_eq_rounded
+                                  : Icons.mic_none_rounded,
+                              size: 19,
+                              color: isRecording ? Colors.white : context.textSec,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Send
+                        AnimatedSwitcher(
+                          duration: AppDurations.microSnap,
+                          child: controller.text.trim().isEmpty
+                              ? const SizedBox(width: 42, height: 42)
+                              : GestureDetector(
+                                  key: const ValueKey('send'),
+                                  onTap: isSaving ? null : onSave,
+                                  child: AnimatedContainer(
+                                    duration: AppDurations.microSnap,
+                                    width: 42,
+                                    height: 42,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppColors.tasks,
+                                    ),
+                                    child: isSaving
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(11),
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.send_rounded,
+                                            color: Colors.white,
+                                            size: 17,
+                                          ),
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
+                    if (tagLabel != null || reminderLabel != null) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (tagLabel != null)
+                            _MetaChip(label: tagLabel!, accent: AppColors.tasks),
+                          if (reminderLabel != null)
+                            _MetaChip(label: reminderLabel!, accent: AppColors.followUp),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -220,20 +255,64 @@ class ThoughtCanvas extends StatelessWidget {
 }
 
 class _BarBtn extends StatelessWidget {
-  const _BarBtn({required this.icon, required this.color, required this.onTap});
+  const _BarBtn({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.active = false,
+    this.onLongPress,
+  });
 
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      onLongPress: onLongPress,
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Icon(icon, size: 20, color: color),
+        padding: const EdgeInsets.all(7),
+        child: AnimatedContainer(
+          duration: AppDurations.microSnap,
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: active ? AppColors.tasks.withValues(alpha: 0.10) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 19, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.label, required this.accent});
+
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.16)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: accent,
+          fontSize: 10.8,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
