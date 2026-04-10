@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -57,6 +59,11 @@ Future<void> backgroundNoteCallback() async {
     // Tell Kotlin the Dart side is ready.
     await bgChannel.invokeMethod<void>('ready');
 
+    // Keep isolate alive until Kotlin signals 'allDone' and our handler
+    // calls bgChannel.invokeMethod('done'). Use a Completer so we never
+    // cut off a batch that takes longer than an arbitrary fixed delay.
+    final doneCompleter = Completer<void>();
+
     bgChannel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'processNote':
@@ -80,12 +87,12 @@ Future<void> backgroundNoteCallback() async {
                 if (enriched != null) {
                   lastTitle = enriched.title;
                   lastCategory = enriched.category.name;
-                    lastPrefix = saveOriginPrefix(enriched.aiModel);
+                  lastPrefix = saveOriginPrefix(enriched.aiModel);
                 } else {
                   // ingestRawCapture succeeded but AI failed — use quick title.
                   lastTitle = note.title;
                   lastCategory = note.category.name;
-                    lastPrefix = 'sys';
+                  lastPrefix = 'sys';
                 }
               }
             } catch (e, st) {
@@ -97,7 +104,7 @@ Future<void> backgroundNoteCallback() async {
           await bgChannel.invokeMethod<void>('nextNote');
 
         case 'allDone':
-            debugPrint('[BgNoteHandler] All notes processed — '
+          debugPrint('[BgNoteHandler] All notes processed — '
               'title="$lastTitle" category="$lastCategory"');
           // CRITICAL FIX #2: pass title + category so Kotlin can update the
           // island from "Classifying..." to the real saved state.
@@ -106,11 +113,17 @@ Future<void> backgroundNoteCallback() async {
             'category': lastCategory,
             'prefix':   lastPrefix,
           });
+          if (!doneCompleter.isCompleted) doneCompleter.complete();
       }
     });
 
-    // Keep isolate alive until Kotlin calls 'done'.
-    await Future<void>.delayed(const Duration(seconds: 60));
+    // Safety-net: if Kotlin never sends 'allDone', give up after 5 minutes.
+    await doneCompleter.future.timeout(
+      const Duration(minutes: 5),
+      onTimeout: () {
+        debugPrint('[BgNoteHandler] Timeout waiting for allDone — shutting down');
+      },
+    );
   } catch (e, st) {
     debugPrint('[BgNoteHandler] Fatal error: $e');
     debugPrintStack(stackTrace: st);
@@ -135,13 +148,55 @@ Future<Note?> _classifyAndUpdate(Note note, AiClassifierRouter aiRouter) async {
       status:        NoteStatus.active,
       updatedAt:     DateTime.now(),
     );
+
+    // ── ISSUE-04 FIX: write back to Isar AND Firestore ────────────────────
     await IsarNoteStore.instance.put(updated);
+    await _pushToFirestoreBg(updated);
+
     debugPrint('[BgNoteHandler] AI enrichment done — '
         'category=${result.category.name} title="${result.title}"');
     return updated;
   } catch (e) {
     debugPrint('[BgNoteHandler] AI classification skipped: $e');
-    // Leave note as pendingAi — AiProcessingService picks it up on next launch.
     return null;
   }
 }
+
+/// Background-safe Firestore push (no DI, no auth service, uses FirebaseAuth directly).
+Future<void> _pushToFirestoreBg(Note note) async {
+  try {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      debugPrint('[BgNoteHandler] Firestore push skipped — not authenticated');
+      return;
+    }
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('notes')
+        .doc(note.noteId)
+        .set(_noteToMap(note), SetOptions(merge: true));
+  } catch (e) {
+    debugPrint('[BgNoteHandler] Firestore push error: $e');
+  }
+}
+
+Map<String, dynamic> _noteToMap(Note note) => {
+  'note_id':        note.noteId,
+  'uid':            note.uid,
+  'raw_transcript': note.rawTranscript,
+  'title':          note.title,
+  'clean_body':     note.cleanBody,
+  'category':       note.category.name,
+  'priority':       note.priority.name,
+  'ai_model':       note.aiModel,
+  'status':         note.status.name,
+  'source':         note.source.name,
+  'extracted_date': note.extractedDate?.toIso8601String(),
+  'created_at':     note.createdAt.toIso8601String(),
+  'updated_at':     note.updatedAt.toIso8601String(),
+  'synced_at':      note.syncedAt?.toIso8601String(),
+  'gtask_id':       note.gtaskId,
+  'gcal_event_id':  note.gcalEventId,
+  'is_deleted':     note.status == NoteStatus.deleted,
+};

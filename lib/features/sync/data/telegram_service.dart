@@ -227,8 +227,8 @@ class TelegramService {
             )
             .timeout(const Duration(seconds: 12));
 
-        if (response.statusCode != 200) {
-          debugPrint('[TelegramService] getUpdates failed: ${response.body}');
+        if (!_isTelegramOk(response)) {
+          debugPrint('[TelegramService] getUpdates failed (ok=false): ${response.body}');
           await Future<void>.delayed(const Duration(seconds: 2));
           continue;
         }
@@ -256,6 +256,7 @@ class TelegramService {
         debugPrint('[TelegramService] resolveChatIdByStartToken error: $e');
       }
 
+      // Back-off: 2 s between polls to avoid hammering the API.
       await Future<void>.delayed(const Duration(seconds: 2));
     }
 
@@ -616,8 +617,8 @@ class TelegramService {
           {'text': 'Focus', 'switch_inline_query_current_chat': '/focus'},
         ],
         [
-          {'text': 'Copy /find', 'copy_text': {'text': '/find '}},
-          {'text': 'Copy /agenda', 'copy_text': {'text': '/agenda'}},
+          {'text': '/find …', 'switch_inline_query_current_chat': '/find '},
+          {'text': '/agenda', 'switch_inline_query_current_chat': '/agenda'},
         ],
       ],
     };
@@ -911,11 +912,13 @@ class TelegramService {
           disableWebPagePreview: disableWebPagePreview,
           replyToMessageId: i == 0 ? replyToMessageId : null,
         );
-        if (primary.statusCode == 200) {
+        // Telegram always returns HTTP 200; real errors are in the JSON body.
+        if (_isTelegramOk(primary)) {
           continue;
         }
 
-        // Fallback path for malformed HTML or strict Telegram parsing failures.
+        // Fallback path: strip HTML and retry as plain text.
+        debugPrint('[TelegramService] HTML send failed (${primary.body}), retrying plain');
         final plain = _stripHtmlTags(part);
         final fallback = await _postMessage(
           chatId: chatId,
@@ -926,9 +929,9 @@ class TelegramService {
           disableWebPagePreview: disableWebPagePreview,
           replyToMessageId: i == 0 ? replyToMessageId : null,
         );
-        if (fallback.statusCode != 200) {
+        if (!_isTelegramOk(fallback)) {
           okAll = false;
-          debugPrint('[TelegramService] sendMessage failed: ${fallback.body}');
+          debugPrint('[TelegramService] sendMessage failed (plain fallback): ${fallback.body}');
           break;
         }
       }
@@ -993,6 +996,19 @@ class TelegramService {
           body: jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 10));
+  }
+
+  /// Returns true only when Telegram's response indicates success.
+  /// Telegram returns HTTP 200 for both successes AND API-level errors;
+  /// the actual result lives in the JSON `ok` field.
+  bool _isTelegramOk(http.Response response) {
+    if (response.statusCode != 200) return false;
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return body['ok'] as bool? ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   String _stripHtmlTags(String input) {

@@ -32,11 +32,40 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            // Values are read from gradle.properties (local, never committed to VCS).
+            // See MANUAL CONFIGURATION section for setup instructions.
+            val storeFilePath = System.getenv("WISHPERLOG_STORE_FILE")
+                ?: project.findProperty("WISHPERLOG_STORE_FILE") as String?
+            val storePassword = System.getenv("WISHPERLOG_STORE_PASSWORD")
+                ?: project.findProperty("WISHPERLOG_STORE_PASSWORD") as String?
+            val keyAlias = System.getenv("WISHPERLOG_KEY_ALIAS")
+                ?: project.findProperty("WISHPERLOG_KEY_ALIAS") as String?
+            val keyPassword = System.getenv("WISHPERLOG_KEY_PASSWORD")
+                ?: project.findProperty("WISHPERLOG_KEY_PASSWORD") as String?
+
+            if (storeFilePath != null) {
+                storeFile     = file(storeFilePath)
+                this.storePassword = storePassword ?: ""
+                this.keyAlias     = keyAlias      ?: ""
+                this.keyPassword  = keyPassword   ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use release signing when keys are available; fall back to debug for
+            // local `flutter run --release` during development.
+            val hasReleaseSigning = signingConfigs.findByName("release")
+                ?.storeFile?.exists() == true
+            signingConfig = if (hasReleaseSigning)
+                signingConfigs.getByName("release")
+            else
+                signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

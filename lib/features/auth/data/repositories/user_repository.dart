@@ -21,8 +21,8 @@ class UserRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb
-      ? (AppEnv.googleWebClientId.isEmpty ? null : AppEnv.googleWebClientId)
-      : null,
+        ? (AppEnv.googleWebClientId.isEmpty ? null : AppEnv.googleWebClientId)
+        : null,
   );
 
   Stream<auth.User?> get authStateChanges => _firebaseAuth.authStateChanges();
@@ -37,10 +37,7 @@ class UserRepository {
           throw Exception('Google sign in aborted');
         }
 
-        await _upsertUserDocument(
-          firebaseUser: user,
-          googleAuth: null,
-        );
+        await _upsertUserDocument(firebaseUser: user, googleAuth: null);
 
         return userCredential;
       }
@@ -87,6 +84,12 @@ class UserRepository {
 
     final userDoc = _firestore.collection('users').doc(firebaseUser.uid);
     final docSnapshot = await userDoc.get();
+    final existingData = docSnapshot.data() ?? const <String, dynamic>{};
+    final digestTime = (existingData['digest_time'] as String?) ?? '09:00';
+    final digestTimes = (existingData['digest_times'] as List<dynamic>?)
+        ?.map((value) => value.toString())
+        .where((value) => value.trim().isNotEmpty)
+        .toList();
     final data = {
       'uid': firebaseUser.uid,
       'email': firebaseUser.email ?? '',
@@ -96,11 +99,21 @@ class UserRepository {
         'refresh_token': null,
         'expiry': null,
       },
-      'telegram_chat_id': docSnapshot.data()?['telegram_chat_id'] as String?,
-      'digest_time': (docSnapshot.data()?['digest_time'] as String?) ?? '09:00',
+      'telegram_chat_id': existingData['telegram_chat_id'] as String?,
+      'digest_time': digestTime,
+      'digest_times': digestTimes ?? [digestTime],
+      'digest_times_utc':
+          (existingData['digest_times_utc'] as List<dynamic>?)
+              ?.map((value) => value.toString())
+              .where((value) => value.trim().isNotEmpty)
+              .toList() ??
+          const <String>[],
+      'timezone_offset_minutes':
+          (existingData['timezone_offset_minutes'] as num?)?.toInt() ??
+          DateTime.now().timeZoneOffset.inMinutes,
       'overlay_position': {'x': overlayX, 'y': overlayY},
-      'overlay_visible': (docSnapshot.data()?['overlay_visible'] as bool?) ?? true,
-      'fcm_token': (docSnapshot.data()?['fcm_token'] as String?) ?? '',
+      'overlay_visible': (existingData['overlay_visible'] as bool?) ?? true,
+      'fcm_token': (existingData['fcm_token'] as String?) ?? '',
     };
 
     if (!docSnapshot.exists) {
@@ -150,16 +163,37 @@ class UserRepository {
   }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) return;
+    final localSlots = times.map((t) => _formatTimeOfDay(t)).toList();
+    final normalizedUtcSlots = utcSlots.isNotEmpty
+        ? utcSlots
+        : times.map(_toUtcSlot).toList();
     final data = <String, dynamic>{
-      'digest_times': times.map((t) =>
-          '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}').toList(),
-      'digest_times_utc': utcSlots,
+      'digest_time': localSlots.first,
+      'digest_times': localSlots,
+      'digest_times_utc': normalizedUtcSlots,
+      'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
       'updated_at': FieldValue.serverTimestamp(),
     };
     await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .set(data, SetOptions(merge: true));
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _toUtcSlot(TimeOfDay time) {
+    final offsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
+    final totalMinutes = time.hour * 60 + time.minute;
+    final shiftedMinutes = (totalMinutes - offsetMinutes) % (24 * 60);
+    final normalized = shiftedMinutes < 0
+        ? shiftedMinutes + (24 * 60)
+        : shiftedMinutes;
+    final hour = normalized ~/ 60;
+    final minute = normalized % 60;
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> updateOverlayVisibility(bool visible) async {
@@ -228,7 +262,10 @@ class UserRepository {
     }, SetOptions(merge: true));
   }
 
-  Future<void> updateOverlayPosition({required double x, required double y}) async {
+  Future<void> updateOverlayPosition({
+    required double x,
+    required double y,
+  }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) {
       return;

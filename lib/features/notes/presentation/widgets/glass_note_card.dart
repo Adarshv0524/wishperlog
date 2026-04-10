@@ -1,4 +1,6 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/core/theme/app_durations.dart';
@@ -8,10 +10,9 @@ import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class GlassNoteCard extends StatefulWidget {
-  const GlassNoteCard({required this.note, required this.onTap, super.key});
+  const GlassNoteCard({required this.note, super.key});
 
   final Note note;
-  final VoidCallback onTap;
 
   @override
   State<GlassNoteCard> createState() => _GlassNoteCardState();
@@ -66,7 +67,13 @@ class _GlassNoteCardState extends State<GlassNoteCard>
             onTapDown: (_) => setState(() => _pressed = true),
             onTapUp: (_) => setState(() => _pressed = false),
             onTapCancel: () => setState(() => _pressed = false),
-            onTap: widget.onTap,
+            onTap: () {
+              context.push('/notes/${note.noteId}/view', extra: note);
+            },
+            onLongPress: () {
+              HapticFeedback.mediumImpact();
+              context.push('/notes/${note.noteId}');
+            },
             child: GlassPane(
               level: 2,
               radius: 16,

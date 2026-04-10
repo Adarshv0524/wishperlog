@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 import 'package:isar/isar.dart';
 
 import 'enums.dart';
@@ -116,6 +117,7 @@ class Note {
   }
 
   Map<String, dynamic> toFirestoreJson() {
+    // ISSUE-10: Use typed Timestamp fields so Firestore can sort/query server-side.
     return {
       'note_id': noteId,
       'uid': uid,
@@ -124,15 +126,20 @@ class Note {
       'clean_body': cleanBody,
       'category': category.name,
       'priority': priority.name,
-      'extracted_date': extractedDate?.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-      'status': status.name,
       'ai_model': aiModel,
-      'gcal_event_id': gcalEventId,
-      'gtask_id': gtaskId,
+      'status': status.name,
       'source': source.name,
-      'synced_at': syncedAt?.toIso8601String(),
+        'extracted_date': extractedDate != null
+          ? firestore.Timestamp.fromDate(extractedDate!)
+          : null,
+        'created_at': firestore.Timestamp.fromDate(createdAt),
+        'updated_at': firestore.Timestamp.fromDate(updatedAt),
+        'synced_at': syncedAt != null
+          ? firestore.Timestamp.fromDate(syncedAt!)
+          : null,
+      'gtask_id': gtaskId,
+      'gcal_event_id': gcalEventId,
+      'is_deleted': status == NoteStatus.deleted,
     };
   }
 
@@ -200,15 +207,9 @@ class Note {
       priority: parsePriority(
         (json['priority'] as String?) ?? NotePriority.medium.name,
       ),
-      extractedDate: DateTime.tryParse(
-        (json['extracted_date'] as String?) ?? '',
-      ),
-      createdAt:
-          DateTime.tryParse((json['created_at'] as String?) ?? '') ??
-          DateTime.now(),
-      updatedAt:
-          DateTime.tryParse((json['updated_at'] as String?) ?? '') ??
-          DateTime.now(),
+      extractedDate: _readFirestoreDate(json['extracted_date']),
+      createdAt: _readFirestoreDate(json['created_at']) ?? DateTime.now(),
+      updatedAt: _readFirestoreDate(json['updated_at']) ?? DateTime.now(),
       status: parseStatus(
         (json['status'] as String?) ?? NoteStatus.active.name,
       ),
@@ -218,7 +219,7 @@ class Note {
       source: parseSource(
         (json['source'] as String?) ?? CaptureSource.homeWritingBox.name,
       ),
-      syncedAt: DateTime.tryParse((json['synced_at'] as String?) ?? ''),
+      syncedAt: _readFirestoreDate(json['synced_at']),
     );
   }
 
@@ -227,9 +228,15 @@ class Note {
   }
 
   static DateTime? _readDate(Object? value) {
-    if (value == null) {
-      return null;
-    }
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
+  /// Reads a date field that may be a Firestore [Timestamp] (new) or an ISO
+  /// [String] (legacy documents written before ISSUE-10 was fixed).
+  static DateTime? _readFirestoreDate(Object? value) {
+    if (value == null) return null;
+    if (value is firestore.Timestamp) return value.toDate();
     return DateTime.tryParse(value.toString());
   }
 }

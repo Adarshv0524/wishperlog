@@ -1,84 +1,105 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:wishperlog/shared/models/note.dart';
-import 'package:wishperlog/shared/models/enums.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 class LocalNotificationService {
-  LocalNotificationService._();
+  static final _plugin = FlutterLocalNotificationsPlugin();
 
-  static final FlutterLocalNotificationsPlugin _plugin =
-      FlutterLocalNotificationsPlugin();
-  static bool _initialized = false;
-
-  static const String digestChannelId = 'wishperlog_digest';
-  static const String digestChannelName = 'Daily Digest';
-  static const String digestChannelDescription =
-      'Device-side daily digest reminders';
+  static const _channelId   = 'wishperlog_digest';
+  static const _channelName = 'Daily Digest';
+  static const _notifId     = 1001;
 
   static Future<void> initialize() async {
-    if (_initialized) return;
+    tz.initializeTimeZones();
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: androidInit);
+    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const darwin  = DarwinInitializationSettings();
+    const settings = InitializationSettings(android: android, iOS: darwin);
+
     await _plugin.initialize(settings);
-
-    const channel = AndroidNotificationChannel(
-      digestChannelId,
-      digestChannelName,
-      description: digestChannelDescription,
-      importance: Importance.high,
-    );
-
-    final androidImpl =
-        _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await androidImpl?.createNotificationChannel(channel);
-    _initialized = true;
   }
 
+  /// Only called when the user has actually configured a digest schedule.
+  /// ISSUE-14: the permission prompt now only fires from here so it is
+  /// contextually motivated, not on cold boot.
   static Future<void> requestPermissionIfSupported() async {
-    final androidImpl =
-        _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await androidImpl?.requestNotificationsPermission();
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission();
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(alert: true, badge: true, sound: false);
+      }
+    } catch (e) {
+      debugPrint('[LocalNotifications] Permission request error: $e');
+    }
   }
 
-  static Future<void> showDigestReminder({
-    required DateTime localNow,
-    required List<Note> notes,
+  /// Schedules (or replaces) the daily digest reminder at [hour]:[minute] UTC.
+  /// ISSUE-14: this is the missing scheduling path that makes the feature real.
+  static Future<void> scheduleDigestReminder({
+    required int hour,
+    required int minute,
+    String title  = 'WishperLog Daily Brief',
+    String body   = 'Your morning note digest is ready.',
   }) async {
-    await initialize();
+    try {
+      await _plugin.cancel(_notifId);
 
-    final total = notes.length;
-    final high = notes.where((n) => n.priority == NotePriority.high).length;
-    final medium = notes.where((n) => n.priority == NotePriority.medium).length;
+      final now  = tz.TZDateTime.now(tz.UTC);
+      var sched  = tz.TZDateTime.utc(now.year, now.month, now.day, hour, minute);
+      if (sched.isBefore(now)) {
+        sched = sched.add(const Duration(days: 1));
+      }
 
-    final title = 'WishperLog Daily Brief';
-    final body = total == 0
-        ? 'No pending notes right now. You are clear.'
-        : high > 0
-            ? '$high high priority and $total total note(s) need attention.'
-            : '$medium medium priority and $total total note(s) pending.';
+      const androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: 'Daily WishperLog digest reminder',
+        importance: Importance.defaultImportance,
+        priority:   Priority.defaultPriority,
+        silent:     true,
+      );
+      const details = NotificationDetails(android: androidDetails);
 
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        digestChannelId,
-        digestChannelName,
-        channelDescription: digestChannelDescription,
-        importance: Importance.high,
-        priority: Priority.high,
-        category: AndroidNotificationCategory.reminder,
-      ),
-    );
-
-    final id = _stableDigestId(localNow);
-    await _plugin.show(id, title, body, details);
-    debugPrint('[LocalNotificationService] Digest notification shown: id=$id');
+      await _plugin.zonedSchedule(
+        _notifId,
+        title,
+        body,
+        sched,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+      debugPrint('[LocalNotifications] Digest scheduled at $hour:$minute UTC');
+    } catch (e) {
+      debugPrint('[LocalNotifications] scheduleDigestReminder error: $e');
+    }
   }
 
-  static int _stableDigestId(DateTime now) {
-    return now.year * 10000 + now.month * 100 + now.day;
+  /// One-shot reminder at a specific date/time (e.g. from an extracted note date).
+  static Future<void> showDigestReminder({
+    required String title,
+    String body = 'Check your WishperLog note.',
+  }) async {
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: 'WishperLog note reminder',
+        importance: Importance.high,
+        priority:   Priority.high,
+      );
+      const details = NotificationDetails(android: androidDetails);
+      await _plugin.show(_notifId + 1, title, body, details);
+    } catch (e) {
+      debugPrint('[LocalNotifications] showDigestReminder error: $e');
+    }
   }
 }

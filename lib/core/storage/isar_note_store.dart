@@ -14,26 +14,33 @@ class IsarNoteStore {
   static final IsarNoteStore instance = IsarNoteStore._();
 
   Isar? _isar;
-  Completer<Isar>? _initCompleter;
-  
+
   /// Fallback mode: if Isar fails on web, use Firestore directly
   bool _useFirestoreOnly = false;
   FirebaseAuth? _auth;
   FirebaseFirestore? _firestore;
 
-  Future<Isar> init() async {
-    if (_isar != null && _isar!.isOpen) return _isar!;
+  // Completer now carries void — callers only need to know init completed.
+  Completer<void>? _initCompleter;
+
+  /// Initialises the store.
+  ///
+  /// On non-web platforms: always opens Isar.
+  /// On web: tries Isar, falls back to Firestore-only on failure.
+  /// Returns immediately if already initialised.
+  Future<void> init() async {
+    // Already initialised paths.
+    if (_useFirestoreOnly) return; // Firestore-only mode already set.
+    if (_isar != null && _isar!.isOpen) return;
 
     if (_initCompleter != null) return _initCompleter!.future;
 
-    _initCompleter = Completer<Isar>();
+    _initCompleter = Completer<void>();
     try {
-      // Initialize Firebase references for fallback
-      _auth ??= FirebaseAuth.instance;
+      _auth      ??= FirebaseAuth.instance;
       _firestore ??= FirebaseFirestore.instance;
 
       if (kIsWeb) {
-        // On web: try Isar, fall back to Firestore-only if it fails
         try {
           _isar = await Isar.open(
             [NoteSchema],
@@ -43,17 +50,15 @@ class IsarNoteStore {
           _useFirestoreOnly = false;
           debugPrint('[IsarNoteStore] ✓ Ready on web (Isar + IndexedDB)');
         } catch (e) {
-          // Isar failed on web - use Firestore as primary storage
           debugPrint(
             '[IsarNoteStore] ⚠ Isar init failed on web: $e\n'
-            'Falling back to Firestore-only mode for web storage.',
+            'Falling back to Firestore-only mode.',
           );
           _useFirestoreOnly = true;
           _isar = null;
-          // Return a dummy Isar to satisfy type system; actual operations use Firestore
+          // Firestore-only is a valid success path — complete without error.
         }
       } else {
-        // Android/iOS/Desktop: always use Isar with path_provider
         final docsDir = await getApplicationDocumentsDirectory();
         _isar = await Isar.open(
           [NoteSchema],
@@ -63,9 +68,8 @@ class IsarNoteStore {
         _useFirestoreOnly = false;
         debugPrint('[IsarNoteStore] ✓ Ready at ${docsDir.path}');
       }
-      
-      _initCompleter!.complete(_isar!);
-      return _isar!;
+
+      _initCompleter!.complete();
     } catch (e, st) {
       debugPrint('[IsarNoteStore] ERROR: $e');
       debugPrintStack(stackTrace: st);
@@ -74,6 +78,8 @@ class IsarNoteStore {
       rethrow;
     }
   }
+
+
 
   /// Get current user UID, or null if not authenticated
   String? _getCurrentUserId() {
@@ -100,8 +106,9 @@ class IsarNoteStore {
     }
 
     // Normal Isar path
-    final isar = await init();
-    if (isar.isOpen) {
+    await init();
+    if (_isar != null && _isar!.isOpen) {
+      final isar = _isar!;
       await isar.writeTxn(() async {
         await isar.notes.putByNoteId(note);
       });
@@ -135,8 +142,9 @@ class IsarNoteStore {
     }
 
     // Normal Isar path
-    final isar = await init();
-    if (isar.isOpen) {
+    await init();
+    if (_isar != null && _isar!.isOpen) {
+      final isar = _isar!;
       await isar.writeTxn(() async {
         await isar.notes.putAllByNoteId(notes);
       });
@@ -170,8 +178,9 @@ class IsarNoteStore {
     }
 
     // Normal Isar path
-    final isar = await init();
-    if (isar.isOpen) {
+    await init();
+    if (_isar != null && _isar!.isOpen) {
+      final isar = _isar!;
       return isar.notes.filter().noteIdEqualTo(noteId).findFirst();
     }
     return null;
@@ -210,8 +219,9 @@ class IsarNoteStore {
       }
     }
 
-    final isar = await init();
-    if (isar.isOpen) {
+    await init();
+    if (_isar != null && _isar!.isOpen) {
+      final isar = _isar!;
       return isar.notes.filter().gtaskIdEqualTo(gtaskId).findFirst();
     }
     return null;
@@ -247,8 +257,9 @@ class IsarNoteStore {
     }
 
     // Normal Isar path
-    final isar = await init();
-    if (isar.isOpen) {
+    await init();
+    if (_isar != null && _isar!.isOpen) {
+      final isar = _isar!;
       return isar.notes.where().findAll();
     }
     return [];
@@ -289,7 +300,8 @@ class IsarNoteStore {
     // Normal Isar path
     await init();
     if (_isar != null && _isar!.isOpen) {
-      final query = _isar!.notes.where().build();
+      final isar = _isar!;
+      final query = isar.notes.where().build();
       yield* query.watch(fireImmediately: true).asyncMap((_) => query.findAll());
     }
   }
@@ -334,7 +346,8 @@ class IsarNoteStore {
     // Normal Isar path
     await init();
     if (_isar != null && _isar!.isOpen) {
-      return _isar!.notes
+      final isar = _isar!;
+      return isar.notes
           .filter()
           .not()
           .statusEqualTo(NoteStatus.archived)
@@ -385,7 +398,8 @@ class IsarNoteStore {
     // Normal Isar path
     await init();
     if (_isar != null && _isar!.isOpen) {
-      return _isar!.notes
+      final isar = _isar!;
+      return isar.notes
           .filter()
           .statusEqualTo(NoteStatus.pendingAi)
           .sortByCreatedAt()
@@ -438,7 +452,8 @@ class IsarNoteStore {
     // Normal Isar path
     await init();
     if (_isar != null && _isar!.isOpen) {
-      final query = _isar!.notes.where().build();
+      final isar = _isar!;
+      final query = isar.notes.where().build();
 
       yield* query.watch(fireImmediately: true).asyncMap((_) async {
         final all = await query.findAll();

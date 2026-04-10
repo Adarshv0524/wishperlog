@@ -265,7 +265,10 @@ async function getUserNotes(
   const docs = body.documents ?? [];
 
   return docs
-    .filter(d => d.fields?.status?.stringValue !== 'completed' && d.fields?.is_deleted?.booleanValue !== true)
+    .filter(d => {
+      const status = d.fields?.status?.stringValue ?? 'active';
+      return status === 'active' && d.fields?.is_deleted?.booleanValue !== true;
+    })
     .slice(0, 10)
     .map(d => ({
       title:    d.fields.title?.stringValue    ?? 'Untitled',

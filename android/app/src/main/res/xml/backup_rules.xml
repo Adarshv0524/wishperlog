@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ISSUE-17: Explicit backup rules.
+  Excludes all sensitive local data from Android cloud backup.
+-->
+<full-backup-content>
+    <!-- Exclude the entire shared_prefs directory — contains overlay prefs,
+         Telegram chat ID, pending notes, and auth tokens. -->
+    <exclude domain="sharedpref" path="." />
+    <!-- Exclude Isar database files. -->
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+</full-backup-content>

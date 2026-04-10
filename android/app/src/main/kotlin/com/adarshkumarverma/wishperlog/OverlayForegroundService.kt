@@ -904,14 +904,22 @@ class OverlayForegroundService : Service() {
     // ─── Broadcast ────────────────────────────────────────────────────────────
 
     private fun broadcastCapture(text: String, source: String) {
+        // ISSUE-03 FIX: use LocalBroadcastManager so NoteInputReceiver (which
+        // registers via LBM) actually receives this event.
         val intent = Intent(ACTION_NOTE_CAPTURED).apply {
             putExtra(EXTRA_TEXT,   text)
             putExtra(EXTRA_SOURCE, source)
-            setPackage(packageName)
         }
-        sendBroadcast(intent)
-        // Also attempt direct Flutter method channel delivery (works if engine is alive).
-        FlutterEngineHolder.channel?.invokeMethod("captureNote", hashMapOf("text" to text, "source" to source))
+        androidx.localbroadcastmanager.content.LocalBroadcastManager
+            .getInstance(this)
+            .sendBroadcast(intent)
+
+        // Direct channel delivery as a fast-path for foreground sessions.
+        // NoteInputReceiver handles the engine-dead fallback.
+        FlutterEngineHolder.channel?.invokeMethod(
+            "captureNote",
+            hashMapOf("text" to text, "source" to source)
+        )
     }
 
     // ─── Audio focus ──────────────────────────────────────────────────────────

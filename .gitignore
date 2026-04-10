@@ -49,6 +49,8 @@ app.*.map.json
 .env.local
 .env.*.local
 .env.secret
+android/gradle.properties
+android/wishperlog-release.jks
 
 # Firebase configuration files (auto-generated, contains credentials)
 android/app/google-services.json

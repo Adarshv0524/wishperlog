@@ -16,12 +16,23 @@ class OverlayRootWrapper extends StatefulWidget {
 
 class _OverlayRootWrapperState extends State<OverlayRootWrapper> {
   late final OverlayNotifier _notifier;
+  late final AppLifecycleListener _lifecycleListener;
 
   @override
   void initState() {
     super.initState();
     _notifier = sl<OverlayNotifier>();
     _notifier.addOpenEditorListener(_onNativeEditorCall);
+
+    // ISSUE-05: When the user returns from the Android overlay-permission
+    // settings screen the app resumes — we use that signal to complete
+    // the deferred permission check.
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        _notifier.resumePermissionCheck();
+      },
+    );
+
     // Hydrate after the first frame so prefs are read after widget tree is up.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _notifier.hydrate();
@@ -30,9 +41,11 @@ class _OverlayRootWrapperState extends State<OverlayRootWrapper> {
 
   @override
   void dispose() {
+    _lifecycleListener.dispose();
     _notifier.removeOpenEditorListener(_onNativeEditorCall);
     super.dispose();
   }
+
 
   void _onNativeEditorCall() {
     _openEditorSheet(context);

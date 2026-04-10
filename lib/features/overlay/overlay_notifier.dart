@@ -11,6 +11,7 @@ import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/features/overlay/overlay_settings_model.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 
 /// Lightweight state holder for the in-app floating overlay.
@@ -20,14 +21,16 @@ class OverlayNotifier extends ChangeNotifier {
   OverlayNotifier();
 
   // ── Prefs keys ────────────────────────────────────────────────────────────
-  static const _kEnabled = 'overlay_v2.enabled';
-  static const _kPosX = 'overlay_v2.pos_x';
-  static const _kPosY = 'overlay_v2.pos_y';
+  static const _kEnabled   = 'overlay_v2.enabled';
+  static const _kPosX      = 'overlay_v2.pos_x';
+  static const _kPosY      = 'overlay_v2.pos_y';
+  static const _kSettings  = 'overlay_v2.settings_json';
 
   // ── State ─────────────────────────────────────────────────────────────────
   bool _isEnabled = false;
   Offset _position = const Offset(20, 200);
   bool _hydrated = false;
+  OverlaySettings _overlaySettings = const OverlaySettings();
 
   Timer? _persistDebounce;
   StreamSubscription<CaptureUiState>? _captureStateSub;
@@ -40,6 +43,7 @@ class OverlayNotifier extends ChangeNotifier {
   final List<VoidCallback> _openEditorCallbacks = [];
 
   bool get isEnabled => _isEnabled;
+  OverlaySettings get overlaySettings => _overlaySettings;
 
   void addOpenEditorListener(VoidCallback listener) {
     _openEditorCallbacks.add(listener);
@@ -62,6 +66,9 @@ class OverlayNotifier extends ChangeNotifier {
       final x = prefs.getDouble(_kPosX) ?? 20.0;
       final y = prefs.getDouble(_kPosY) ?? 200.0;
       _position = Offset(x, y);
+      _overlaySettings = OverlaySettings.fromJsonString(
+        prefs.getString(_kSettings),
+      );
 
       _channel.setMethodCallHandler((call) async {
         switch (call.method) {
@@ -125,28 +132,54 @@ class OverlayNotifier extends ChangeNotifier {
     }
   }
 
+
+  /// Whether we are currently waiting for the user to return from Settings
+  /// after we opened the overlay-permission screen.
+  bool _pendingPermissionCheck = false;
+
   Future<void> setEnabled(bool value) async {
     if (_isEnabled == value) return;
 
     if (value) {
       final hasOverlayPermission =
           await _channel.invokeMethod<bool>('checkPermission') ?? false;
+
       if (!hasOverlayPermission) {
+        // Open the system settings page. Do NOT re-check immediately —
+        // the check will happen in resumePermissionCheck() called from
+        // the platform side (via AppLifecycleState.resumed) or on the
+        // next hydrate() call.
+        _pendingPermissionCheck = true;
         await _channel.invokeMethod('requestPermission');
-        final grantedAfterRequest =
-            await _channel.invokeMethod<bool>('checkPermission') ?? false;
-        if (!grantedAfterRequest) {
-          return;
-        }
+        // Do NOT proceed — the user hasn't granted permission yet.
+        return;
       }
 
       final hasMicPermission = await requestMicrophonePermission();
-      if (!hasMicPermission) {
-        return;
-      }
+      if (!hasMicPermission) return;
     }
 
     _isEnabled = value;
+    notifyListeners();
+    await _persistEnabled();
+    _syncNativeOverlayState();
+  }
+
+  /// Called by the app shell (e.g. from AppLifecycleListener.onResume) after
+  /// the user returns from the Android overlay-permission settings screen.
+  /// Re-checks permission and completes the enable flow if granted.
+  Future<void> resumePermissionCheck() async {
+    if (!_pendingPermissionCheck) return;
+    _pendingPermissionCheck = false;
+
+    final hasOverlayPermission =
+        await _channel.invokeMethod<bool>('checkPermission') ?? false;
+    if (!hasOverlayPermission) return; // Still not granted — stay disabled.
+
+    final hasMicPermission = await requestMicrophonePermission();
+    if (!hasMicPermission) return;
+
+    _isEnabled = true;
     notifyListeners();
     await _persistEnabled();
     _syncNativeOverlayState();
@@ -230,6 +263,24 @@ class OverlayNotifier extends ChangeNotifier {
       await prefs.setDouble(_kPosY, _position.dy);
     } catch (e) {
       debugPrint('[OverlayNotifier] persist position error: $e');
+    }
+  }
+
+  Future<void> saveOverlaySettings(OverlaySettings settings) async {
+    _overlaySettings = settings;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSettings, settings.toJsonString());
+      // Push relevant numeric settings to native overlay channel.
+      await _channel.invokeMethod<void>('updateOverlaySettings', {
+        'alpha':      settings.alpha,
+        'blurSigma':  settings.blurSigma,
+        'growOnHold': settings.animation == OverlayAnimation.sizeGrow,
+        'growScale':  settings.growScale,
+      });
+    } catch (e) {
+      debugPrint('[OverlayNotifier] saveOverlaySettings error: $e');
     }
   }
 

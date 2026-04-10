@@ -10,6 +10,7 @@ import 'package:wishperlog/core/background/connectivity_sync_coordinator.dart';
 import 'package:wishperlog/core/background/work_manager_service.dart';
 import 'package:wishperlog/core/config/app_env.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/core/theme/app_theme.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
@@ -112,7 +113,8 @@ void main() async {
   try {
     debugPrint('[Main] Initializing local notifications...');
     await LocalNotificationService.initialize();
-    await LocalNotificationService.requestPermissionIfSupported();
+    // ISSUE-14: permission request is deferred to the first time a digest
+    // schedule is actually configured (see LocalNotificationService).
     debugPrint('[Main] Local notifications initialized');
   } catch (e, st) {
     debugPrint('[Main] Local notification init error: $e');
@@ -171,6 +173,20 @@ Future<void> _postLaunchTasks() async {
     debugPrint('[Main] Firestore background sync listener started');
   } catch (e) {
     debugPrint('[Main] Firestore background sync listener error: $e');
+  }
+
+  // ISSUE-14: schedule the first digest reminder based on the user's saved prefs.
+  try {
+    final times = await sl<AppPreferencesRepository>().getDigestTimes();
+    if (times.isNotEmpty) {
+      await LocalNotificationService.requestPermissionIfSupported();
+      final t = times.first;
+      await LocalNotificationService.scheduleDigestReminder(
+        hour: t.hour, minute: t.minute,
+      );
+    }
+  } catch (e) {
+    debugPrint('[Main] Digest reminder scheduling error: $e');
   }
 
   try {

@@ -314,16 +314,55 @@ class CaptureUiController extends Cubit<CaptureUiState> {
 
   void _onSpeechStatus(String status) {
     debugPrint('[CaptureUiController] STT status: $status');
-    // 'done' often indicates the engine auto-closed due to silence.
-    // Keep recording alive until the user explicitly stops.
-    if (status == 'done' && state is CaptureUiRecording && !_isInitializing) {
-      unawaited(_resumeListening());
+    // 'done' = engine auto-closed due to silence or system cut-off.
+    if (status == 'done' && state is CaptureUiRecording) {
+      if (_stopRequested) {
+        // User already released the button — flush whatever we have.
+        debugPrint('[CaptureUiController] STT done after stop request — flushing transcript');
+        _flushAndStop();
+        return;
+      }
+      if (!_isInitializing) {
+        // User is still holding — re-arm the listener.
+        unawaited(_resumeListening());
+      }
     }
+  }
+
+  /// Saves the last captured transcript if non-empty and transitions to
+  /// processing state. Called when the button is released AND STT closes.
+  void _flushAndStop() {
+    _recordingTimer?.cancel();
+    final transcript = _lastTranscript.trim();
+    if (transcript.isEmpty) {
+      resetToIdle();
+      return;
+    }
+    emit(CaptureUiProcessing(provider: _captureService.activeProviderName));
+    _autoReturnTimer?.cancel();
+    _autoReturnTimer = Timer(const Duration(seconds: 45), () {
+      if (state is CaptureUiProcessing) emit(const CaptureUiIdle());
+    });
+    // The save itself is triggered by the caller (_stopDictation) which
+    // already holds the transcript in _lastTranscript. If this is reached
+    // via _onSpeechStatus, emit the saved-transcript event so the upstream
+    // save flow is triggered.
+    _onSpeechResult(
+      SpeechRecognitionResult(
+        [SpeechRecognitionWords(transcript, null, 1.0)],
+        true,
+      ),
+    );
   }
 
   /// Re-arms STT when it auto-closes during an active recording session.
   Future<void> _resumeListening() async {
+    // Do NOT re-arm if: user released button, we're still initialising,
+    // or the state has already moved beyond recording.
     if (state is! CaptureUiRecording || _stopRequested || _isInitializing) {
+      if (_stopRequested && state is CaptureUiRecording) {
+        _flushAndStop();
+      }
       return;
     }
     try {

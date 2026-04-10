@@ -15,9 +15,11 @@ import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
+import 'package:wishperlog/features/overlay/overlay_customisation_sheet.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/features/sync/data/telegram_service.dart';
+import 'package:wishperlog/features/settings/presentation/widgets/digest_schedule_section.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
@@ -31,7 +33,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const MethodChannel _overlayChannel = MethodChannel('wishperlog/overlay');
+  static const MethodChannel _overlayChannel = MethodChannel(
+    'wishperlog/overlay',
+  );
 
   final UserRepository _users = sl<UserRepository>();
   final AppPreferencesRepository _prefs = sl<AppPreferencesRepository>();
@@ -51,9 +55,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _savingTelegram = false;
 
   double _overlayOpacity = 0.85;
-  bool _overlayGrow = true;
+  bool   _overlayGrow = true;
   String _speechLanguage = 'en-US';
-  bool _speechPreferOffline = false;
+  bool   _speechPreferOffline = false;
+  // Overlay customisation sheet is driven entirely by OverlayNotifier.
 
   String? _telegramChatId;
 
@@ -115,7 +120,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _hydrateNotificationPermission() async {
     try {
-      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      final settings = await FirebaseMessaging.instance
+          .getNotificationSettings();
       if (mounted) {
         setState(() => _notificationSettings = settings);
       }
@@ -161,7 +167,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _hydrateOverlaySettings() async {
     try {
-      final values = await _overlayChannel.invokeMapMethod<String, dynamic>('getOverlaySettings');
+      final values = await _overlayChannel.invokeMapMethod<String, dynamic>(
+        'getOverlaySettings',
+      );
       if (!mounted || values == null) return;
       final alpha = (values['alpha'] as num?)?.toDouble() ?? 0.85;
       final grow = values['growOnHold'] as bool? ?? true;
@@ -177,12 +185,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _applyOverlaySettings() async {
     try {
       await _overlayChannel.invokeMethod<void>('updateOverlaySettings', {
-        'alpha': _overlayOpacity,
+        'alpha':      _overlayOpacity,
         'growOnHold': _overlayGrow,
       });
     } catch (e) {
       debugPrint('[Settings] _applyOverlaySettings error: $e');
     }
+  }
+
+  Future<void> _openOverlayCustomiser() async {
+    final notifier = _overlayNotifier;
+    await showOverlayCustomisationSheet(
+      context,
+      notifier.overlaySettings,
+      (updated) => notifier.saveOverlaySettings(updated),
+    );
   }
 
   void _scheduleOverlaySettingsApply() {
@@ -194,7 +211,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _hydrateSpeechSettings() async {
     try {
-      final values = await _overlayChannel.invokeMapMethod<String, dynamic>('getSpeechSettings');
+      final values = await _overlayChannel.invokeMapMethod<String, dynamic>(
+        'getSpeechSettings',
+      );
       if (!mounted || values == null) return;
       setState(() {
         _speechLanguage = (values['language'] as String?) ?? 'en-US';
@@ -231,7 +250,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to open speech language settings')),
+          const SnackBar(
+            content: Text('Unable to open speech language settings'),
+          ),
         );
       }
     }
@@ -240,11 +261,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ── 15-minute slot picker ─────────────────────────────────────────────────
 
   Future<void> _addDigestTime() async {
-    final slot = await _show15MinSlotPicker(context, _digestTimes);
+    final slot = await showMinuteWiseTimePicker(context, _digestTimes);
     if (slot == null || !mounted) return;
 
     final exists = _digestTimes.any(
-        (t) => t.hour * 60 + t.minute == slot.hour * 60 + slot.minute);
+      (t) => t.hour * 60 + t.minute == slot.hour * 60 + slot.minute,
+    );
     if (exists) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This digest time already exists')),
@@ -252,87 +274,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
     final updated = [..._digestTimes, slot]
-      ..sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
+      ..sort(
+        (a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute),
+      );
     await _persistDigestTimes(updated);
-  }
-
-  /// Shows a bottom-sheet grid of 15-minute interval slots (00, 15, 30, 45).
-  Future<TimeOfDay?> _show15MinSlotPicker(
-      BuildContext ctx, List<TimeOfDay> existing) async {
-    TimeOfDay? result;
-    await showModalBottomSheet<void>(
-      context: ctx,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (sheetCtx) {
-        int selectedHour = 9;
-        int selectedMinuteSlot = 0; // index: 0=:00, 1=:15, 2=:30, 3=:45
-
-        return StatefulBuilder(builder: (_, setState) {
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Add Digest Time',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 16),
-
-                // Hour scroll
-                SizedBox(
-                  height: 48,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: 24,
-                    itemBuilder: (_, h) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(h.toString().padLeft(2, '0')),
-                        selected: selectedHour == h,
-                        onSelected: (_) => setState(() => selectedHour = h),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Minute slot chips (:00 :15 :30 :45)
-                Row(
-                  children: List.generate(4, (i) {
-                    final label = ':${(i * 15).toString().padLeft(2, '0')}';
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(label),
-                        selected: selectedMinuteSlot == i,
-                        onSelected: (_) => setState(() => selectedMinuteSlot = i),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      result = TimeOfDay(
-                        hour:   selectedHour,
-                        minute: selectedMinuteSlot * 15,
-                      );
-                      Navigator.of(sheetCtx).pop();
-                    },
-                    child: const Text('Add'),
-                  ),
-                ),
-              ],
-            ),
-          );
-        });
-      },
-    );
-    return result;
   }
 
   Future<void> _removeDigestTime(TimeOfDay time) async {
@@ -344,7 +289,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
       return;
     }
-    final min     = time.hour * 60 + time.minute;
+    final min = time.hour * 60 + time.minute;
     final updated = _digestTimes
         .where((t) => t.hour * 60 + t.minute != min)
         .toList();
@@ -360,11 +305,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final nowLocal = DateTime.now();
       final utcOffsetMin = nowLocal.timeZoneOffset.inMinutes;
       final utcSlots = times.map((t) {
-        final localMin  = t.hour * 60 + t.minute;
-        final utcMin    = (localMin - utcOffsetMin) % (24 * 60);
+        final localMin = t.hour * 60 + t.minute;
+        final utcMin = (localMin - utcOffsetMin) % (24 * 60);
         final normalized = utcMin < 0 ? utcMin + 24 * 60 : utcMin;
         final h = normalized ~/ 60;
-        final m = normalized  % 60;
+        final m = normalized % 60;
         return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
       }).toList();
 
@@ -384,7 +329,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _lastSyncedAt = DateTime.now());
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Sync failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _syncingNow = false);
@@ -398,7 +345,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final ok = await _sync.reconnectGoogle();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ok ? 'Google reconnected' : 'Reconnection failed')),
+          SnackBar(
+            content: Text(ok ? 'Google reconnected' : 'Reconnection failed'),
+          ),
         );
       }
     } finally {
@@ -414,9 +363,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _users.updateTelegramChatId(chatId);
       setState(() => _telegramChatId = chatId.isEmpty ? null : chatId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Telegram chat ID saved')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Telegram chat ID saved')));
       }
     } finally {
       if (mounted) setState(() => _savingTelegram = false);
@@ -446,7 +395,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Telegram bot is not configured (missing token or unreachable bot)'),
+            content: Text(
+              'Telegram bot is not configured (missing token or unreachable bot)',
+            ),
           ),
         );
       }
@@ -491,7 +442,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       shape: BoxShape.circle,
                       color: AppColors.reminders.withValues(alpha: 0.14),
                     ),
-                    child: Icon(Icons.logout_rounded, color: AppColors.reminders, size: 20),
+                    child: Icon(
+                      Icons.logout_rounded,
+                      color: AppColors.reminders,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -528,7 +483,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Expanded(
                     child: FilledButton.tonal(
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.reminders.withValues(alpha: 0.15),
+                        backgroundColor: AppColors.reminders.withValues(
+                          alpha: 0.15,
+                        ),
                         foregroundColor: AppColors.reminders,
                       ),
                       onPressed: () => Navigator.of(ctx).pop(true),
@@ -551,7 +508,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) context.go('/signin');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign out failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Sign out failed: $e')));
       }
     }
   }
@@ -602,7 +561,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             colors: [AppColors.tasks, Color(0xFF57C7FF)],
                           ),
                         ),
-                        child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.tune_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -681,7 +644,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const ListTile(
                       title: Text('Bubble Opacity'),
-                      subtitle: Text('Visibility of floating bubble outside app'),
+                      subtitle: Text(
+                        'Visibility of floating bubble outside app',
+                      ),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
@@ -691,13 +656,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         max: 1.0,
                         divisions: 14,
                         label: '${(_overlayOpacity * 100).round()}%',
-                        onChanged: (value) => setState(() => _overlayOpacity = value),
+                        onChanged: (value) =>
+                            setState(() => _overlayOpacity = value),
                         onChangeEnd: (_) => _scheduleOverlaySettingsApply(),
                       ),
                     ),
                     SwitchListTile(
                       title: const Text('Grow on hold'),
-                      subtitle: const Text('Bubble enlarges when recording starts'),
+                      subtitle: const Text(
+                        'Bubble enlarges when recording starts',
+                      ),
                       value: _overlayGrow,
                       onChanged: (value) {
                         setState(() => _overlayGrow = value);
@@ -707,6 +675,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
+
+              _buildSettingsTile(
+                icon: Icons.tune_rounded,
+                title: 'Customise Overlay Appearance',
+                subtitle: 'Glass blur, gradients, glow borders, animations',
+                onTap: _openOverlayCustomiser,
+              ),
+              const SizedBox(height: 8),
 
               _SectionHeader(label: 'Speech'),
               GlassContainer(
@@ -774,16 +750,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const SizedBox(height: 10),
                           DropdownButtonFormField<String>(
-                            initialValue: _speechLanguageOptions.any((e) => e['code'] == _speechLanguage)
+                            initialValue:
+                                _speechLanguageOptions.any(
+                                  (e) => e['code'] == _speechLanguage,
+                                )
                                 ? _speechLanguage
                                 : _speechLanguageOptions.first['code'],
                             menuMaxHeight: 360,
                             isExpanded: true,
                             items: _speechLanguageOptions
-                                .map((entry) => DropdownMenuItem<String>(
-                                      value: entry['code'],
-                                      child: Text(entry['label'] ?? entry['code'] ?? ''),
-                                    ))
+                                .map(
+                                  (entry) => DropdownMenuItem<String>(
+                                    value: entry['code'],
+                                    child: Text(
+                                      entry['label'] ?? entry['code'] ?? '',
+                                    ),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (value) {
                               if (value == null) return;
@@ -794,7 +777,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               isDense: true,
                               labelText: 'Recognition language',
                               filled: true,
-                              fillColor: context.surface2.withValues(alpha: 0.7),
+                              fillColor: context.surface2.withValues(
+                                alpha: 0.7,
+                              ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 12,
@@ -808,7 +793,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: BorderSide(
-                                  color: context.textSec.withValues(alpha: 0.16),
+                                  color: context.textSec.withValues(
+                                    alpha: 0.16,
+                                  ),
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
@@ -823,7 +810,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           SwitchListTile(
                             contentPadding: EdgeInsets.zero,
                             title: const Text('Prefer offline recognition'),
-                            subtitle: const Text('Uses downloaded speech models when available'),
+                            subtitle: const Text(
+                              'Uses downloaded speech models when available',
+                            ),
                             value: _speechPreferOffline,
                             onChanged: (value) {
                               setState(() => _speechPreferOffline = value);
@@ -834,7 +823,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             alignment: Alignment.centerLeft,
                             child: OutlinedButton.icon(
                               onPressed: _openSpeechPackSettings,
-                              icon: const Icon(Icons.download_for_offline_outlined),
+                              icon: const Icon(
+                                Icons.download_for_offline_outlined,
+                              ),
                               label: const Text('Manage speech language packs'),
                             ),
                           ),
@@ -851,9 +842,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: 'Push notifications',
                 subtitle: _notificationStatusLabel(),
                 leading: const Icon(Icons.notifications_outlined),
-                trailing: _notificationSettings?.authorizationStatus == AuthorizationStatus.authorized
-                    ? Icon(Icons.check_circle_outline, color: AppColors.followUp)
-                    : TextButton(onPressed: _requestNotificationPermission, child: const Text('Enable')),
+                trailing:
+                    _notificationSettings?.authorizationStatus ==
+                        AuthorizationStatus.authorized
+                    ? Icon(
+                        Icons.check_circle_outline,
+                        color: AppColors.followUp,
+                      )
+                    : TextButton(
+                        onPressed: _requestNotificationPermission,
+                        child: const Text('Enable'),
+                      ),
               ),
 
               const SizedBox(height: 8),
@@ -861,55 +860,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               GlassContainer(
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                 borderRadius: BorderRadius.circular(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.schedule_outlined),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Digest schedules',
-                          style: TextStyle(
-                            color: context.textPri,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (_savingDigest)
-                          const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          TextButton.icon(
-                            onPressed: _addDigestTime,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add time'),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Digests are sent at each selected time daily.',
-                      style: TextStyle(color: context.textSec, fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _digestTimes
-                          .map(
-                            (t) => InputChip(
-                              label: Text(_formatTime(t)),
-                              onDeleted: _savingDigest ? null : () => _removeDigestTime(t),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ],
+                child: DigestScheduleSection(
+                  digestTimes: _digestTimes,
+                  saving: _savingDigest,
+                  onAdd: _addDigestTime,
+                  onRemove: _savingDigest ? (_) {} : _removeDigestTime,
                 ),
               ),
 
@@ -923,9 +878,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     SegmentedButton<AiProvider>(
                       segments: const [
-                        ButtonSegment(value: AiProvider.auto, label: Text('Auto')),
-                        ButtonSegment(value: AiProvider.gemini, label: Text('Gemini')),
-                        ButtonSegment(value: AiProvider.groq, label: Text('Groq')),
+                        ButtonSegment(
+                          value: AiProvider.auto,
+                          label: Text('Auto'),
+                        ),
+                        ButtonSegment(
+                          value: AiProvider.gemini,
+                          label: Text('Gemini'),
+                        ),
+                        ButtonSegment(
+                          value: AiProvider.groq,
+                          label: Text('Groq'),
+                        ),
                       ],
                       selected: {_aiRouter.activeProvider},
                       onSelectionChanged: (Set<AiProvider> newSelection) async {
@@ -942,7 +906,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 12),
                     if (_aiRouter.activeProvider == AiProvider.auto)
-                      _buildAiStatusBadge('Auto-fallback (Gemini -> Groq)', true, AppColors.ideas)
+                      _buildAiStatusBadge(
+                        'Auto-fallback (Gemini -> Groq)',
+                        true,
+                        AppColors.ideas,
+                      )
                     else if (_aiRouter.activeProvider == AiProvider.gemini)
                       _buildAiStatusBadge(
                         _aiRouter.geminiConfigured
@@ -953,7 +921,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       )
                     else if (_aiRouter.activeProvider == AiProvider.groq)
                       _buildAiStatusBadge(
-                        _aiRouter.groqConfigured ? 'Groq API configured' : 'Missing Groq API Key in .env',
+                        _aiRouter.groqConfigured
+                            ? 'Groq API configured'
+                            : 'Missing Groq API Key in .env',
                         _aiRouter.groqConfigured,
                         const Color(0xFFF97316),
                       ),
@@ -994,7 +964,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        TextButton(onPressed: _openTelegramBot, child: const Text('Open bot')),
+                        TextButton(
+                          onPressed: _openTelegramBot,
+                          child: const Text('Open bot'),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1009,7 +982,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       decoration: InputDecoration(
                         hintText: 'Optional override if auto-link fails',
                         hintStyle: TextStyle(color: context.textSec),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
                       style: TextStyle(color: context.textPri),
                     ),
@@ -1018,14 +994,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       alignment: Alignment.centerRight,
                       child: ElevatedButton(
                         onPressed: _savingTelegram ? null : _saveTelegramId,
-                        child: Text(_savingTelegram ? 'Saving…' : 'Save override'),
+                        child: Text(
+                          _savingTelegram ? 'Saving…' : 'Save override',
+                        ),
                       ),
                     ),
                     if (_telegramChatId != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         'Connected: $_telegramChatId',
-                        style: TextStyle(color: AppColors.followUp, fontSize: 12),
+                        style: TextStyle(
+                          color: AppColors.followUp,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ],
@@ -1041,16 +1022,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : 'Last synced ${_formatRelativeTime(_lastSyncedAt!)}',
                 leading: const Icon(Icons.sync_outlined),
                 trailing: _syncingNow
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : TextButton(onPressed: _syncNow, child: const Text('Sync now')),
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : TextButton(
+                        onPressed: _syncNow,
+                        child: const Text('Sync now'),
+                      ),
               ),
               _SettingsTile(
                 title: 'Reconnect Google account',
                 subtitle: 'Re-authorize calendar & tasks access',
                 leading: const Icon(Icons.account_circle_outlined),
                 trailing: _reconnectingGoogle
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : TextButton(onPressed: _reconnectGoogle, child: const Text('Reconnect')),
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : TextButton(
+                        onPressed: _reconnectGoogle,
+                        child: const Text('Reconnect'),
+                      ),
               ),
 
               const SizedBox(height: 8),
@@ -1060,7 +1055,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SettingsTile(
                 title: 'Sign out',
                 subtitle: 'You will remain signed out until next login',
-                leading: Icon(Icons.logout_rounded, color: isDark ? AppColors.reminders : Colors.redAccent),
+                leading: Icon(
+                  Icons.logout_rounded,
+                  color: isDark ? AppColors.reminders : Colors.redAccent,
+                ),
                 onTap: _signOut,
               ),
 
@@ -1093,7 +1091,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         radius: 16,
         backgroundColor: AppColors.tasks.withValues(alpha: 0.2),
         child: Text(
-          (user.displayName?.isNotEmpty == true) ? user.displayName![0].toUpperCase() : '?',
+          (user.displayName?.isNotEmpty == true)
+              ? user.displayName![0].toUpperCase()
+              : '?',
           style: const TextStyle(
             color: AppColors.tasks,
             fontWeight: FontWeight.w700,
@@ -1101,6 +1101,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+  }) {
+    return _SettingsTile(
+      title: title,
+      subtitle: subtitle,
+      leading: Icon(icon),
+      onTap: onTap,
     );
   }
 
@@ -1124,13 +1138,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     };
   }
 
-  String _formatTime(TimeOfDay time) {
-    final h = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final m = time.minute.toString().padLeft(2, '0');
-    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $period';
-  }
-
   String _formatRelativeTime(DateTime dt) {
     final diff = DateTime.now().difference(dt);
     if (diff.inSeconds < 60) return 'just now';
@@ -1143,10 +1150,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: ok ? tint.withValues(alpha: 0.1) : AppColors.errorStatus.withValues(alpha: 0.1),
+        color: ok
+            ? tint.withValues(alpha: 0.1)
+            : AppColors.errorStatus.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: ok ? tint.withValues(alpha: 0.2) : AppColors.errorStatus.withValues(alpha: 0.2),
+          color: ok
+              ? tint.withValues(alpha: 0.2)
+              : AppColors.errorStatus.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -1235,17 +1246,12 @@ class _SettingsTile extends StatelessWidget {
         subtitle: subtitle != null
             ? Text(
                 subtitle!,
-                style: TextStyle(
-                  color: context.textSec,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: context.textSec, fontSize: 12),
               )
             : null,
         trailing: trailing,
         onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }

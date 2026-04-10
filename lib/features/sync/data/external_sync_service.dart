@@ -71,12 +71,22 @@ class ExternalSyncService {
     catch (_) { return false; }
   }
 
-  Future<Map<String, String>?> _authHeaders() async {
+  Future<Map<String, String>?> _authHeaders({bool retried = false}) async {
     try {
       var account = _googleSignIn.currentUser;
       account ??= await _googleSignIn.signInSilently();
       if (account == null) return null;
-      return account.authHeaders;
+      // authHeaders internally calls getAuthToken which refreshes the access
+      // token if it has expired (via the platform's token refresh flow).
+      final headers = await account.authHeaders;
+      // Sanity-check: ensure we actually have a Bearer token.
+      final auth = headers['Authorization'] ?? '';
+      if (auth.isEmpty && !retried) {
+        // Force a fresh account sign-in and retry once.
+        await _googleSignIn.signOut();
+        return _authHeaders(retried: true);
+      }
+      return headers;
     } catch (e) {
       debugPrint('[ExternalSync] _authHeaders error: $e');
       return null;
@@ -169,6 +179,11 @@ class ExternalSyncService {
 
   static const _taskListTitle = 'WishperLog';
 
+  // Cache the task-list ID so we don't query it on every per-note upsert.
+  String? _cachedTaskListId;
+  DateTime? _taskListCacheTime;
+  static const _taskListCacheTtl = Duration(hours: 6);
+
   Future<SyncRunResult> _syncGoogleTasks(gtasks.TasksApi api) async {
     int processed = 0;
     int updated   = 0;
@@ -237,7 +252,9 @@ class ExternalSyncService {
     Note note, {
     String? listId,
   }) async {
-    final taskListId = listId ?? await _getOrCreateTaskList(api);
+    // Prefer the caller-supplied listId (from syncNow batch), fall back to
+    // the per-instance cache, or fetch+create as last resort.
+    final taskListId = listId ?? await _getCachedTaskListId(api);
     if (taskListId == null) return null;
 
     final taskTitle = note.title.isNotEmpty ? note.title : 'WishperLog Note';
@@ -331,18 +348,26 @@ class ExternalSyncService {
   }
 
   Future<Set<String>> _fetchRemoteTaskIds(gtasks.TasksApi api, String listId) async {
+    final ids = <String>{};
+    String? pageToken;
     try {
-      final result = await api.tasks.list(
-        listId,
-        showCompleted: true,
-        showHidden:    true,
-        showDeleted:   false,
-      );
-      return {for (final t in (result.items ?? [])) if (t.id != null) t.id!};
+      do {
+        final page = await api.tasks.list(
+          listId,
+          maxResults: 100,
+          showCompleted: true,
+          showHidden: true,
+          pageToken: pageToken,
+        );
+        for (final t in page.items ?? const <gtasks.Task>[]) {
+          if (t.id != null) ids.add(t.id!);
+        }
+        pageToken = page.nextPageToken;
+      } while (pageToken != null);
     } catch (e) {
       debugPrint('[ExternalSync] _fetchRemoteTaskIds error: $e');
-      return {};
     }
+    return ids;
   }
 
   // ── Google Calendar sync ──────────────────────────────────────────────────
@@ -457,6 +482,22 @@ class ExternalSyncService {
     return category == NoteCategory.tasks ||
            category == NoteCategory.reminders ||
            category == NoteCategory.followUp;
+  }
+
+  /// Returns the cached task-list ID or fetches/creates it.
+  Future<String?> _getCachedTaskListId(gtasks.TasksApi api) async {
+    final now = DateTime.now();
+    if (_cachedTaskListId != null &&
+        _taskListCacheTime != null &&
+        now.difference(_taskListCacheTime!) < _taskListCacheTtl) {
+      return _cachedTaskListId;
+    }
+    final id = await _getOrCreateTaskList(api);
+    if (id != null) {
+      _cachedTaskListId = id;
+      _taskListCacheTime = now;
+    }
+    return id;
   }
 
   Future<void> _firestorePatch(String noteId, Map<String, dynamic> fields) async {

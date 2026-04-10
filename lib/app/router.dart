@@ -10,7 +10,9 @@ import 'package:wishperlog/features/onboarding/presentation/screens/telegram_scr
 import 'package:wishperlog/features/search/presentation/search_screen.dart';
 import 'package:wishperlog/features/settings/presentation/screens/settings_screen.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/features/notes/presentation/screens/note_view_screen.dart';
 import 'package:wishperlog/features/overlay/presentation/system_banner_overlay.dart';
 
 CustomTransitionPage<T> _buildPage<T>({
@@ -105,6 +107,28 @@ final GoRouter router = GoRouter(
           child: NoteDetailScreen(noteId: noteId),
           beginOffset: const Offset(0.04, 0.02),
           duration: const Duration(milliseconds: 380),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/notes/:noteId/view',
+      pageBuilder: (context, state) {
+        final extra = state.extra;
+        // extra must be a Note object when using context.push('/notes/x/view', extra: note)
+        if (extra is Note) {
+          return _buildPage(
+            key: state.pageKey,
+            child: NoteViewScreen(note: extra),
+            beginOffset: const Offset(0.0, 0.04),
+            duration: const Duration(milliseconds: 400),
+          );
+        }
+        // Fallback: redirect to edit screen
+        final noteId = state.pathParameters['noteId'] ?? '';
+        return _buildPage(
+          key: state.pageKey,
+          child: NoteDetailScreen(noteId: noteId),
+          beginOffset: const Offset(0.04, 0.02),
         );
       },
     ),

@@ -30,17 +30,17 @@ String categoryLabel(NoteCategory category) {
 String categoryEmoji(NoteCategory category) {
   switch (category) {
     case NoteCategory.tasks:
-      return 'Tasks';
+      return '✅';
     case NoteCategory.reminders:
-      return 'Reminders';
+      return '⏰';
     case NoteCategory.ideas:
-      return 'Ideas';
+      return '💡';
     case NoteCategory.followUp:
-      return 'Follow-up';
+      return '🔁';
     case NoteCategory.journal:
-      return 'Journal';
+      return '📔';
     case NoteCategory.general:
-      return 'General';
+      return '📝';
   }
 }
 
@@ -253,6 +253,13 @@ CaptureSource parseSource(String raw) {
       return CaptureSource.shortcutTile;
     case 'notification':
       return CaptureSource.notification;
+    // ISSUE-10: these were previously falling through to homeWritingBox.
+    case 'google tasks':
+    case 'googletasks':
+      return CaptureSource.googleTasks;
+    case 'google calendar':
+    case 'googlecalendar':
+      return CaptureSource.googleCalendar;
     case 'home writing box':
     default:
       return CaptureSource.homeWritingBox;

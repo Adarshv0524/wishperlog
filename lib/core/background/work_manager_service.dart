@@ -45,14 +45,16 @@ void callbackDispatcher() {
       case WorkManagerService.periodicTaskName:
         try {
           final sync = ExternalSyncService();
-          final ok   = await sync.ensureGoogleConnected();
+          final ok = await sync.ensureGoogleConnected();
           if (!ok) {
             debugPrint('[WorkManager] Google not signed in — skip');
             return true; // Don't retry immediately
           }
           final result = await sync.syncNow();
-          debugPrint('[WorkManager] Sync done — '
-              'processed=${result.processed} updated=${result.updated}');
+          debugPrint(
+            '[WorkManager] Sync done — '
+            'processed=${result.processed} updated=${result.updated}',
+          );
           return true;
         } catch (e) {
           debugPrint('[WorkManager] periodicSync error: $e');
@@ -70,9 +72,10 @@ void callbackDispatcher() {
 
 class WorkManagerService {
   // Task identifiers — Telegram digest removed (handled by Cloudflare Worker)
-  static const periodicTaskName   = 'wishperlog.periodic_google_tasks_sync';
-  static const periodicTaskUnique = 'wishperlog.periodic_google_tasks_sync.unique';
-  static const flushPendingTaskName   = 'wishperlog.flush_pending_ai';
+  static const periodicTaskName = 'wishperlog.periodic_google_tasks_sync';
+  static const periodicTaskUnique =
+      'wishperlog.periodic_google_tasks_sync.unique';
+  static const flushPendingTaskName = 'wishperlog.flush_pending_ai';
   static const flushPendingTaskUnique = 'wishperlog.flush_pending_ai.unique';
 
   static Future<void> initialize() async {
@@ -83,15 +86,15 @@ class WorkManagerService {
     await Workmanager().registerPeriodicTask(
       periodicTaskUnique,
       periodicTaskName,
-      frequency:            const Duration(hours: 4),
-      constraints:          Constraints(
-        networkType:         NetworkType.connected,
+      frequency: const Duration(minutes: 15),
+      constraints: Constraints(
+        networkType: NetworkType.connected,
         requiresBatteryNotLow: true,
       ),
-      existingWorkPolicy:   ExistingPeriodicWorkPolicy.keep,
-      backoffPolicy:        BackoffPolicy.exponential,
-      backoffPolicyDelay:   const Duration(minutes: 30),
-      initialDelay:         const Duration(minutes: 15),
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      backoffPolicy: BackoffPolicy.exponential,
+      backoffPolicyDelay: const Duration(minutes: 30),
+      initialDelay: const Duration(minutes: 15),
     );
   }
 
@@ -99,10 +102,10 @@ class WorkManagerService {
     await Workmanager().registerOneOffTask(
       flushPendingTaskUnique,
       flushPendingTaskName,
-      constraints:        Constraints(networkType: NetworkType.connected),
-      initialDelay:       const Duration(seconds: 5),
+      constraints: Constraints(networkType: NetworkType.connected),
+      initialDelay: const Duration(seconds: 5),
       existingWorkPolicy: ExistingWorkPolicy.replace,
-      backoffPolicy:      BackoffPolicy.exponential,
+      backoffPolicy: BackoffPolicy.exponential,
       backoffPolicyDelay: const Duration(minutes: 15),
     );
   }

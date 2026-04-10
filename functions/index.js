@@ -189,6 +189,26 @@ function parseDigestTime(raw) {
   return { hour: 9, minute: 0 };
 }
 
+function parseDigestTimes(rawTimes, rawSingle) {
+  const parsed = [];
+  const seen = new Set();
+  const values = Array.isArray(rawTimes) && rawTimes.length > 0
+    ? rawTimes
+    : [rawSingle];
+
+  for (const value of values) {
+    const slot = parseDigestTime(value);
+    const key = `${slot.hour}:${slot.minute}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    parsed.push(slot);
+  }
+
+  return parsed.length > 0 ? parsed : [{ hour: 9, minute: 0 }];
+}
+
 function localDateForOffset(nowUtc, offsetMinutes) {
   const shifted = new Date(nowUtc.getTime() + offsetMinutes * 60 * 1000);
   const y = shifted.getUTCFullYear();
@@ -331,7 +351,7 @@ async function sendSilentFcm({ token, uid, noteId, status }) {
 
 exports.sendDailyDigest = onSchedule(
   {
-    schedule: '*/15 * * * *',
+    schedule: '* * * * *',
     timeZone: 'UTC',
     region: 'us-central1',
   },
@@ -347,11 +367,13 @@ exports.sendDailyDigest = onSchedule(
       }
 
       const offsetMinutes = Number(user.timezone_offset_minutes ?? 0);
-      const digest = parseDigestTime(user.digest_time);
       const local = localDateForOffset(nowUtc, offsetMinutes);
+      const digestTimes = parseDigestTimes(user.digest_times, user.digest_time);
 
-      const minuteDelta = Math.abs(local.minute - digest.minute);
-      if (local.hour !== digest.hour || minuteDelta > 10) {
+      const matchesCurrentMinute = digestTimes.some(
+        (digest) => local.hour === digest.hour && local.minute === digest.minute,
+      );
+      if (!matchesCurrentMinute) {
         continue;
       }
 
