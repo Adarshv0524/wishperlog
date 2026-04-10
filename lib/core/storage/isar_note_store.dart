@@ -188,43 +188,33 @@ class IsarNoteStore {
 
   Future<Note?> getById(String noteId) => getByNoteId(noteId);
 
+  /// Find a note by its Google Task ID. Returns null if not found or not in Isar mode.
   Future<Note?> findByGtaskId(String gtaskId) async {
-    if (gtaskId.trim().isEmpty) {
-      return null;
-    }
-
     if (_useFirestoreOnly) {
       final uid = _getCurrentUserId();
-      if (uid == null) {
-        debugPrint('[IsarNoteStore] findByGtaskId() - null, user not authenticated');
-        return null;
-      }
+      if (uid == null) return null;
       _firestore ??= FirebaseFirestore.instance;
-
-      final query = await _firestore!
+      final snap = await _firestore!
           .collection('users')
           .doc(uid)
           .collection('notes')
           .where('gtask_id', isEqualTo: gtaskId)
           .limit(1)
           .get();
-
-      if (query.docs.isEmpty) return null;
-      final doc = query.docs.first;
+      if (snap.docs.isEmpty) return null;
       try {
-        return Note.fromFirestoreJson(doc.data(), uid: uid, noteId: doc.id);
-      } catch (e) {
-        debugPrint('[IsarNoteStore] Error parsing note by gtaskId: $e');
+        return Note.fromFirestoreJson(snap.docs.first.data(), uid: uid, noteId: snap.docs.first.id);
+      } catch (_) {
         return null;
       }
     }
 
     await init();
-    if (_isar != null && _isar!.isOpen) {
-      final isar = _isar!;
-      return isar.notes.filter().gtaskIdEqualTo(gtaskId).findFirst();
-    }
-    return null;
+    if (_isar == null || !_isar!.isOpen) return null;
+    return _isar!.notes
+        .filter()
+        .gtaskIdEqualTo(gtaskId)
+        .findFirst();
   }
 
   /// Get all notes - uses Firestore if in fallback mode

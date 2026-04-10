@@ -306,67 +306,72 @@ class OverlayForegroundService : Service() {
         val doubleTapTimeout = 280L
 
         frame.setOnTouchListener { v, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    if (isRecording) return@setOnTouchListener true
-                    initX = bubbleParams.x; initY = bubbleParams.y
-                    initTX = event.rawX;    initTY = event.rawY
-                    isDragging = false; longPressTriggered = false; isUserHolding = false
-                    longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                    longPressRunnable = Runnable {
-                        longPressTriggered = true; isUserHolding = true
-                        if (bubbleGrowEnabled) frame.animate().scaleX(1.22f).scaleY(1.22f).setDuration(180).start()
-                        startVoiceCapture()
-                    }
-                    mainHandler.postDelayed(longPressRunnable!!, longPressDelayMs)
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - initTX).toInt()
-                    val dy = (event.rawY - initTY).toInt()
-                    if (longPressTriggered || isRecording) return@setOnTouchListener true
-                    if (Math.abs(dx) > dragThresholdPx || Math.abs(dy) > dragThresholdPx) {
-                        isDragging = true
+            synchronized(this) {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        if (isRecording) return@setOnTouchListener true
+                        initX = bubbleParams.x; initY = bubbleParams.y
+                        initTX = event.rawX; initTY = event.rawY
+                        isDragging = false; longPressTriggered = false; isUserHolding = false
                         longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        longPressRunnable = Runnable {
+                            synchronized(this) {
+                                longPressTriggered = true; isUserHolding = true
+                                if (bubbleGrowEnabled) frame.animate().scaleX(1.22f).scaleY(1.22f).setDuration(180).start()
+                                startVoiceCapture()
+                            }
+                        }
+                        mainHandler.postDelayed(longPressRunnable!!, longPressDelayMs)
+                        true
                     }
-                    if (isDragging) {
-                        bubbleParams.x = initX + dx; bubbleParams.y = initY + dy
-                        windowManager.updateViewLayout(bubbleView, bubbleParams)
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - initTX).toInt()
+                        val dy = (event.rawY - initTY).toInt()
+                        if (longPressTriggered || isRecording) return@setOnTouchListener true
+                        if (Math.abs(dx) > dragThresholdPx || Math.abs(dy) > dragThresholdPx) {
+                            isDragging = true
+                            longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        }
+                        if (isDragging) {
+                            val newX = initX + dx
+                            val newY = initY + dy
+                            if (bubbleParams.x != newX || bubbleParams.y != newY) {
+                                bubbleParams.x = newX; bubbleParams.y = newY
+                                windowManager.updateViewLayout(bubbleView, bubbleParams)
+                            }
+                        }
+                        true
                     }
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                    longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                    isUserHolding = false
-                    restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
-                    restartListenRunnable = null
-                    if (isDragging) {
-                        val cx    = bubbleParams.x + v.width / 2
-                        val snapX = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
-                        bubbleParams.x = snapX
-                        bubbleParams.y = bubbleParams.y.coerceAtLeast(statusBarHeight() + dp(8f))
-                        windowManager.updateViewLayout(bubbleView, bubbleParams)
-                        prefs.edit().putInt("overlay_x", bubbleParams.x).putInt("overlay_y", bubbleParams.y).apply()
-                    } else if (!longPressTriggered) {
-                        val now = event.eventTime
-                        if (now - lastTapUpAt <= doubleTapTimeout) { showTextInputBanner(); lastTapUpAt = 0L }
-                        else lastTapUpAt = now
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                        longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        longPressRunnable = null; longPressTriggered = false; isUserHolding = false
+                        restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
+                        restartListenRunnable = null
+                        if (isRecording) stopVoiceCapture()
+                        if (isDragging) {
+                            val cx = bubbleParams.x + v.width / 2
+                            val snapX = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
+                            val newY = bubbleParams.y.coerceAtLeast(statusBarHeight() + dp(8f))
+                            if (bubbleParams.x != snapX || bubbleParams.y != newY) {
+                                bubbleParams.x = snapX
+                                bubbleParams.y = newY
+                                windowManager.updateViewLayout(bubbleView, bubbleParams)
+                                prefs.edit().putInt("overlay_x", bubbleParams.x).putInt("overlay_y", bubbleParams.y).apply()
+                            }
+                        } else if (!longPressTriggered) {
+                            val now = event.eventTime
+                            if (now - lastTapUpAt <= doubleTapTimeout) {
+                                showTextInputBanner()
+                                lastTapUpAt = 0L
+                            } else {
+                                lastTapUpAt = now
+                            }
+                        }
+                        true
                     }
-                    if (longPressTriggered && isRecording) stopVoiceCapture()
-                    longPressTriggered = false; longPressRunnable = null
-                    true
+                    else -> false
                 }
-                MotionEvent.ACTION_CANCEL -> {
-                    frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                    longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                    longPressRunnable = null; longPressTriggered = false; isUserHolding = false
-                    restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
-                    restartListenRunnable = null
-                    if (isRecording) stopVoiceCapture()
-                    true
-                }
-                else -> false
             }
         }
 
@@ -560,6 +565,7 @@ class OverlayForegroundService : Service() {
     }
 
     private fun stopVoiceCapture() {
+        isRecording = false   // Reset immediately so no subsequent gesture is blocked.
         Log.d(TAG, "stopVoiceCapture (elapsed=${System.currentTimeMillis() - recordingStartTime}ms)")
         stopListeningCalled = true
         releaseAudioFocus()

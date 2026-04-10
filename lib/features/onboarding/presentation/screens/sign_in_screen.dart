@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
+import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
+import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 
@@ -56,8 +58,9 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       await sl<UserRepository>().signInWithGoogle();
       if (!mounted) return;
-      // Show the animated setup overlay before navigating.
-      await _runSetupAnimation();
+      // Run animation and real background init in parallel.
+      // The overlay will dismiss when BOTH finish.
+      await _runSetupAnimationWithWork();
       if (!mounted) return;
       context.go('/permissions');
     } on SignInFriendlyException catch (e) {
@@ -69,13 +72,44 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
-  Future<void> _runSetupAnimation() async {
+  Future<void> _runSetupAnimationWithWork() async {
+    // Completer that the overlay will call when its animation finishes.
+    final animDone  = Completer<void>();
+    // Run actual post-sign-in work in parallel with the animation.
+    final workFuture = _doPostSignInWork();
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: 0.6),
-      builder: (_) => const _EnvironmentSetupOverlay(),
+      builder: (_) => _EnvironmentSetupOverlay(
+        // Pass the work future so the overlay can exit early if work
+        // finishes before the minimum animation time, or hold open if work
+        // takes longer.
+        workFuture: workFuture,
+        onDone: () {
+          if (!animDone.isCompleted) animDone.complete();
+        },
+      ),
     );
+
+    // Ensure work also completes (it may have finished before dialog closed).
+    await workFuture.catchError((_) {});
+  }
+
+  /// Real initialisation work that previously happened invisibly after the
+  /// animation. Now runs concurrently with the animation so there is zero
+  /// extra wait.
+  Future<void> _doPostSignInWork() async {
+    try {
+      final aiRouter = sl<AiClassifierRouter>();
+      await aiRouter.hydrate();
+    } catch (_) {}
+    try {
+      await IsarNoteStore.instance.init();
+    } catch (_) {}
+    // Additional lightweight init can be added here.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
   }
 
   @override
@@ -226,7 +260,14 @@ class _GoogleSignInButton extends StatelessWidget {
 // Auto-dismisses after the last step completes.
 // ─────────────────────────────────────────────────────────────────────────────
 class _EnvironmentSetupOverlay extends StatefulWidget {
-  const _EnvironmentSetupOverlay();
+  const _EnvironmentSetupOverlay({
+    required this.workFuture,
+    required this.onDone,
+  });
+
+  final Future<void> workFuture;
+  final VoidCallback onDone;
+
   @override
   State<_EnvironmentSetupOverlay> createState() => _EnvironmentSetupOverlayState();
 }
@@ -274,6 +315,7 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
   }
 
   Future<void> _runSteps() async {
+    // Minimum animation: run all steps.
     for (var i = 0; i < _steps.length; i++) {
       if (!mounted) return;
       setState(() {
@@ -281,9 +323,17 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
         _progressValue = (i + 1) / _steps.length;
       });
       await Future<void>.delayed(Duration(milliseconds: _steps[i].durationMs));
+      if (!mounted) return;
     }
+
+    // Wait for real work to finish if it hasn't yet — so the animation never
+    // pops prematurely while Isar/AI is still initialising.
+    await widget.workFuture.catchError((_) {});
+
     if (!mounted) return;
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    // Brief hold so the "System ready" step is legible.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    widget.onDone();
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -364,8 +414,8 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                   _steps[_stepIndex].text,
                   key: ValueKey(_stepIndex),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : scheme.onPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     height: 1.4,

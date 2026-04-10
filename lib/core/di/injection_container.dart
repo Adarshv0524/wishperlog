@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:wishperlog/core/background/connectivity_sync_coordinator.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
@@ -15,6 +16,7 @@ import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/features/sync/data/telegram_service.dart';
 import 'package:wishperlog/features/sync/data/fcm_sync_service.dart';
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 
 final sl = GetIt.instance;
@@ -24,10 +26,8 @@ Future<void> init() async {
   sl.registerLazySingleton<AppPreferencesRepository>(
     () => AppPreferencesRepository(),
   );
-  sl.registerLazySingleton<UserRepository>(() => UserRepository());
-  sl.registerLazySingleton<NoteRepository>(() => NoteRepository());
+    sl.registerLazySingleton<NoteRepository>(() => NoteRepository());
   sl.registerLazySingleton<SpeechToText>(() => SpeechToText());
-  sl.registerLazySingleton<ExternalSyncService>(() => ExternalSyncService());
   sl.registerLazySingleton<TelegramService>(() => TelegramService());
   sl.registerLazySingleton<NoteEventBus>(() => NoteEventBus.instance);
   sl.registerLazySingleton<IsarNoteStore>(() => IsarNoteStore.instance);
@@ -66,5 +66,25 @@ Future<void> init() async {
   // ── Presentation state ─────────────────────────────────────────────────────
   sl.registerLazySingleton<ThemeCubit>(
     () => ThemeCubit(sl<AppPreferencesRepository>()),
+  );
+
+  // ── Google Sign-In ────────────────────────────────────────────────────────
+  sl.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn(scopes: [
+    'email',
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/tasks',
+  ]));
+
+  sl.registerLazySingleton<ExternalSyncService>(
+    () => ExternalSyncService(googleSignIn: sl<GoogleSignIn>()),
+  );
+
+  sl.registerLazySingleton<UserRepository>(
+    () => UserRepository(googleSignIn: sl<GoogleSignIn>()),
+  );
+
+  // ── Message-state service ──────────────────────────────────────────────────
+  sl.registerLazySingleton<MessageStateService>(
+    () => MessageStateService(),
   );
 }

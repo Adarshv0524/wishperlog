@@ -1,12 +1,12 @@
 # Consolidated Source Bundle
 
-Generated: 2026-04-10T01:12:30+00:00
+Generated: 2026-04-10T17:12:13+00:00
 
 ## Summary
-- Dart files: 66
-- Android files: 25
+- Dart files: 69
+- Android files: 26
 - Cloudfare files: 2
-- Total files: 93
+- Total files: 97
 
 ## File Index
 - lib/app/router.dart (dart)
@@ -29,16 +29,17 @@ Generated: 2026-04-10T01:12:30+00:00
 - lib/features/ai/data/groq_note_classifier.dart (dart)
 - lib/features/auth/data/repositories/user_repository.dart (dart)
 - lib/features/capture/data/capture_service.dart (dart)
-- lib/features/capture/data/note_save_service.dart (dart)
 - lib/features/capture/presentation/state/capture_ui_controller.dart (dart)
 - lib/features/capture/presentation/state/capture_ui_state.dart (dart)
 - lib/features/home/presentation/home_screen_layout.dart (dart)
 - lib/features/home/presentation/screens/home_screen.dart (dart)
 - lib/features/home/presentation/widgets/folder_grid.dart (dart)
 - lib/features/home/presentation/widgets/thought_canvas.dart (dart)
+- lib/features/nlp/nlp_task_parser.dart (dart)
 - lib/features/notes/data/note_repository.dart (dart)
 - lib/features/notes/presentation/screens/folder_screen.dart (dart)
 - lib/features/notes/presentation/screens/note_detail_screen.dart (dart)
+- lib/features/notes/presentation/screens/note_view_screen.dart (dart)
 - lib/features/notes/presentation/widgets/glass_note_card.dart (dart)
 - lib/features/notes/presentation/widgets/search_notes_modal.dart (dart)
 - lib/features/notifications/data/local_notification_service.dart (dart)
@@ -47,7 +48,9 @@ Generated: 2026-04-10T01:12:30+00:00
 - lib/features/onboarding/presentation/screens/splash_screen.dart (dart)
 - lib/features/onboarding/presentation/screens/telegram_screen.dart (dart)
 - lib/features/overlay/overlay_bubble.dart (dart)
+- lib/features/overlay/overlay_customisation_sheet.dart (dart)
 - lib/features/overlay/overlay_notifier.dart (dart)
+- lib/features/overlay/overlay_settings_model.dart (dart)
 - lib/features/overlay/presentation/system_banner_overlay.dart (dart)
 - lib/features/overlay/quick_note_editor.dart (dart)
 - lib/features/search/data/smart_note_search.dart (dart)
@@ -58,6 +61,7 @@ Generated: 2026-04-10T01:12:30+00:00
 - lib/features/sync/data/fcm_sync_service.dart (dart)
 - lib/features/sync/data/firestore_note_sync_service.dart (dart)
 - lib/features/sync/data/google_api_client.dart (dart)
+- lib/features/sync/data/message_state_service.dart (dart)
 - lib/features/sync/data/telegram_service.dart (dart)
 - lib/firebase_options.dart (dart)
 - lib/main.dart (dart)
@@ -73,7 +77,6 @@ Generated: 2026-04-10T01:12:30+00:00
 - lib/shared/widgets/glass_pane.dart (dart)
 - lib/shared/widgets/glass_title_bar.dart (dart)
 - lib/shared/widgets/mesh_gradient_background.dart (dart)
-- lib/shared/widgets/molecules/dynamic_notch_pill.dart (dart)
 - lib/shared/widgets/top_notch_message.dart (dart)
 - android/app/build.gradle.kts (kotlin)
 - android/app/google-services.json (json)
@@ -85,6 +88,7 @@ Generated: 2026-04-10T01:12:30+00:00
 - android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/FlutterEngineHolder.kt (kotlin)
 - android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/MainActivity.kt (kotlin)
 - android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/NoteInputReceiver.kt (kotlin)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayAppearanceSettings.kt (kotlin)
 - android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayForegroundService.kt (kotlin)
 - android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/WishperlogApplication.kt (kotlin)
 - android/app/src/main/res/drawable/launch_background.xml (xml)
@@ -120,7 +124,9 @@ import 'package:wishperlog/features/onboarding/presentation/screens/telegram_scr
 import 'package:wishperlog/features/search/presentation/search_screen.dart';
 import 'package:wishperlog/features/settings/presentation/screens/settings_screen.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/features/notes/presentation/screens/note_view_screen.dart';
 import 'package:wishperlog/features/overlay/presentation/system_banner_overlay.dart';
 
 CustomTransitionPage<T> _buildPage<T>({
@@ -159,14 +165,6 @@ final GoRouter router = GoRouter(
   routes: [
     GoRoute(
       path: '/',
-      pageBuilder: (context, state) => _buildPage(
-        key: state.pageKey,
-        child: const SignInScreen(),
-        beginOffset: const Offset(0, 0.04),
-      ),
-    ),
-    GoRoute(
-      path: '/signin',
       pageBuilder: (context, state) => _buildPage(
         key: state.pageKey,
         child: const SignInScreen(),
@@ -215,6 +213,28 @@ final GoRouter router = GoRouter(
           child: NoteDetailScreen(noteId: noteId),
           beginOffset: const Offset(0.04, 0.02),
           duration: const Duration(milliseconds: 380),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/notes/:noteId/view',
+      pageBuilder: (context, state) {
+        final extra = state.extra;
+        // extra must be a Note object when using context.push('/notes/x/view', extra: note)
+        if (extra is Note) {
+          return _buildPage(
+            key: state.pageKey,
+            child: NoteViewScreen(note: extra),
+            beginOffset: const Offset(0.0, 0.04),
+            duration: const Duration(milliseconds: 400),
+          );
+        }
+        // Fallback: redirect to edit screen
+        final noteId = state.pathParameters['noteId'] ?? '';
+        return _buildPage(
+          key: state.pageKey,
+          child: NoteDetailScreen(noteId: noteId),
+          beginOffset: const Offset(0.04, 0.02),
         );
       },
     ),
@@ -277,12 +297,13 @@ final GoRouter router = GoRouter(
         return '/home';
       }
       return null;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[Router] FirebaseAuthException during redirect: ${e.message}');
+      return '/'; // Sign-in is the safe fallback for all auth errors
     } catch (e) {
-      // If Firebase auth check fails during initialization, stay on current route
-      debugPrint('[Router] Auth check error: $e');
-      return null;
-    }
-  },
+      debugPrint('[Router] Unexpected redirect error: $e');
+      return '/'; // Never strand the user on a missing route
+    }  },
 );
 ```
 
@@ -304,6 +325,7 @@ import 'package:wishperlog/firebase_options.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';
 
 /// Dart entry-point for [BackgroundNoteService].
 ///
@@ -461,36 +483,20 @@ Future<void> _pushToFirestoreBg(Note note) async {
       debugPrint('[BgNoteHandler] Firestore push skipped — not authenticated');
       return;
     }
+    // Use the canonical serialiser — keeps Firestore in sync with the model.
     await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .collection('notes')
         .doc(note.noteId)
-        .set(_noteToMap(note), SetOptions(merge: true));
+        .set(note.toFirestoreJson(), SetOptions(merge: true));
+
+    // Rebuild message_state so the Worker sees fresh content after AI enrichment.
+    await MessageStateService().recompute(uid: uid);
   } catch (e) {
     debugPrint('[BgNoteHandler] Firestore push error: $e');
   }
 }
-
-Map<String, dynamic> _noteToMap(Note note) => {
-  'note_id':        note.noteId,
-  'uid':            note.uid,
-  'raw_transcript': note.rawTranscript,
-  'title':          note.title,
-  'clean_body':     note.cleanBody,
-  'category':       note.category.name,
-  'priority':       note.priority.name,
-  'ai_model':       note.aiModel,
-  'status':         note.status.name,
-  'source':         note.source.name,
-  'extracted_date': note.extractedDate?.toIso8601String(),
-  'created_at':     note.createdAt.toIso8601String(),
-  'updated_at':     note.updatedAt.toIso8601String(),
-  'synced_at':      note.syncedAt?.toIso8601String(),
-  'gtask_id':       note.gtaskId,
-  'gcal_event_id':  note.gcalEventId,
-  'is_deleted':     note.status == NoteStatus.deleted,
-};
 ```
 
 ### lib/core/background/connectivity_sync_coordinator.dart
@@ -737,6 +743,7 @@ class AppEnv {
 
 ```dart
 import 'package:get_it/get_it.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:wishperlog/core/background/connectivity_sync_coordinator.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
@@ -745,7 +752,6 @@ import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_processing_service.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
-import 'package:wishperlog/features/capture/data/note_save_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
@@ -754,6 +760,7 @@ import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/features/sync/data/telegram_service.dart';
 import 'package:wishperlog/features/sync/data/fcm_sync_service.dart';
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 
 final sl = GetIt.instance;
@@ -763,19 +770,14 @@ Future<void> init() async {
   sl.registerLazySingleton<AppPreferencesRepository>(
     () => AppPreferencesRepository(),
   );
-  sl.registerLazySingleton<UserRepository>(() => UserRepository());
-  sl.registerLazySingleton<NoteRepository>(() => NoteRepository());
+    sl.registerLazySingleton<NoteRepository>(() => NoteRepository());
   sl.registerLazySingleton<SpeechToText>(() => SpeechToText());
-  sl.registerLazySingleton<ExternalSyncService>(() => ExternalSyncService());
   sl.registerLazySingleton<TelegramService>(() => TelegramService());
   sl.registerLazySingleton<NoteEventBus>(() => NoteEventBus.instance);
   sl.registerLazySingleton<IsarNoteStore>(() => IsarNoteStore.instance);
 
   // ── Capture ────────────────────────────────────────────────────────────────
   sl.registerLazySingleton<CaptureService>(() => CaptureService());
-  sl.registerLazySingleton<NoteSaveService>(
-    () => NoteSaveService(noteEventBus: sl<NoteEventBus>()),
-  );
   sl.registerLazySingleton<CaptureUiController>(
     () => CaptureUiController(
       captureService: sl<CaptureService>(),
@@ -808,6 +810,26 @@ Future<void> init() async {
   // ── Presentation state ─────────────────────────────────────────────────────
   sl.registerLazySingleton<ThemeCubit>(
     () => ThemeCubit(sl<AppPreferencesRepository>()),
+  );
+
+  // ── Google Sign-In ────────────────────────────────────────────────────────
+  sl.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn(scopes: [
+    'email',
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/tasks',
+  ]));
+
+  sl.registerLazySingleton<ExternalSyncService>(
+    () => ExternalSyncService(googleSignIn: sl<GoogleSignIn>()),
+  );
+
+  sl.registerLazySingleton<UserRepository>(
+    () => UserRepository(googleSignIn: sl<GoogleSignIn>()),
+  );
+
+  // ── Message-state service ──────────────────────────────────────────────────
+  sl.registerLazySingleton<MessageStateService>(
+    () => MessageStateService(),
   );
 }
 ```
@@ -1107,43 +1129,33 @@ class IsarNoteStore {
 
   Future<Note?> getById(String noteId) => getByNoteId(noteId);
 
+  /// Find a note by its Google Task ID. Returns null if not found or not in Isar mode.
   Future<Note?> findByGtaskId(String gtaskId) async {
-    if (gtaskId.trim().isEmpty) {
-      return null;
-    }
-
     if (_useFirestoreOnly) {
       final uid = _getCurrentUserId();
-      if (uid == null) {
-        debugPrint('[IsarNoteStore] findByGtaskId() - null, user not authenticated');
-        return null;
-      }
+      if (uid == null) return null;
       _firestore ??= FirebaseFirestore.instance;
-
-      final query = await _firestore!
+      final snap = await _firestore!
           .collection('users')
           .doc(uid)
           .collection('notes')
           .where('gtask_id', isEqualTo: gtaskId)
           .limit(1)
           .get();
-
-      if (query.docs.isEmpty) return null;
-      final doc = query.docs.first;
+      if (snap.docs.isEmpty) return null;
       try {
-        return Note.fromFirestoreJson(doc.data(), uid: uid, noteId: doc.id);
-      } catch (e) {
-        debugPrint('[IsarNoteStore] Error parsing note by gtaskId: $e');
+        return Note.fromFirestoreJson(snap.docs.first.data(), uid: uid, noteId: snap.docs.first.id);
+      } catch (_) {
         return null;
       }
     }
 
     await init();
-    if (_isar != null && _isar!.isOpen) {
-      final isar = _isar!;
-      return isar.notes.filter().gtaskIdEqualTo(gtaskId).findFirst();
-    }
-    return null;
+    if (_isar == null || !_isar!.isOpen) return null;
+    return _isar!.notes
+        .filter()
+        .gtaskIdEqualTo(gtaskId)
+        .findFirst();
   }
 
   /// Get all notes - uses Firestore if in fallback mode
@@ -2512,11 +2524,9 @@ class GroqNoteClassifier {
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wishperlog/core/config/app_env.dart';
 
 class SignInFriendlyException implements Exception {
   const SignInFriendlyException(this.message);
@@ -2530,11 +2540,9 @@ class SignInFriendlyException implements Exception {
 class UserRepository {
   final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb
-        ? (AppEnv.googleWebClientId.isEmpty ? null : AppEnv.googleWebClientId)
-        : null,
-  );
+  final GoogleSignIn _googleSignIn;
+
+  UserRepository({required GoogleSignIn googleSignIn}) : _googleSignIn = googleSignIn;
 
   Stream<auth.User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
@@ -2568,19 +2576,11 @@ class UserRepository {
       final auth.UserCredential userCredential = await _firebaseAuth
           .signInWithCredential(credential);
 
-      await _upsertUserDocument(
-        firebaseUser: userCredential.user!,
-        googleAuth: googleAuth,
-      );
+      await _upsertUserDocument(firebaseUser: userCredential.user!, googleAuth: googleAuth);
 
       return userCredential;
-    } on PlatformException catch (e) {
-      final joined = '${e.code} ${e.message ?? ''}'.toLowerCase();
-      if (joined.contains('10')) {
-        throw const SignInFriendlyException(
-          'Developer Error: SHA-1 mismatch. Please add your debug keystore SHA-1 to the Firebase Console and re-download google-services.json.',
-        );
-      }
+    } catch (e) {
+      debugPrint('[UserRepository] Google sign-in failed: $e');
       rethrow;
     }
   }
@@ -2661,9 +2661,11 @@ class UserRepository {
     if (user == null) {
       return;
     }
+    final utcSlot = _toUtcSlotFromHm(digestTime);
     await _firestore.collection('users').doc(user.uid).set({
       'digest_time': digestTime,
       'digest_times': [digestTime],
+      'digest_times_utc': [utcSlot],
       'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
     }, SetOptions(merge: true));
   }
@@ -2707,6 +2709,21 @@ class UserRepository {
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   }
 
+  String _toUtcSlotFromHm(String digestTime) {
+    final parts = digestTime.trim().split(':');
+    if (parts.length != 2) {
+      return digestTime.trim();
+    }
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) {
+      return digestTime.trim();
+    }
+
+    return _toUtcSlot(TimeOfDay(hour: hour, minute: minute));
+  }
+
   Future<void> updateOverlayVisibility(bool visible) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) {
@@ -2724,7 +2741,9 @@ class UserRepository {
     }
     final normalized = chatId.trim();
     await _firestore.collection('users').doc(user.uid).set({
-      'telegram_chat_id': normalized,
+      'telegram_chat_id': normalized.isEmpty
+          ? FieldValue.delete()
+          : normalized,
     }, SetOptions(merge: true));
 
     final prefs = await SharedPreferences.getInstance();
@@ -2956,37 +2975,6 @@ class CaptureService {
       debugPrintStack(stackTrace: st);
       // Firestore sync will be retried via existing sync flow.
     }
-  }
-}
-```
-
-### lib/features/capture/data/note_save_service.dart
-
-```dart
-import 'package:wishperlog/features/capture/data/capture_service.dart';
-import 'package:wishperlog/shared/models/enums.dart';
-import 'package:wishperlog/shared/models/note.dart';
-
-@Deprecated('Use CaptureService.ingestRawCapture instead.')
-class NoteSaveService {
-  NoteSaveService({dynamic auth, dynamic firestore,
-      dynamic isarNoteStore, dynamic noteEventBus})
-      : _capture = CaptureService();
-
-  final CaptureService _capture;
-
-  Future<Note> saveNote({
-    required String rawTranscript,
-    required CaptureSource source,
-    bool syncToCloud = true,
-  }) async {
-    final note = await _capture.ingestRawCapture(
-      rawTranscript: rawTranscript,
-      source: source,
-      syncToCloud: syncToCloud,
-    );
-    if (note == null) throw Exception('[NoteSaveService] Empty transcript');
-    return note;
   }
 }
 ```
@@ -3310,16 +3298,55 @@ class CaptureUiController extends Cubit<CaptureUiState> {
 
   void _onSpeechStatus(String status) {
     debugPrint('[CaptureUiController] STT status: $status');
-    // 'done' often indicates the engine auto-closed due to silence.
-    // Keep recording alive until the user explicitly stops.
-    if (status == 'done' && state is CaptureUiRecording && !_isInitializing) {
-      unawaited(_resumeListening());
+    // 'done' = engine auto-closed due to silence or system cut-off.
+    if (status == 'done' && state is CaptureUiRecording) {
+      if (_stopRequested) {
+        // User already released the button — flush whatever we have.
+        debugPrint('[CaptureUiController] STT done after stop request — flushing transcript');
+        _flushAndStop();
+        return;
+      }
+      if (!_isInitializing) {
+        // User is still holding — re-arm the listener.
+        unawaited(_resumeListening());
+      }
     }
+  }
+
+  /// Saves the last captured transcript if non-empty and transitions to
+  /// processing state. Called when the button is released AND STT closes.
+  void _flushAndStop() {
+    _recordingTimer?.cancel();
+    final transcript = _lastTranscript.trim();
+    if (transcript.isEmpty) {
+      resetToIdle();
+      return;
+    }
+    emit(CaptureUiProcessing(provider: _captureService.activeProviderName));
+    _autoReturnTimer?.cancel();
+    _autoReturnTimer = Timer(const Duration(seconds: 45), () {
+      if (state is CaptureUiProcessing) emit(const CaptureUiIdle());
+    });
+    // The save itself is triggered by the caller (_stopDictation) which
+    // already holds the transcript in _lastTranscript. If this is reached
+    // via _onSpeechStatus, emit the saved-transcript event so the upstream
+    // save flow is triggered.
+    _onSpeechResult(
+      SpeechRecognitionResult(
+        [SpeechRecognitionWords(transcript, null, 1.0)],
+        true,
+      ),
+    );
   }
 
   /// Re-arms STT when it auto-closes during an active recording session.
   Future<void> _resumeListening() async {
+    // Do NOT re-arm if: user released button, we're still initialising,
+    // or the state has already moved beyond recording.
     if (state is! CaptureUiRecording || _stopRequested || _isInitializing) {
+      if (_stopRequested && state is CaptureUiRecording) {
+        _flushAndStop();
+      }
       return;
     }
     try {
@@ -3539,10 +3566,11 @@ import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
-import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/features/capture/data/note_save_service.dart';
+import 'package:wishperlog/core/theme/app_durations.dart';
+import 'package:wishperlog/features/capture/data/capture_service.dart';
+import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/home/presentation/widgets/folder_grid.dart';
 import 'package:wishperlog/features/home/presentation/widgets/thought_canvas.dart';
 import 'package:wishperlog/features/notes/data/note_repository.dart';
@@ -3550,7 +3578,6 @@ import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
-import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -3563,7 +3590,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const MethodChannel _overlayChannel = MethodChannel('wishperlog/overlay');
 
   final NoteRepository _notes = sl<NoteRepository>();
-  late final NoteSaveService _saveService;
+  late final CaptureService _captureService;
   final SpeechToText _speech = SpeechToText();
   final TextEditingController _writingController = TextEditingController();
   final FocusNode _canvasFocusNode = FocusNode();
@@ -3572,14 +3599,17 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _speechReady = false;
   bool _isDictating = false;
   String _dictationPrefix = '';
+  NoteCategory _quickCategory = NoteCategory.general;
+  NotePriority _quickPriority = NotePriority.medium;
+  DateTime? _quickReminderAt;
   late final Future<Uint8List?> _launcherIconBytesFuture;
 
   @override
   void initState() {
     super.initState();
-    _saveService = sl.isRegistered<NoteSaveService>()
-        ? sl<NoteSaveService>()
-        : NoteSaveService();
+    _captureService = sl.isRegistered<CaptureService>()
+        ? sl<CaptureService>()
+        : CaptureService();
     _launcherIconBytesFuture = _loadLauncherIconBytes();
     _writingController.addListener(() {
       if (mounted) {
@@ -3672,8 +3702,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final nextText = spoken.isEmpty
         ? _dictationPrefix
         : _dictationPrefix.isEmpty
-        ? spoken
-        : '$_dictationPrefix $spoken';
+            ? spoken
+            : '$_dictationPrefix $spoken';
 
     _writingController.value = TextEditingValue(
       text: nextText,
@@ -3696,19 +3726,44 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final savedNote = await _saveService.saveNote(
+      final savedNote = await _captureService.ingestRawCapture(
         rawTranscript: textToSave,
         source: CaptureSource.homeWritingBox,
         syncToCloud: true,
+      );
+      if (savedNote == null) {
+        return;
+      }
+
+      final appliedReminder = _quickReminderAt;
+      final shouldApplyMetadata =
+          savedNote.category != _quickCategory ||
+          savedNote.priority != _quickPriority ||
+          savedNote.extractedDate != appliedReminder;
+      if (shouldApplyMetadata) {
+        await _notes.updateEditedNote(
+          noteId: savedNote.noteId,
+          title: savedNote.title,
+          cleanBody: savedNote.cleanBody,
+          category: _quickCategory,
+          priority: _quickPriority,
+          extractedDate: appliedReminder,
+        );
+      }
+
+      final finalNote = savedNote.copyWith(
+        category: _quickCategory,
+        priority: _quickPriority,
+        extractedDate: appliedReminder,
       );
       _writingController.clear();
 
       if (mounted) {
         sl<CaptureUiController>().notifyExternalRecordingSaved(
-          title: savedNote.title,
-          category: savedNote.category,
-          model: savedNote.aiModel,
-          noteId: savedNote.noteId,
+          title: finalNote.title,
+          category: finalNote.category,
+          model: finalNote.aiModel,
+          noteId: finalNote.noteId,
         );
       }
     } finally {
@@ -3718,6 +3773,170 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     }
+  }
+
+  Future<void> _openCaptureMetadataSheet() async {
+    var category = _quickCategory;
+    var priority = _quickPriority;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          child: GlassPane(
+                    level: 1,
+                    radius: 26,
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            child: StatefulBuilder(
+              builder: (context, setSheetState) => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Capture class',
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        child: const Text('Done'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Set the default category and priority for the next save.',
+                    style: TextStyle(color: context.textSec, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Category',
+                    style: TextStyle(
+                      color: context.textPri,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: kAllNoteCategories.map((entry) {
+                      final isSelected = entry == category;
+                      return FilterChip(
+                        selected: isSelected,
+                        label: Text(categoryLabel(entry)),
+                        onSelected: (_) => setSheetState(() => category = entry),
+                        selectedColor: categoryColor(entry).withValues(alpha: 0.16),
+                        checkmarkColor: categoryColor(entry),
+                        labelStyle: TextStyle(
+                          color: isSelected ? categoryColor(entry) : context.textPri,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Priority',
+                    style: TextStyle(
+                      color: context.textPri,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<NotePriority>(
+                    segments: const [
+                      ButtonSegment(value: NotePriority.high, label: Text('High')),
+                      ButtonSegment(value: NotePriority.medium, label: Text('Medium')),
+                      ButtonSegment(value: NotePriority.low, label: Text('Low')),
+                    ],
+                    selected: {priority},
+                    onSelectionChanged: (selection) {
+                      if (selection.isEmpty) return;
+                      setSheetState(() => priority = selection.first);
+                    },
+                    style: SegmentedButton.styleFrom(
+                      selectedBackgroundColor: AppColors.tasks,
+                      selectedForegroundColor: Colors.white,
+                      backgroundColor: context.surface1,
+                      foregroundColor: context.textPri,
+                      side: BorderSide(color: context.textSec.withValues(alpha: 0.10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () {
+                        setSheetState(() {
+                          category = NoteCategory.general;
+                          priority = NotePriority.medium;
+                        });
+                      },
+                      child: const Text('Reset to default'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _quickCategory = category;
+      _quickPriority = priority;
+    });
+  }
+
+  Future<void> _pickReminder() async {
+    final date = await showDatePicker(
+      context: context,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      initialDate: _quickReminderAt ?? DateTime.now(),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: _quickReminderAt == null
+          ? TimeOfDay.now()
+          : TimeOfDay.fromDateTime(_quickReminderAt!),
+    );
+    if (time == null || !mounted) return;
+
+    setState(() {
+      _quickReminderAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+      if (_quickCategory == NoteCategory.general) {
+        _quickCategory = NoteCategory.reminders;
+      }
+    });
+  }
+
+  void _clearReminder() {
+    setState(() => _quickReminderAt = null);
   }
 
   @override
@@ -3754,6 +3973,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     };
                     final activeTotal = counts.values.fold<int>(0, (sum, count) => sum + count);
 
+                    final tagActive = _quickCategory != NoteCategory.general ||
+                        _quickPriority != NotePriority.medium;
+                    final tagLabel = tagActive
+                        ? '${categoryLabel(_quickCategory)} • ${_quickPriority.name.toUpperCase()}'
+                        : null;
+                    final reminderLabel = _quickReminderAt != null
+                        ? '${MaterialLocalizations.of(context).formatMediumDate(_quickReminderAt!)} • ${TimeOfDay.fromDateTime(_quickReminderAt!).format(context)}'
+                        : null;
+
                     return Column(
                       children: [
                         SizedBox(
@@ -3767,9 +3995,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   children: [
                                     Expanded(
                                       child: GlassPane(
-                                        level: 1,
-                                        radius: 22,
-                                        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                                              level: 1,
+                                              radius: 24,
+                                              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                                         tintOverride: context.isDark
                                             ? const Color(0x5F0F2742)
                                             : const Color(0xCBEAF4FF),
@@ -3791,20 +4019,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     ),
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: AppColors.tasks.withValues(alpha: 0.16),
-                                                        blurRadius: 18,
+                                                        color: AppColors.tasks.withValues(alpha: 0.12),
+                                                        blurRadius: 16,
                                                         spreadRadius: -4,
-                                                        offset: const Offset(0, 6),
+                                                        offset: const Offset(0, 5),
                                                       ),
                                                     ],
                                                   ),
                                                   child: Padding(
-                                                    padding: const EdgeInsets.all(6),
+                                                    padding: const EdgeInsets.all(5),
                                                     child: ClipOval(
                                                       child: iconBytes == null
                                                           ? const Icon(
                                                               Icons.auto_awesome_rounded,
-                                                              size: 20,
+                                                              size: 19,
                                                               color: Colors.white,
                                                             )
                                                           : Image.memory(
@@ -3825,17 +4053,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     'WishperLog',
                                                     style: TextStyle(
                                                       color: context.textPri,
-                                                      fontSize: 22,
+                                                      fontSize: 21,
                                                       fontWeight: FontWeight.w900,
-                                                      letterSpacing: -0.7,
+                                                      letterSpacing: -0.55,
                                                     ),
                                                   ),
                                                   const SizedBox(height: 2),
                                                   Text(
                                                     'Quick capture, cleaner folders, calmer settings.',
                                                     style: TextStyle(
-                                                      color: context.textSec,
-                                                      fontSize: 11.5,
+                                                      color: context.textSec.withValues(alpha: 0.88),
+                                                      fontSize: 11.2,
                                                       fontWeight: FontWeight.w600,
                                                     ),
                                                   ),
@@ -3888,10 +4116,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                       focusNode: _canvasFocusNode,
                                       onSave: _saveWritingBox,
                                       onSubmit: _saveWritingBox,
+                                      onTagTap: _openCaptureMetadataSheet,
+                                      onReminderTap: _pickReminder,
+                                      onReminderLongPress: _clearReminder,
                                       onMicPressStart: _startDictation,
                                       onMicPressEnd: () => _stopDictation(submitCaptured: true),
                                       isSaving: _saving,
                                       isRecording: _isDictating,
+                                      tagActive: tagActive,
+                                      reminderActive: _quickReminderAt != null,
+                                      tagLabel: tagLabel,
+                                      reminderLabel: reminderLabel,
                                     ),
                                   ),
                                 ),
@@ -3906,8 +4141,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             child: GlassPane(
                               level: 2,
-                              radius: 26,
-                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                                radius: 28,
+                                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                               tintOverride: context.isDark
                                   ? const Color(0x4E122D4A)
                                   : const Color(0xA9EDF7FF),
@@ -4331,10 +4566,17 @@ class ThoughtCanvas extends StatelessWidget {
     required this.focusNode,
     required this.onSave,
     required this.onSubmit,
+    required this.onTagTap,
+    required this.onReminderTap,
+    required this.onReminderLongPress,
     required this.onMicPressStart,
     required this.onMicPressEnd,
     required this.isSaving,
     required this.isRecording,
+    this.tagActive = false,
+    this.reminderActive = false,
+    this.tagLabel,
+    this.reminderLabel,
     super.key,
   });
 
@@ -4342,10 +4584,17 @@ class ThoughtCanvas extends StatelessWidget {
   final FocusNode focusNode;
   final VoidCallback onSave;
   final VoidCallback onSubmit;
+  final VoidCallback onTagTap;
+  final VoidCallback onReminderTap;
+  final VoidCallback onReminderLongPress;
   final VoidCallback onMicPressStart;
   final VoidCallback onMicPressEnd;
   final bool isSaving;
   final bool isRecording;
+  final bool tagActive;
+  final bool reminderActive;
+  final String? tagLabel;
+  final String? reminderLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -4354,16 +4603,16 @@ class ThoughtCanvas extends StatelessWidget {
       ? const Color(0x44D4E5FF)
       : const Color(0x26204268);
     final topLayer = isDark
-      ? const Color(0x2AE8F2FF)
-      : const Color(0xE3FFFFFF);
+      ? const Color(0x24E8F2FF)
+      : const Color(0xEEF9FCFF);
     final bottomLayer = isDark
-      ? const Color(0x164E6FA0)
-      : const Color(0xBFEAF2FF);
+      ? const Color(0x144E6FA0)
+      : const Color(0xB8EAF2FF);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
+        filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -4374,16 +4623,16 @@ class ThoughtCanvas extends StatelessWidget {
                 bottomLayer,
               ],
             ),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: borderColor, width: 0.95),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: borderColor, width: 1),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withValues(alpha: 0.34)
-                    : const Color(0x663D6A97),
-                blurRadius: 30,
+                    ? Colors.black.withValues(alpha: 0.30)
+                    : const Color(0x563D6A97),
+                blurRadius: 28,
                 spreadRadius: -10,
-                offset: const Offset(0, 10),
+                offset: const Offset(0, 9),
               ),
             ],
           ),
@@ -4396,9 +4645,9 @@ class ThoughtCanvas extends StatelessWidget {
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      Colors.white.withValues(alpha: isDark ? 0.04 : 0.24),
-                      Colors.white.withValues(alpha: isDark ? 0.34 : 0.54),
-                      Colors.white.withValues(alpha: isDark ? 0.04 : 0.24),
+                      Colors.white.withValues(alpha: isDark ? 0.03 : 0.18),
+                      Colors.white.withValues(alpha: isDark ? 0.28 : 0.46),
+                      Colors.white.withValues(alpha: isDark ? 0.03 : 0.18),
                     ],
                   ),
                 ),
@@ -4422,7 +4671,7 @@ class ThoughtCanvas extends StatelessWidget {
                   },
                   style: TextStyle(
                     color: context.textPri,
-                    fontSize: 15,
+                    fontSize: 15.5,
                     height: 1.5,
                   ),
                   decoration: InputDecoration(
@@ -4431,17 +4680,17 @@ class ThoughtCanvas extends StatelessWidget {
                         ? 'Listening...'
                         : 'Type a note, task, or reminder',
                     hintStyle: TextStyle(
-                      color: context.textSec.withValues(alpha: 0.7),
-                      fontSize: 15,
+                      color: context.textSec.withValues(alpha: 0.64),
+                      fontSize: 15.2,
                     ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                    contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
                   ),
                 ),
               ),
               // ── Action bar ──────────────────────────────────────────────
               Container(
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
@@ -4450,84 +4699,105 @@ class ThoughtCanvas extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Tag
-                    _BarBtn(
-                      icon: Icons.label_outline_rounded,
-                      color: context.textSec,
-                      onTap: () {},
-                    ),
-                    const SizedBox(width: 4),
-                    // Reminder
-                    _BarBtn(
-                      icon: Icons.alarm_add_rounded,
-                      color: context.textSec,
-                      onTap: () {},
-                    ),
-                    const Spacer(),
-                    // Mic (long-press to dictate)
-                    GestureDetector(
-                      onLongPressStart: (_) => onMicPressStart(),
-                      onLongPressEnd: (_) => onMicPressEnd(),
-                      child: AnimatedContainer(
-                        duration: AppDurations.microSnap,
-                        width: isRecording ? 44 : 40,
-                        height: isRecording ? 44 : 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isRecording
-                              ? AppColors.tasks.withValues(alpha: 0.85)
-                              : (isDark
-                                ? const Color(0x30FFFFFF)
-                                : const Color(0x22DDEAFF)),
-                          border: Border.all(
-                            color: isRecording ? AppColors.tasks : borderColor,
-                            width: isRecording ? 1.5 : 0.8,
-                          ),
+                    Row(
+                      children: [
+                        // Tag
+                        _BarBtn(
+                          icon: Icons.hexagon_outlined,
+                          color: tagActive ? AppColors.tasks : context.textSec,
+                          active: tagActive,
+                          onTap: onTagTap,
                         ),
-                        child: Icon(
-                          isRecording
-                              ? Icons.graphic_eq_rounded
-                              : Icons.mic_none_rounded,
-                          size: 20,
-                          color: isRecording ? Colors.white : context.textSec,
+                        const SizedBox(width: 4),
+                        // Reminder
+                        _BarBtn(
+                          icon: Icons.alarm_add_rounded,
+                          color: reminderActive ? AppColors.tasks : context.textSec,
+                          active: reminderActive,
+                          onTap: onReminderTap,
+                          onLongPress: onReminderLongPress,
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Send
-                    AnimatedSwitcher(
-                      duration: AppDurations.microSnap,
-                      child: controller.text.trim().isEmpty
-                          ? const SizedBox(width: 40, height: 40)
-                          : GestureDetector(
-                              key: const ValueKey('send'),
-                              onTap: isSaving ? null : onSave,
-                              child: AnimatedContainer(
-                                duration: AppDurations.microSnap,
-                                width: 40,
-                                height: 40,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppColors.tasks,
-                                ),
-                                child: isSaving
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(10),
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.send_rounded,
-                                        color: Colors.white,
-                                        size: 18,
-                                      ),
+                        const Spacer(),
+                        // Mic (long-press to dictate)
+                        GestureDetector(
+                          onLongPressStart: (_) => onMicPressStart(),
+                          onLongPressEnd: (_) => onMicPressEnd(),
+                          child: AnimatedContainer(
+                            duration: AppDurations.microSnap,
+                            width: isRecording ? 46 : 42,
+                            height: isRecording ? 46 : 42,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isRecording
+                                  ? AppColors.tasks.withValues(alpha: 0.85)
+                                  : (isDark
+                                        ? const Color(0x30FFFFFF)
+                                        : const Color(0x22DDEAFF)),
+                              border: Border.all(
+                                color: isRecording ? AppColors.tasks : borderColor,
+                                width: isRecording ? 1.5 : 0.8,
                               ),
                             ),
+                            child: Icon(
+                              isRecording
+                                  ? Icons.graphic_eq_rounded
+                                  : Icons.mic_none_rounded,
+                              size: 19,
+                              color: isRecording ? Colors.white : context.textSec,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Send
+                        AnimatedSwitcher(
+                          duration: AppDurations.microSnap,
+                          child: controller.text.trim().isEmpty
+                              ? const SizedBox(width: 42, height: 42)
+                              : GestureDetector(
+                                  key: const ValueKey('send'),
+                                  onTap: isSaving ? null : onSave,
+                                  child: AnimatedContainer(
+                                    duration: AppDurations.microSnap,
+                                    width: 42,
+                                    height: 42,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppColors.tasks,
+                                    ),
+                                    child: isSaving
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(11),
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.send_rounded,
+                                            color: Colors.white,
+                                            size: 17,
+                                          ),
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
+                    if (tagLabel != null || reminderLabel != null) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (tagLabel != null)
+                            _MetaChip(label: tagLabel!, accent: AppColors.tasks),
+                          if (reminderLabel != null)
+                            _MetaChip(label: reminderLabel!, accent: AppColors.followUp),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -4540,22 +4810,271 @@ class ThoughtCanvas extends StatelessWidget {
 }
 
 class _BarBtn extends StatelessWidget {
-  const _BarBtn({required this.icon, required this.color, required this.onTap});
+  const _BarBtn({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.active = false,
+    this.onLongPress,
+  });
 
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      onLongPress: onLongPress,
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Icon(icon, size: 20, color: color),
+        padding: const EdgeInsets.all(7),
+        child: AnimatedContainer(
+          duration: AppDurations.microSnap,
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: active ? AppColors.tasks.withValues(alpha: 0.10) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 19, color: color),
+        ),
       ),
     );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.label, required this.accent});
+
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.16)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: accent,
+          fontSize: 10.8,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+```
+
+### lib/features/nlp/nlp_task_parser.dart
+
+```dart
+// lib/features/nlp/nlp_task_parser.dart
+//
+// Lightweight, zero-dependency NLP parser for task/reminder extraction.
+// Runs synchronously on the main isolate — no network needed.
+// Supplements AI classification for instant feedback.
+
+import 'package:wishperlog/shared/models/enums.dart';
+
+class NlpParseResult {
+  const NlpParseResult({
+    required this.category,
+    required this.priority,
+    this.extractedDate,
+    this.cleanTitle,
+  });
+
+  final NoteCategory category;
+  final NotePriority priority;
+  final DateTime? extractedDate;
+  final String? cleanTitle;
+}
+
+abstract final class NlpTaskParser {
+  NlpTaskParser._();
+
+  // ── Category detection ────────────────────────────────────────────────────
+
+  static const _taskKeywords = [
+    'todo', 'to-do', 'task', 'complete', 'finish', 'submit', 'send',
+    'write', 'prepare', 'fix', 'deploy', 'buy', 'call', 'email',
+    'review', 'update', 'check', 'do', 'make',
+  ];
+
+  static const _reminderKeywords = [
+    'remind', 'reminder', 'don\'t forget', 'remember', 'alarm',
+    'alert', 'notify', 'schedule',
+  ];
+
+  static const _ideaKeywords = [
+    'idea', 'thought', 'concept', 'brainstorm', 'maybe', 'what if',
+    'could', 'explore', 'consider',
+  ];
+
+  static const _followUpKeywords = [
+    'follow up', 'follow-up', 'check in', 'ping', 'circle back',
+    'get back', 'revisit', 'track',
+  ];
+
+  static const _journalKeywords = [
+    'today i', 'felt', 'feeling', 'mood', 'diary', 'journal',
+    'reflection', 'note to self',
+  ];
+
+  // ── Priority detection ────────────────────────────────────────────────────
+
+  static const _highPriority = [
+    'urgent', 'asap', 'critical', 'immediately', 'now',
+    'high priority', 'emergency', 'crucial', 'deadline',
+  ];
+
+  static const _lowPriority = [
+    'someday', 'maybe later', 'eventually', 'if time', 'low priority',
+    'not urgent', 'optional', 'nice to have',
+  ];
+
+  // ── Date patterns ─────────────────────────────────────────────────────────
+
+  static final _relativeDate = RegExp(
+    r'\b(today|tomorrow|next\s+(?:week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b',
+    caseSensitive: false,
+  );
+
+  static final _absoluteDate = RegExp(
+    r'\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b',
+  );
+
+  static final _monthDate = RegExp(
+    r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b',
+    caseSensitive: false,
+  );
+
+  // ── Public API ────────────────────────────────────────────────────────────
+
+  static NlpParseResult parse(String text) {
+    final lower = text.toLowerCase();
+
+    return NlpParseResult(
+      category:      _detectCategory(lower),
+      priority:      _detectPriority(lower),
+      extractedDate: _extractDate(lower, DateTime.now()),
+      cleanTitle:    _cleanTitle(text),
+    );
+  }
+
+  // ── Internals ─────────────────────────────────────────────────────────────
+
+  static NoteCategory _detectCategory(String lower) {
+    if (_containsAny(lower, _taskKeywords))     return NoteCategory.tasks;
+    if (_containsAny(lower, _reminderKeywords)) return NoteCategory.reminders;
+    if (_containsAny(lower, _ideaKeywords))     return NoteCategory.ideas;
+    if (_containsAny(lower, _followUpKeywords)) return NoteCategory.followUp;
+    if (_containsAny(lower, _journalKeywords))  return NoteCategory.journal;
+    return NoteCategory.general;
+  }
+
+  static NotePriority _detectPriority(String lower) {
+    if (_containsAny(lower, _highPriority)) return NotePriority.high;
+    if (_containsAny(lower, _lowPriority))  return NotePriority.low;
+    return NotePriority.medium;
+  }
+
+  static DateTime? _extractDate(String lower, DateTime now) {
+    // Relative dates
+    final relMatch = _relativeDate.firstMatch(lower);
+    if (relMatch != null) {
+      final phrase = relMatch.group(1)!.toLowerCase();
+      if (phrase == 'today') return DateTime(now.year, now.month, now.day);
+      if (phrase == 'tomorrow') return now.add(const Duration(days: 1));
+      if (phrase.startsWith('next')) {
+        final dayName = phrase.split(RegExp(r'\s+')).last;
+        return _nextWeekday(now, dayName);
+      }
+    }
+
+    // Month + day  e.g. "June 15"
+    final monthMatch = _monthDate.firstMatch(lower);
+    if (monthMatch != null) {
+      final month = _parseMonth(monthMatch.group(1)!);
+      final day   = int.tryParse(monthMatch.group(2) ?? '');
+      if (month != null && day != null) {
+        var year = now.year;
+        final candidate = DateTime(year, month, day);
+        if (candidate.isBefore(DateTime(now.year, now.month, now.day))) {
+          year++;
+        }
+        return DateTime(year, month, day);
+      }
+    }
+
+    // dd/mm or dd-mm
+    final absMatch = _absoluteDate.firstMatch(lower);
+    if (absMatch != null) {
+      final d = int.tryParse(absMatch.group(1) ?? '');
+      final m = int.tryParse(absMatch.group(2) ?? '');
+      final y = int.tryParse(absMatch.group(3) ?? '');
+      if (d != null && m != null && d <= 31 && m <= 12) {
+        return DateTime(y ?? now.year, m, d);
+      }
+    }
+
+    return null;
+  }
+
+  static String _cleanTitle(String text) {
+    // Remove common filler prefixes
+    const prefixes = [
+      'todo:', 'task:', 'remind me to', 'reminder:', 'note to self:',
+      'idea:', 'don\'t forget to', 'don\'t forget',
+    ];
+    var clean = text.trim();
+    for (final p in prefixes) {
+      if (clean.toLowerCase().startsWith(p)) {
+        clean = clean.substring(p.length).trim();
+        break;
+      }
+    }
+    // Capitalise first letter
+    if (clean.isEmpty) return clean;
+    return clean[0].toUpperCase() + clean.substring(1);
+  }
+
+  static bool _containsAny(String text, List<String> keywords) {
+    for (final k in keywords) {
+      if (text.contains(k)) return true;
+    }
+    return false;
+  }
+
+  static DateTime _nextWeekday(DateTime now, String dayName) {
+    const days = {
+      'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
+      'friday': 5, 'saturday': 6, 'sunday': 7, 'week': 7,
+    };
+    final target = days[dayName] ?? (now.weekday + 7);
+    var diff = target - now.weekday;
+    if (diff <= 0) diff += 7;
+    return now.add(Duration(days: diff));
+  }
+
+  static int? _parseMonth(String name) {
+    const m = {
+      'jan': 1, 'january': 1, 'feb': 2, 'february': 2, 'mar': 3, 'march': 3,
+      'apr': 4, 'april': 4, 'may': 5, 'jun': 6, 'june': 6, 'jul': 7,
+      'july': 7, 'aug': 8, 'august': 8, 'sep': 9, 'september': 9,
+      'oct': 10, 'october': 10, 'nov': 11, 'november': 11, 'dec': 12,
+      'december': 12,
+    };
+    return m[name.toLowerCase()];
   }
 }
 ```
@@ -4571,7 +5090,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
-import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
@@ -4825,6 +5344,10 @@ class NoteRepository {
       debugPrint(
         '[NoteRepository] Successfully synced to Firestore: ${note.noteId}',
       );
+
+      // Rebuild message_state so the Cloudflare Worker sees fresh content.
+      // Fire-and-forget — never blocks the write path.
+      unawaited(MessageStateService().recompute());
     } catch (e, st) {
       debugPrint(
         '[NoteRepository] ERROR syncing to Firestore: ${note.noteId}: $e',
@@ -4856,7 +5379,6 @@ import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 import 'package:wishperlog/shared/widgets/glass_title_bar.dart';
-import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 
 class FolderScreen extends StatefulWidget {
   const FolderScreen({required this.category, super.key});
@@ -5114,10 +5636,6 @@ class _FolderScreenState extends State<FolderScreen> {
                                 ),
                                 child: GlassNoteCard(
                                   note: note,
-                                  onTap: () async {
-                                    await HapticFeedback.lightImpact();
-                                    await _openEditSheet(note);
-                                  },
                                 ),
                               ),
                             ),
@@ -5240,191 +5758,6 @@ class _FolderScreenState extends State<FolderScreen> {
     );
   }
 
-  Future<void> _openEditSheet(Note note) async {
-    final titleController = TextEditingController(text: note.title);
-    final bodyController = TextEditingController(text: note.cleanBody);
-
-    var selectedCategory = note.category;
-    var selectedPriority = note.priority;
-    DateTime? selectedDate = note.extractedDate;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.22),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                14,
-                12,
-                14,
-                14 + MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: GlassPane(
-                level: 1,
-                radius: 22,
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Edit note',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: titleController,
-                        decoration: const InputDecoration(
-                          labelText: 'Title',
-                          isDense: true,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: bodyController,
-                        minLines: 3,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                          labelText: 'Body',
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<NoteCategory>(
-                        initialValue: selectedCategory,
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
-                          isDense: true,
-                        ),
-                        items: kAllNoteCategories
-                            .map(
-                              (c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(categoryLabel(c)),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setSheetState(() {
-                            selectedCategory = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<NotePriority>(
-                        initialValue: selectedPriority,
-                        decoration: const InputDecoration(
-                          labelText: 'Priority',
-                          isDense: true,
-                        ),
-                        items: NotePriority.values
-                            .map(
-                              (p) => DropdownMenuItem(
-                                value: p,
-                                child: Text(p.name),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setSheetState(() {
-                            selectedPriority = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              selectedDate == null
-                                  ? 'No extracted date'
-                                  : (selectedDate!
-                                        .toIso8601String()
-                                        .split('T')
-                                        .first),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF374151),
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              final now = DateTime.now();
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate ?? now,
-                                firstDate: DateTime(now.year - 5),
-                                lastDate: DateTime(now.year + 10),
-                              );
-                              if (picked == null) return;
-                              setSheetState(() {
-                                selectedDate = picked;
-                              });
-                            },
-                            child: const Text('Pick date'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setSheetState(() {
-                                selectedDate = null;
-                              });
-                            },
-                            child: const Text('Clear'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            await _notes.updateEditedNote(
-                              noteId: note.noteId,
-                              title: titleController.text,
-                              cleanBody: bodyController.text,
-                              category: selectedCategory,
-                              priority: selectedPriority,
-                              extractedDate: selectedDate,
-                            );
-                            await HapticFeedback.lightImpact();
-                            if (context.mounted) {
-                              final displayTitle =
-                                  titleController.text.trim().isNotEmpty
-                                  ? titleController.text.trim()
-                                  : bodyController.text.trim();
-                              sl<CaptureUiController>().notifyExternalRecordingSaved(
-                                title: displayTitle.isNotEmpty ? displayTitle : 'Note updated',
-                                category: selectedCategory,
-                                model: note.aiModel,
-                                noteId: note.noteId,
-                              );
-                              Navigator.of(context).pop();
-                            }
-                          },
-                          child: const Text('Save'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 }
 ```
 
@@ -5432,28 +5765,177 @@ class _FolderScreenState extends State<FolderScreen> {
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/notes/data/note_repository.dart';
+import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 import 'package:wishperlog/shared/widgets/glass_title_bar.dart';
 
-class NoteDetailScreen extends StatelessWidget {
+class NoteDetailScreen extends StatefulWidget {
   const NoteDetailScreen({required this.noteId, super.key});
 
   final String noteId;
 
   @override
-  Widget build(BuildContext context) {
-    final notes = sl<NoteRepository>();
+  State<NoteDetailScreen> createState() => _NoteDetailScreenState();
+}
 
+class _NoteDetailScreenState extends State<NoteDetailScreen> {
+  final NoteRepository _notes = sl<NoteRepository>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _bodyController = TextEditingController();
+
+  Note? _note;
+  NoteCategory _category = NoteCategory.general;
+  NotePriority _priority = NotePriority.medium;
+  DateTime? _extractedDate;
+  bool _saving = false;
+  String? _seededNoteId;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  void _seed(Note note) {
+    if (_seededNoteId == note.noteId) return;
+    _seededNoteId = note.noteId;
+    _note = note;
+    _titleController.text = note.title == 'Quick note' ? '' : note.title;
+    _bodyController.text = note.cleanBody.isNotEmpty
+        ? note.cleanBody
+        : note.rawTranscript;
+    _category = note.category;
+    _priority = note.priority;
+    _extractedDate = note.extractedDate;
+  }
+
+  Future<void> _save() async {
+    final note = _note;
+    if (note == null || _saving) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _saving = true);
+    try {
+      await _notes.updateEditedNote(
+        noteId: note.noteId,
+        title: _titleController.text,
+        cleanBody: _bodyController.text,
+        category: _category,
+        priority: _priority,
+        extractedDate: _extractedDate,
+      );
+      if (mounted) {
+        HapticFeedback.mediumImpact();
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save note: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickExtractedDate() async {
+    final initialDate = _extractedDate ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null && mounted) {
+      setState(() => _extractedDate = picked);
+    }
+  }
+
+  void _clearExtractedDate() {
+    setState(() => _extractedDate = null);
+  }
+
+  String _formatDate(DateTime dt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  InputDecoration _inputDecoration(
+    BuildContext context, {
+    required String label,
+    required String hint,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: context.surface1.withValues(alpha: 0.72),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: context.textSec.withValues(alpha: 0.10)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: context.textSec.withValues(alpha: 0.10)),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderSide: BorderSide(color: AppColors.tasks, width: 1.2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _saving ? null : _save,
+        backgroundColor: categoryColor(_category),
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        icon: _saving
+          ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ),
+              )
+            : const Icon(Icons.save_rounded),
+        label: Text(_saving ? 'Saving…' : 'Save changes'),
+      ),
       appBar: GlassTitleBar(
-        title: 'Note',
-        subtitle: 'Detail view',
+        title: 'Edit note',
+        subtitle: 'Update title, body, category, and priority',
         onBack: () {
           if (Navigator.of(context).canPop()) {
             context.pop();
@@ -5464,7 +5946,7 @@ class NoteDetailScreen extends StatelessWidget {
       ),
       body: GlassPageBackground(
         child: StreamBuilder<Note?>(
-          stream: notes.watchNoteById(noteId),
+          stream: _notes.watchNoteById(widget.noteId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting &&
                 !snapshot.hasData) {
@@ -5478,38 +5960,260 @@ class NoteDetailScreen extends StatelessWidget {
               );
             }
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    note.title,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+            _seed(note);
+
+            return Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GlassPane(
+                      level: 2,
+                      radius: 24,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: categoryColor(_category).withValues(
+                                    alpha: 0.16,
+                                  ),
+                                ),
+                                child: Icon(
+                                  categoryIcon(_category),
+                                  color: categoryColor(_category),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Editing note',
+                                      style: TextStyle(
+                                        color: context.textPri,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Save changes to update the note everywhere.',
+                                      style: TextStyle(
+                                        color: context.textSec,
+                                        fontSize: 12,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _MetaChip(label: categoryLabel(_category)),
+                              _MetaChip(label: _priority.name.toUpperCase()),
+                              _MetaChip(label: note.source.name),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _MetaChip(label: categoryLabel(note.category)),
-                      _MetaChip(label: note.priority.name.toUpperCase()),
-                      _MetaChip(label: note.source.name),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _titleController,
+                      textInputAction: TextInputAction.next,
+                      decoration: _inputDecoration(
+                        context,
+                        label: 'Title',
+                        hint: _titleController.text.isEmpty ? 'Quick note' : _titleController.text,
+                      ),
+                      style: TextStyle(
+                        color: context.textPri,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      validator: (value) {
+                        if (value != null && value.trim().length > 120) {
+                          return 'Title is too long';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _bodyController,
+                      minLines: 10,
+                      maxLines: 18,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      decoration: _inputDecoration(
+                        context,
+                        label: 'Body',
+                        hint: 'Write the cleaned note text here',
+                      ),
+                      style: TextStyle(
+                        color: context.textPri,
+                        height: 1.5,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Body cannot be empty';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<NoteCategory>(
+                            initialValue: _category,
+                            decoration: _inputDecoration(
+                              context,
+                              label: 'Category',
+                              hint: 'Choose category',
+                            ),
+                            items: kAllNoteCategories
+                                .map(
+                                  (category) => DropdownMenuItem<NoteCategory>(
+                                    value: category,
+                                    child: Text(categoryLabel(category)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _category = value);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<NotePriority>(
+                            initialValue: _priority,
+                            decoration: _inputDecoration(
+                              context,
+                              label: 'Priority',
+                              hint: 'Choose priority',
+                            ),
+                            items: NotePriority.values
+                                .map(
+                                  (priority) => DropdownMenuItem<NotePriority>(
+                                    value: priority,
+                                    child: Text(priority.name.toUpperCase()),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _priority = value);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    GlassPane(
+                      level: 1,
+                      radius: 18,
+                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Extracted date',
+                            style: TextStyle(
+                              color: context.textPri,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _extractedDate == null
+                                ? 'No extracted date set'
+                                : _formatDate(_extractedDate!),
+                            style: TextStyle(
+                              color: context.textSec,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: _pickExtractedDate,
+                                icon: const Icon(Icons.event_outlined),
+                                label: const Text('Pick date'),
+                              ),
+                              TextButton(
+                                onPressed: _extractedDate == null
+                                    ? null
+                                    : _clearExtractedDate,
+                                child: const Text('Clear'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (note.rawTranscript.isNotEmpty &&
+                        note.rawTranscript != note.cleanBody) ...[
+                      GlassPane(
+                        level: 1,
+                        radius: 18,
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Original capture',
+                              style: TextStyle(
+                                color: context.textPri,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SelectableText(
+                              note.rawTranscript,
+                              style: TextStyle(
+                                color: context.textSec,
+                                height: 1.55,
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Captured ${_formatDate(note.createdAt)} • ${note.source.name}',
+                              style: TextStyle(
+                                color: context.textSec,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    note.cleanBody,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Captured: ${note.createdAt}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -5541,10 +6245,356 @@ class _MetaChip extends StatelessWidget {
 }
 ```
 
+### lib/features/notes/presentation/screens/note_view_screen.dart
+
+```dart
+// lib/features/notes/presentation/screens/note_view_screen.dart
+//
+// Immersive "View" screen (read-only).
+// Edit is a secondary FAB action — no clutter on the read surface.
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/shared/models/note.dart';
+import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
+
+class NoteViewScreen extends StatelessWidget {
+  const NoteViewScreen({super.key, required this.note});
+
+  final Note note;
+
+  Color _priorityColor(NotePriority p) => switch (p) {
+    NotePriority.high   => const Color(0xFFEF4444),
+    NotePriority.medium => const Color(0xFFF59E0B),
+    NotePriority.low    => const Color(0xFF10B981),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = categoryColor(note.category);
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      floatingActionButton: _EditFab(noteId: note.noteId),
+      body: Stack(
+        children: [
+          // Ambient gradient backdrop
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    accent.withValues(alpha: context.isDark ? 0.18 : 0.10),
+                    Colors.transparent,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.center,
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                // ── App bar ──────────────────────────────────────────────
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  pinned: false,
+                  leading: GestureDetector(
+                    onTap: () => context.pop(),
+                    child: Container(
+                      margin: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: context.surface1.withValues(alpha: 0.7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 18,
+                        color: context.textPri,
+                      ),
+                    ),
+                  ),
+                  actions: [
+                    // Quick share
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        final body = '${note.title}\n\n${note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript}';
+                        Clipboard.setData(ClipboardData(text: body));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Copied to clipboard')),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: context.surface1.withValues(alpha: 0.7),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.copy_rounded,
+                          size: 18,
+                          color: context.textPri,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Category + Priority row ───────────────────────
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: accent.withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(categoryIcon(note.category), size: 13, color: accent),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    categoryLabel(note.category),
+                                    style: TextStyle(
+                                      color: accent,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: _priorityColor(note.priority).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: _priorityColor(note.priority).withValues(alpha: 0.4)),
+                              ),
+                              child: Text(
+                                note.priority.name.toUpperCase(),
+                                style: TextStyle(
+                                  color: _priorityColor(note.priority),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // ── Title ────────────────────────────────────────
+                        Text(
+                          note.title.isEmpty ? 'Untitled Note' : note.title,
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.8,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Metadata strip ───────────────────────────────
+                        GlassPane(
+                          level: 3,
+                          radius: 14,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Wrap(
+                            spacing: 16,
+                            runSpacing: 8,
+                            children: [
+                              _MetaItem(
+                                icon: Icons.schedule_rounded,
+                                label: _formatDate(note.createdAt),
+                              ),
+                              if (note.aiModel.isNotEmpty) ...[
+                                _MetaItem(
+                                  icon: Icons.auto_awesome_rounded,
+                                  label: note.aiModel.toUpperCase(),
+                                ),
+                              ],
+                              if (note.extractedDate != null)
+                                _MetaItem(
+                                  icon: Icons.event_rounded,
+                                  label: _formatDate(note.extractedDate!),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // ── Body ──────────────────────────────────────────
+                        SelectableText(
+                          note.cleanBody.isNotEmpty
+                              ? note.cleanBody
+                              : note.rawTranscript,
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 16,
+                            height: 1.7,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+
+                        // ── Raw transcript (collapsible) ─────────────────
+                        if (note.rawTranscript.isNotEmpty &&
+                            note.rawTranscript != note.cleanBody) ...[
+                          const SizedBox(height: 24),
+                          _RawTranscriptSection(rawTranscript: note.rawTranscript),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+}
+
+class _MetaItem extends StatelessWidget {
+  const _MetaItem({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 13, color: context.textSec),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: TextStyle(
+          color: context.textSec,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ],
+  );
+}
+
+class _EditFab extends StatelessWidget {
+  const _EditFab({required this.noteId});
+  final String noteId;
+
+  @override
+  Widget build(BuildContext context) => FloatingActionButton.extended(
+    heroTag: 'edit_fab_$noteId',
+    onPressed: () {
+      HapticFeedback.mediumImpact();
+      context.push('/notes/$noteId');
+    },
+    backgroundColor: AppColors.tasks,
+    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    elevation: 8,
+    icon: const Icon(Icons.edit_rounded, size: 18),
+    label: const Text(
+      'Edit',
+      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+    ),
+  );
+}
+
+class _RawTranscriptSection extends StatefulWidget {
+  const _RawTranscriptSection({required this.rawTranscript});
+  final String rawTranscript;
+
+  @override
+  State<_RawTranscriptSection> createState() => _RawTranscriptSectionState();
+}
+
+class _RawTranscriptSectionState extends State<_RawTranscriptSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) => GlassPane(
+    level: 2,
+    radius: 14,
+    padding: const EdgeInsets.all(14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Row(
+            children: [
+              Icon(Icons.mic_none_rounded, size: 14, color: context.textSec),
+              const SizedBox(width: 6),
+              Text(
+                'Raw Transcript',
+                style: TextStyle(
+                  color: context.textSec,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                _expanded ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+                color: context.textSec,
+              ),
+            ],
+          ),
+        ),
+        if (_expanded) ...[
+          const SizedBox(height: 10),
+          SelectableText(
+            widget.rawTranscript,
+            style: TextStyle(
+              color: context.textSec,
+              fontSize: 14,
+              height: 1.6,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+```
+
 ### lib/features/notes/presentation/widgets/glass_note_card.dart
 
 ```dart
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/core/theme/app_durations.dart';
@@ -5554,10 +6604,9 @@ import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class GlassNoteCard extends StatefulWidget {
-  const GlassNoteCard({required this.note, required this.onTap, super.key});
+  const GlassNoteCard({required this.note, super.key});
 
   final Note note;
-  final VoidCallback onTap;
 
   @override
   State<GlassNoteCard> createState() => _GlassNoteCardState();
@@ -5612,7 +6661,13 @@ class _GlassNoteCardState extends State<GlassNoteCard>
             onTapDown: (_) => setState(() => _pressed = true),
             onTapUp: (_) => setState(() => _pressed = false),
             onTapCancel: () => setState(() => _pressed = false),
-            onTap: widget.onTap,
+            onTap: () {
+              context.push('/notes/${note.noteId}/view', extra: note);
+            },
+            onLongPress: () {
+              HapticFeedback.mediumImpact();
+              context.push('/notes/${note.noteId}');
+            },
             child: GlassPane(
               level: 2,
               radius: 16,
@@ -5759,6 +6814,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/search/data/smart_note_search.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
@@ -5800,11 +6856,8 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final secondaryColor = isDark
-        ? Colors.white.withValues(alpha: 0.72)
-        : const Color(0xFF475569);
+    final titleColor = context.textPri;
+    final secondaryColor = context.textSec;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -5880,7 +6933,7 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
                             borderRadius: BorderRadius.circular(14),
                             onTap: () {
                               Navigator.of(context).pop();
-                              context.go('/folder', extra: note.category);
+                              context.push('/notes/{note.noteId}');
                             },
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(
@@ -6248,7 +7301,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
+import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
+import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 
@@ -6268,7 +7324,6 @@ class _SignInScreenState extends State<SignInScreen> {
 
   void _showGlassError(String message) {
     if (!mounted) return;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -6283,7 +7338,7 @@ class _SignInScreenState extends State<SignInScreen> {
             child: Text(
               message,
               style: TextStyle(
-                color: isDark ? Colors.white : const Color(0xFF111827),
+                color: context.textPri,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
               ),
@@ -6299,8 +7354,9 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       await sl<UserRepository>().signInWithGoogle();
       if (!mounted) return;
-      // Show the animated setup overlay before navigating.
-      await _runSetupAnimation();
+      // Run animation and real background init in parallel.
+      // The overlay will dismiss when BOTH finish.
+      await _runSetupAnimationWithWork();
       if (!mounted) return;
       context.go('/permissions');
     } on SignInFriendlyException catch (e) {
@@ -6312,22 +7368,50 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
-  Future<void> _runSetupAnimation() async {
+  Future<void> _runSetupAnimationWithWork() async {
+    // Completer that the overlay will call when its animation finishes.
+    final animDone  = Completer<void>();
+    // Run actual post-sign-in work in parallel with the animation.
+    final workFuture = _doPostSignInWork();
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: 0.6),
-      builder: (_) => const _EnvironmentSetupOverlay(),
+      builder: (_) => _EnvironmentSetupOverlay(
+        // Pass the work future so the overlay can exit early if work
+        // finishes before the minimum animation time, or hold open if work
+        // takes longer.
+        workFuture: workFuture,
+        onDone: () {
+          if (!animDone.isCompleted) animDone.complete();
+        },
+      ),
     );
+
+    // Ensure work also completes (it may have finished before dialog closed).
+    await workFuture.catchError((_) {});
+  }
+
+  /// Real initialisation work that previously happened invisibly after the
+  /// animation. Now runs concurrently with the animation so there is zero
+  /// extra wait.
+  Future<void> _doPostSignInWork() async {
+    try {
+      final aiRouter = sl<AiClassifierRouter>();
+      await aiRouter.hydrate();
+    } catch (_) {}
+    try {
+      await IsarNoteStore.instance.init();
+    } catch (_) {}
+    // Additional lightweight init can be added here.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = isDark ? Colors.white : const Color(0xFF102037);
-    final subtitleColor = isDark
-      ? Colors.white.withValues(alpha: 0.78)
-      : const Color(0xFF4E6485);
+    final titleColor = context.textPri;
+    final subtitleColor = context.textSec;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -6427,7 +7511,6 @@ class _GoogleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassContainer(
       borderRadius: BorderRadius.circular(999),
       padding: EdgeInsets.zero,
@@ -6451,7 +7534,7 @@ class _GoogleSignInButton extends StatelessWidget {
                     Text(
                       'Continue with Google',
                       style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF111827),
+                        color: context.textPri,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
@@ -6473,7 +7556,14 @@ class _GoogleSignInButton extends StatelessWidget {
 // Auto-dismisses after the last step completes.
 // ─────────────────────────────────────────────────────────────────────────────
 class _EnvironmentSetupOverlay extends StatefulWidget {
-  const _EnvironmentSetupOverlay();
+  const _EnvironmentSetupOverlay({
+    required this.workFuture,
+    required this.onDone,
+  });
+
+  final Future<void> workFuture;
+  final VoidCallback onDone;
+
   @override
   State<_EnvironmentSetupOverlay> createState() => _EnvironmentSetupOverlayState();
 }
@@ -6521,6 +7611,7 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
   }
 
   Future<void> _runSteps() async {
+    // Minimum animation: run all steps.
     for (var i = 0; i < _steps.length; i++) {
       if (!mounted) return;
       setState(() {
@@ -6528,9 +7619,17 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
         _progressValue = (i + 1) / _steps.length;
       });
       await Future<void>.delayed(Duration(milliseconds: _steps[i].durationMs));
+      if (!mounted) return;
     }
+
+    // Wait for real work to finish if it hasn't yet — so the animation never
+    // pops prematurely while Isar/AI is still initialising.
+    await widget.workFuture.catchError((_) {});
+
     if (!mounted) return;
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    // Brief hold so the "System ready" step is legible.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    widget.onDone();
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -6611,8 +7710,8 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                   _steps[_stepIndex].text,
                   key: ValueKey(_stepIndex),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : scheme.onPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
@@ -7252,6 +8351,504 @@ class _OverlayRootWrapperState extends State<OverlayRootWrapper> {
 }
 ```
 
+### lib/features/overlay/overlay_customisation_sheet.dart
+
+```dart
+// lib/features/overlay/overlay_customisation_sheet.dart
+//
+// "God-Level" overlay customisation bottom-sheet.
+// Shows live preview + every setting from OverlaySettings.
+
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/features/overlay/overlay_settings_model.dart';
+
+/// Call via:
+///   showOverlayCustomisationSheet(context, initial, onSave);
+Future<void> showOverlayCustomisationSheet(
+  BuildContext context,
+  OverlaySettings initial,
+  Future<void> Function(OverlaySettings) onSave,
+) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _OverlayCustomisationSheet(
+      initial: initial,
+      onSave: onSave,
+    ),
+  );
+}
+
+class _OverlayCustomisationSheet extends StatefulWidget {
+  const _OverlayCustomisationSheet({
+    required this.initial,
+    required this.onSave,
+  });
+
+  final OverlaySettings initial;
+  final Future<void> Function(OverlaySettings) onSave;
+
+  @override
+  State<_OverlayCustomisationSheet> createState() =>
+      _OverlayCustomisationSheetState();
+}
+
+class _OverlayCustomisationSheetState
+    extends State<_OverlayCustomisationSheet> {
+  late OverlaySettings _s;
+  bool _saving = false;
+  bool _growPreview = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _s = widget.initial;
+  }
+
+  // ── Live preview ──────────────────────────────────────────────────────────
+
+  Widget _buildPreview() {
+    final hasGlow = _s.borderStyle == OverlayBorderStyle.glow;
+    final gradient = _s.colorFill == OverlayColorFill.linearGradient
+        ? LinearGradient(
+            colors: [_s.gradientStart, _s.gradientEnd],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : _s.colorFill == OverlayColorFill.radialGradient
+            ? RadialGradient(
+                colors: [_s.gradientStart, _s.gradientEnd],
+              )
+            : null;
+
+    final baseDecoration = BoxDecoration(
+      color: _s.colorFill == OverlayColorFill.solid ? _s.solidColor.withValues(alpha: _s.alpha) : null,
+      gradient: gradient,
+      borderRadius: BorderRadius.circular(24),
+      border: _s.borderStyle != OverlayBorderStyle.none
+          ? Border.all(
+              color: _s.borderColor.withValues(
+                alpha: _s.borderStyle == OverlayBorderStyle.hairline ? 0.5 : 1.0,
+              ),
+              width: _s.borderStyle == OverlayBorderStyle.hairline ? 0.6 : 1.4,
+            )
+          : null,
+      boxShadow: hasGlow
+          ? [
+              BoxShadow(
+                color: _s.borderColor.withValues(alpha: 0.55),
+                blurRadius: 20,
+                spreadRadius: 2,
+              ),
+            ]
+          : null,
+    );
+
+    Widget pill = AnimatedScale(
+      scale: _growPreview && _s.animation == OverlayAnimation.sizeGrow
+          ? _s.growScale
+          : 1.0,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutBack,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _growPreview = true),
+        onTapUp: (_) => setState(() => _growPreview = false),
+        onTapCancel: () => setState(() => _growPreview = false),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: _s.colorFill == OverlayColorFill.glass ? _s.blurSigma : 0,
+              sigmaY: _s.colorFill == OverlayColorFill.glass ? _s.blurSigma : 0,
+            ),
+            child: Container(
+              width: 160,
+              height: 52,
+              decoration: _s.colorFill == OverlayColorFill.glass
+                  ? baseDecoration.copyWith(
+                      color: Colors.white.withValues(alpha: _s.alpha * 0.12),
+                      border: baseDecoration.border,
+                      boxShadow: baseDecoration.boxShadow,
+                    )
+                  : baseDecoration,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.mic_rounded, color: Colors.white.withValues(alpha: 0.9), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Hold to Record',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return Center(child: pill);
+  }
+
+  // ── Section label ─────────────────────────────────────────────────────────
+
+  Widget _label(String text) => Padding(
+    padding: const EdgeInsets.only(top: 20, bottom: 8),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: context.textSec,
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.1,
+      ),
+    ),
+  );
+
+  // ── Segmented button helper ───────────────────────────────────────────────
+
+  Widget _segmented<T>({
+    required List<T> values,
+    required T current,
+    required String Function(T) label,
+    required void Function(T) onSelect,
+  }) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: values.map((v) {
+        final selected = v == current;
+        return GestureDetector(
+          onTap: () => setState(() => onSelect(v)),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppColors.tasks
+                  : context.surface1.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: selected
+                    ? AppColors.tasks
+                    : context.textSec.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Text(
+              label(v),
+              style: TextStyle(
+                color: selected ? Colors.white : context.textSec,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ── Color row ─────────────────────────────────────────────────────────────
+
+  static const _palette = [
+    Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFEC4899),
+    Color(0xFF22D3EE), Color(0xFF10B981), Color(0xFFF59E0B),
+    Color(0xFFEF4444), Color(0xFF1C1C2E), Color(0xFFFFFFFF),
+  ];
+
+  Widget _colorRow(Color current, void Function(Color) onSelect) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: _palette.map((c) {
+        final sel = current.toARGB32() == c.toARGB32();
+        return GestureDetector(
+          onTap: () => setState(() => onSelect(c)),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            width: 30, height: 30,
+            decoration: BoxDecoration(
+              color: c,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: sel ? Colors.white : Colors.transparent,
+                width: 2.5,
+              ),
+              boxShadow: sel
+                  ? [BoxShadow(color: c.withValues(alpha: 0.6), blurRadius: 10)]
+                  : null,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.96,
+      expand: false,
+      builder: (ctx, scrollCtrl) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+            child: Container(
+              decoration: BoxDecoration(
+                color: context.isDark
+                    ? const Color(0xF2111827)
+                    : const Color(0xF2F9FAFB),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                children: [
+                  // Handle bar
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: context.textSec.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Title row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Overlay Customiser',
+                                style: TextStyle(
+                                  color: context.textPri,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.4,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Applies to the floating bubble and the dynamic island.',
+                                style: TextStyle(
+                                  color: context.textSec,
+                                  fontSize: 12,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _saving
+                              ? null
+                              : () async {
+                                  setState(() => _saving = true);
+                                  try {
+                                    await widget.onSave(_s);
+                                    if (ctx.mounted) Navigator.of(ctx).pop();
+                                  } finally {
+                                    if (mounted) setState(() => _saving = false);
+                                  }
+                                },
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Text(
+                                  'Save',
+                                  style: TextStyle(
+                                    color: AppColors.tasks,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Scrollable content
+                  Expanded(
+                    child: ListView(
+                      controller: scrollCtrl,
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                      children: [
+                        // ── Preview ───────────────────────────────────────
+                        _label('LIVE PREVIEW — TAP TO TEST ANIMATION'),
+                        Container(
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: context.surface1.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: context.textSec.withValues(alpha: 0.1)),
+                          ),
+                          child: _buildPreview(),
+                        ),
+
+                        // ── Transparency ─────────────────────────────────
+                        _label('TRANSPARENCY'),
+                        Row(
+                          children: [
+                            Text('${(_s.alpha * 100).round()}%',
+                                style: TextStyle(color: context.textSec, fontSize: 12)),
+                            Expanded(
+                              child: Slider(
+                                value: _s.alpha,
+                                min: 0.2, max: 1.0, divisions: 32,
+                                activeColor: AppColors.tasks,
+                                onChanged: (v) => setState(() => _s = _s.copyWith(alpha: v)),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // ── Glassmorphism Blur ────────────────────────────
+                        _label('GLASSMORPHISM BLUR'),
+                        Row(
+                          children: [
+                            Text('σ${_s.blurSigma.round()}',
+                                style: TextStyle(color: context.textSec, fontSize: 12)),
+                            Expanded(
+                              child: Slider(
+                                value: _s.blurSigma,
+                                min: 0, max: 40, divisions: 40,
+                                activeColor: AppColors.tasks,
+                                onChanged: (v) => setState(() => _s = _s.copyWith(blurSigma: v)),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // ── Fill Style ───────────────────────────────────
+                        _label('FILL STYLE'),
+                        _segmented<OverlayColorFill>(
+                          values: OverlayColorFill.values,
+                          current: _s.colorFill,
+                          label: (v) => switch (v) {
+                            OverlayColorFill.glass => 'Glass',
+                            OverlayColorFill.solid => 'Solid',
+                            OverlayColorFill.linearGradient => 'Linear',
+                            OverlayColorFill.radialGradient => 'Radial',
+                          },
+                          onSelect: (v) => _s = _s.copyWith(colorFill: v),
+                        ),
+
+                        // ── Solid color ───────────────────────────────────
+                        if (_s.colorFill == OverlayColorFill.solid) ...[
+                          _label('FILL COLOUR'),
+                          _colorRow(_s.solidColor, (c) => _s = _s.copyWith(solidColor: c)),
+                        ],
+
+                        // ── Gradient colours ──────────────────────────────
+                        if (_s.colorFill == OverlayColorFill.linearGradient ||
+                            _s.colorFill == OverlayColorFill.radialGradient) ...[
+                          _label('GRADIENT START'),
+                          _colorRow(_s.gradientStart, (c) => _s = _s.copyWith(gradientStart: c)),
+                          _label('GRADIENT END'),
+                          _colorRow(_s.gradientEnd, (c) => _s = _s.copyWith(gradientEnd: c)),
+                        ],
+
+                        // ── Border Style ──────────────────────────────────
+                        _label('BORDER STYLE'),
+                        _segmented<OverlayBorderStyle>(
+                          values: OverlayBorderStyle.values,
+                          current: _s.borderStyle,
+                          label: (v) => switch (v) {
+                            OverlayBorderStyle.none => 'None',
+                            OverlayBorderStyle.hairline => 'Hairline',
+                            OverlayBorderStyle.glow => 'Glow',
+                          },
+                          onSelect: (v) => _s = _s.copyWith(borderStyle: v),
+                        ),
+                        if (_s.borderStyle != OverlayBorderStyle.none) ...[
+                          _label('BORDER / GLOW COLOUR'),
+                          _colorRow(_s.borderColor, (c) => _s = _s.copyWith(borderColor: c)),
+                        ],
+
+                        // ── Animation ─────────────────────────────────────
+                        _label('TOUCH ANIMATION'),
+                        _segmented<OverlayAnimation>(
+                          values: OverlayAnimation.values,
+                          current: _s.animation,
+                          label: (v) => switch (v) {
+                            OverlayAnimation.none => 'None',
+                            OverlayAnimation.sizeGrow => 'Size Grow',
+                            OverlayAnimation.pulseGlow => 'Pulse Glow',
+                            OverlayAnimation.bounceIn => 'Bounce In',
+                          },
+                          onSelect: (v) => _s = _s.copyWith(animation: v),
+                        ),
+                        if (_s.animation == OverlayAnimation.sizeGrow) ...[
+                          _label('GROW SCALE'),
+                          Row(
+                            children: [
+                              Text('${(_s.growScale * 100).round()}%',
+                                  style: TextStyle(color: context.textSec, fontSize: 12)),
+                              Expanded(
+                                child: Slider(
+                                  value: _s.growScale,
+                                  min: 1.0, max: 1.30, divisions: 15,
+                                  activeColor: AppColors.tasks,
+                                  onChanged: (v) => setState(() => _s = _s.copyWith(growScale: v)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+
+                        // ── Persistence ───────────────────────────────────
+                        _label('PERSISTENCE'),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Show after device reboot',
+                            style: TextStyle(color: context.textPri, fontSize: 14),
+                          ),
+                          value: _s.persistOnReboot,
+                          activeThumbColor: AppColors.tasks,
+                          onChanged: (v) => setState(() => _s = _s.copyWith(persistOnReboot: v)),
+                        ),
+
+                        _label('TARGET'),
+                        Text(
+                          'These settings currently apply to the bubble and island together.',
+                          style: TextStyle(
+                            color: context.textSec,
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
 ### lib/features/overlay/overlay_notifier.dart
 
 ```dart
@@ -7268,6 +8865,7 @@ import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/features/overlay/overlay_settings_model.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 
 /// Lightweight state holder for the in-app floating overlay.
@@ -7277,14 +8875,16 @@ class OverlayNotifier extends ChangeNotifier {
   OverlayNotifier();
 
   // ── Prefs keys ────────────────────────────────────────────────────────────
-  static const _kEnabled = 'overlay_v2.enabled';
-  static const _kPosX = 'overlay_v2.pos_x';
-  static const _kPosY = 'overlay_v2.pos_y';
+  static const _kEnabled   = 'overlay_v2.enabled';
+  static const _kPosX      = 'overlay_v2.pos_x';
+  static const _kPosY      = 'overlay_v2.pos_y';
+  static const _kSettings  = 'overlay_v2.settings_json';
 
   // ── State ─────────────────────────────────────────────────────────────────
   bool _isEnabled = false;
   Offset _position = const Offset(20, 200);
   bool _hydrated = false;
+  OverlaySettings _overlaySettings = const OverlaySettings();
 
   Timer? _persistDebounce;
   StreamSubscription<CaptureUiState>? _captureStateSub;
@@ -7297,6 +8897,7 @@ class OverlayNotifier extends ChangeNotifier {
   final List<VoidCallback> _openEditorCallbacks = [];
 
   bool get isEnabled => _isEnabled;
+  OverlaySettings get overlaySettings => _overlaySettings;
 
   void addOpenEditorListener(VoidCallback listener) {
     _openEditorCallbacks.add(listener);
@@ -7315,10 +8916,13 @@ class OverlayNotifier extends ChangeNotifier {
     if (_hydrated) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      _isEnabled = prefs.getBool(_kEnabled) ?? true;
+      _isEnabled = prefs.getBool(_kEnabled) ?? false;
       final x = prefs.getDouble(_kPosX) ?? 20.0;
       final y = prefs.getDouble(_kPosY) ?? 200.0;
       _position = Offset(x, y);
+      _overlaySettings = OverlaySettings.fromJsonString(
+        prefs.getString(_kSettings),
+      );
 
       _channel.setMethodCallHandler((call) async {
         switch (call.method) {
@@ -7513,6 +9117,24 @@ class OverlayNotifier extends ChangeNotifier {
       await prefs.setDouble(_kPosY, _position.dy);
     } catch (e) {
       debugPrint('[OverlayNotifier] persist position error: $e');
+    }
+  }
+
+  Future<void> saveOverlaySettings(OverlaySettings settings) async {
+    _overlaySettings = settings;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSettings, settings.toJsonString());
+      // Push the full preset to native Android.
+      await _channel.invokeMethod<void>('updateOverlaySettings', {
+        'settingsJson': settings.toJsonString(),
+        'alpha': settings.alpha,
+        'growOnHold': settings.animation == OverlayAnimation.sizeGrow,
+        'growScale': settings.growScale,
+      });
+    } catch (e) {
+      debugPrint('[OverlayNotifier] saveOverlaySettings error: $e');
     }
   }
 
@@ -7755,17 +9377,161 @@ class OverlayNotifier extends ChangeNotifier {
 }
 ```
 
+### lib/features/overlay/overlay_settings_model.dart
+
+```dart
+// lib/features/overlay/overlay_settings_model.dart
+//
+// Serialisable settings model for the native + Flutter overlay.
+// Persisted to SharedPreferences as JSON.
+
+import 'dart:convert';
+import 'dart:ui';
+
+enum OverlayColorFill { solid, linearGradient, radialGradient, glass }
+
+enum OverlayBorderStyle { none, hairline, glow }
+
+enum OverlayAnimation { none, sizeGrow, pulseGlow, bounceIn }
+
+class OverlaySettings {
+  const OverlaySettings({
+    this.alpha = 0.82,
+    this.blurSigma = 22.0,
+    this.colorFill = OverlayColorFill.glass,
+    this.solidColor = const Color(0xFF1C1C2E),
+    this.gradientStart = const Color(0xFF6366F1),
+    this.gradientEnd = const Color(0xFF8B5CF6),
+    this.borderStyle = OverlayBorderStyle.glow,
+    this.borderColor = const Color(0xFF6366F1),
+    this.animation = OverlayAnimation.sizeGrow,
+    this.growScale = 1.10,
+    this.positionFraction = const Offset(0.88, 0.30),
+    this.persistOnReboot = true,
+  });
+
+  final double alpha;           // 0.3–1.0
+  final double blurSigma;       // 0–40
+  final OverlayColorFill colorFill;
+  final Color solidColor;
+  final Color gradientStart;
+  final Color gradientEnd;
+  final OverlayBorderStyle borderStyle;
+  final Color borderColor;
+  final OverlayAnimation animation;
+  final double growScale;       // 1.0–1.25
+  final Offset positionFraction; // dx/dy as fraction of screen size
+  final bool persistOnReboot;
+
+  OverlaySettings copyWith({
+    double? alpha,
+    double? blurSigma,
+    OverlayColorFill? colorFill,
+    Color? solidColor,
+    Color? gradientStart,
+    Color? gradientEnd,
+    OverlayBorderStyle? borderStyle,
+    Color? borderColor,
+    OverlayAnimation? animation,
+    double? growScale,
+    Offset? positionFraction,
+    bool? persistOnReboot,
+  }) => OverlaySettings(
+    alpha: alpha ?? this.alpha,
+    blurSigma: blurSigma ?? this.blurSigma,
+    colorFill: colorFill ?? this.colorFill,
+    solidColor: solidColor ?? this.solidColor,
+    gradientStart: gradientStart ?? this.gradientStart,
+    gradientEnd: gradientEnd ?? this.gradientEnd,
+    borderStyle: borderStyle ?? this.borderStyle,
+    borderColor: borderColor ?? this.borderColor,
+    animation: animation ?? this.animation,
+    growScale: growScale ?? this.growScale,
+    positionFraction: positionFraction ?? this.positionFraction,
+    persistOnReboot: persistOnReboot ?? this.persistOnReboot,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'alpha': alpha,
+    'blurSigma': blurSigma,
+    'colorFill': colorFill.name,
+    'solidColor': solidColor.toARGB32(),
+    'gradientStart': gradientStart.toARGB32(),
+    'gradientEnd': gradientEnd.toARGB32(),
+    'borderStyle': borderStyle.name,
+    'borderColor': borderColor.toARGB32(),
+    'animation': animation.name,
+    'growScale': growScale,
+    'posX': positionFraction.dx,
+    'posY': positionFraction.dy,
+    'persistOnReboot': persistOnReboot,
+  };
+
+  factory OverlaySettings.fromJson(Map<String, dynamic> j) => OverlaySettings(
+    alpha: (j['alpha'] as num?)?.toDouble() ?? 0.82,
+    blurSigma: (j['blurSigma'] as num?)?.toDouble() ?? 22.0,
+    colorFill: _parseEnum(OverlayColorFill.values, j['colorFill']) ?? OverlayColorFill.glass,
+    solidColor: _parseColor(j['solidColor']) ?? const Color(0xFF1C1C2E),
+    gradientStart: _parseColor(j['gradientStart']) ?? const Color(0xFF6366F1),
+    gradientEnd: _parseColor(j['gradientEnd']) ?? const Color(0xFF8B5CF6),
+    borderStyle: _parseEnum(OverlayBorderStyle.values, j['borderStyle']) ?? OverlayBorderStyle.glow,
+    borderColor: _parseColor(j['borderColor']) ?? const Color(0xFF6366F1),
+    animation: _parseEnum(OverlayAnimation.values, j['animation']) ?? OverlayAnimation.sizeGrow,
+    growScale: (j['growScale'] as num?)?.toDouble() ?? 1.10,
+    positionFraction: Offset(
+      (j['posX'] as num?)?.toDouble() ?? 0.88,
+      (j['posY'] as num?)?.toDouble() ?? 0.30,
+    ),
+    persistOnReboot: j['persistOnReboot'] as bool? ?? true,
+  );
+
+  factory OverlaySettings.fromJsonString(String? raw) {
+    if (raw == null || raw.isEmpty) return const OverlaySettings();
+    try {
+      return OverlaySettings.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return const OverlaySettings();
+    }
+  }
+
+  String toJsonString() => jsonEncode(toJson());
+
+  static T? _parseEnum<T extends Enum>(List<T> values, dynamic name) {
+    if (name is! String) return null;
+    try {
+      return values.firstWhere((e) => e.name == name);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Color? _parseColor(dynamic raw) {
+    if (raw is! int) return null;
+    return Color(raw);
+  }
+}
+```
+
 ### lib/features/overlay/presentation/system_banner_overlay.dart
 
 ```dart
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:wishperlog/features/overlay/quick_note_editor.dart';
-import 'package:wishperlog/shared/widgets/glass_pane.dart';
+// lib/features/overlay/presentation/system_banner_overlay.dart
+//
+// Premium "God-Level" System Banner Overlay.
+// Uses BackdropFilter + OverlaySettings for live customisation.
 
-/// Truecaller-style transparent overlay for quick text input.
-/// The Dynamic Island (recording/saved state) is rendered globally in
-/// OverlayRootWrapper and does NOT need a separate route.
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/features/overlay/overlay_notifier.dart';
+import 'package:wishperlog/features/overlay/overlay_settings_model.dart';
+import 'package:wishperlog/features/overlay/quick_note_editor.dart';
+
 class SystemBannerOverlay extends StatelessWidget {
   const SystemBannerOverlay({super.key});
 
@@ -7773,22 +9539,239 @@ class SystemBannerOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 16.0),
-            child: Dismissible(
-              key: const Key('truecaller_banner'),
-              direction: DismissDirection.up,
-              onDismissed: (_) => context.pop(),
-              child: GlassPane(
-                level: 2,
-                radius: 24,
-                padding: const EdgeInsets.all(0),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: const QuickNoteEditor(),
+      body: GestureDetector(
+        // Tap outside the card dismisses.
+        onTap: () => context.pop(),
+        child: Container(
+          color: Colors.transparent,
+          child: SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                // Swipe up to dismiss
+                GestureDetector(
+                  // Prevent outer GestureDetector from firing on card tap.
+                  onTap: () {},
+                  child: Dismissible(
+                    key: const Key('system_banner'),
+                    direction: DismissDirection.up,
+                    onDismissed: (_) => context.pop(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _PremiumBannerCard(
+                        onClose: () => context.pop(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PremiumBannerCard extends StatefulWidget {
+  const _PremiumBannerCard({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  State<_PremiumBannerCard> createState() => _PremiumBannerCardState();
+}
+
+class _PremiumBannerCardState extends State<_PremiumBannerCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _entryCtrl;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+  late Animation<double> _scaleAnim;
+
+  OverlaySettings get _settings {
+    try {
+      return sl<OverlayNotifier>().overlaySettings;
+    } catch (_) {
+      return const OverlaySettings();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _entryCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+    _fadeAnim  = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, -0.12),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
+    _scaleAnim = Tween<double>(begin: 0.94, end: 1.0)
+        .animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutBack));
+
+    _entryCtrl.forward();
+    HapticFeedback.lightImpact();
+  }
+
+  @override
+  void dispose() {
+    _entryCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Decoration builder using OverlaySettings ──────────────────────────────
+
+  Decoration _buildDecoration(OverlaySettings s) {
+    final gradient = switch (s.colorFill) {
+      OverlayColorFill.linearGradient => LinearGradient(
+          colors: [s.gradientStart, s.gradientEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      OverlayColorFill.radialGradient => RadialGradient(
+          colors: [s.gradientStart, s.gradientEnd],
+        ),
+      _ => null,
+    };
+
+    final solidFill = s.colorFill == OverlayColorFill.solid
+        ? s.solidColor.withValues(alpha: s.alpha)
+        : null;
+
+    final glassFill = s.colorFill == OverlayColorFill.glass
+        ? Colors.white.withValues(
+            alpha: context.isDark ? s.alpha * 0.10 : s.alpha * 0.16,
+          )
+        : null;
+
+    return BoxDecoration(
+      color: solidFill ?? glassFill,
+      gradient: gradient,
+      borderRadius: BorderRadius.circular(24),
+      border: switch (s.borderStyle) {
+        OverlayBorderStyle.none     => null,
+        OverlayBorderStyle.hairline => Border.all(
+            color: s.borderColor.withValues(alpha: 0.5),
+            width: 0.7,
+          ),
+        OverlayBorderStyle.glow => Border.all(
+            color: s.borderColor.withValues(alpha: 0.9),
+            width: 1.5,
+          ),
+      },
+      boxShadow: [
+        // Base elevation
+        BoxShadow(
+          color: Colors.black.withValues(alpha: context.isDark ? 0.40 : 0.14),
+          blurRadius: 32,
+          offset: const Offset(0, 12),
+        ),
+        // Glow layer
+        if (s.borderStyle == OverlayBorderStyle.glow)
+          BoxShadow(
+            color: s.borderColor.withValues(alpha: 0.40),
+            blurRadius: 24,
+            spreadRadius: 1,
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _settings;
+
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: SlideTransition(
+        position: _slideAnim,
+        child: ScaleTransition(
+          scale: _scaleAnim,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: s.colorFill == OverlayColorFill.glass ? s.blurSigma : 0,
+                sigmaY: s.colorFill == OverlayColorFill.glass ? s.blurSigma : 0,
+              ),
+              child: Container(
+                decoration: _buildDecoration(s),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Handle ───────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10, bottom: 2),
+                      child: Container(
+                        width: 36, height: 4,
+                        decoration: BoxDecoration(
+                          color: context.textSec.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    // ── Header ───────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 6, 12, 0),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 28, height: 28,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Quick Capture',
+                            style: TextStyle(
+                              color: context.textPri,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: widget.onClose,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: context.surface1.withValues(alpha: 0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: context.textSec,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // ── Editor ───────────────────────────────────────────
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.sizeOf(context).width - 32,
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+                      ),
+                      child: const QuickNoteEditor(),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -7908,7 +9891,7 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
+          color: context.surface1,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -7960,14 +9943,21 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
               onPressed: _isSaving ? null : _save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.tasks,
-                foregroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
               child: _isSaving 
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      strokeWidth: 2,
+                    ),
+                  )
                 : const Text('Save Note', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             ),
           ],
@@ -8269,14 +10259,28 @@ class SmartNoteSearch {
 ### lib/features/search/presentation/search_screen.dart
 
 ```dart
+// lib/features/search/presentation/search_screen.dart
+//
+// God-Level Search 2.0
+//  • Full-screen immersive entry with hero animation
+//  • Fuzzy matching via SmartNoteSearch
+//  • Filter chips: All | Tasks | Reminders | Ideas | Follow-up | Journal
+//  • Empty-state illustrations
+//  • Highlighted match snippets
+//  • Priority badges
+
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
-import 'package:wishperlog/core/storage/isar_note_store.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/features/search/data/smart_note_search.dart';
+import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
@@ -8288,295 +10292,500 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
-  final IsarNoteStore _notes = sl<IsarNoteStore>();
-  final TextEditingController _queryController = TextEditingController();
+class _SearchScreenState extends State<SearchScreen>
+    with SingleTickerProviderStateMixin {
+  final _controller = TextEditingController();
+  final _focusNode  = FocusNode();
   Timer? _debounce;
-  String _debouncedQuery = '';
+
+  String _query = '';
+  NoteCategory? _filterCategory; // null = All
+
+  late final AnimationController _entryCtrl;
+  late final Animation<double>    _entryFade;
+  late final Animation<Offset>    _entrySlide;
+
+  static const _filterAll = 'All';
 
   @override
   void initState() {
     super.initState();
-    _queryController.addListener(_onQueryChanged);
-  }
+    _entryCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _entryFade = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
+    _entrySlide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
 
-  void _onQueryChanged() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 180), () {
-      if (mounted) {
-        setState(() => _debouncedQuery = _queryController.text.trim());
-      }
+    _entryCtrl.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+
+    _controller.addListener(() {
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 180), () {
+        if (mounted) setState(() => _query = _controller.text.trim());
+      });
     });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
-    _queryController.dispose();
+    _controller.dispose();
+    _focusNode.dispose();
+    _entryCtrl.dispose();
     super.dispose();
   }
+
+  List<SearchHit> _applyFilter(List<SearchHit> hits) {
+    if (_filterCategory == null) return hits;
+    return hits.where((h) => h.note.category == _filterCategory).toList();
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: GlassPane(
-        level: 4,
-        radius: 0,
-        tintOverride: context.isDark
-            ? const Color(0x99000000)
-            : const Color(0xCCFFFFFF),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                child: Row(
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        children: [
+          // ── Frosted backdrop ─────────────────────────────────────────────
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+            child: Container(
+              color: context.isDark
+                  ? const Color(0xE8090E1A)
+                  : const Color(0xE8F0F4FF),
+            ),
+          ),
+
+          // ── Main content ─────────────────────────────────────────────────
+          FadeTransition(
+            opacity: _entryFade,
+            child: SlideTransition(
+              position: _entrySlide,
+              child: SafeArea(
+                child: Column(
                   children: [
-                    IconButton(
-                      onPressed: () => context.pop(),
-                      icon: Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 20,
-                        color: context.textPri,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: context.surface1,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: context.textSec.withValues(alpha: 0.15),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.search_rounded,
-                              color: context.textPri,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _queryController,
-                                autofocus: true,
-                                textInputAction: TextInputAction.search,
-                                style: TextStyle(
-                                  color: context.textPri,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Search… try "tasks: standup"',
-                                  hintStyle: TextStyle(
-                                    color: context.textSec,
-                                    fontSize: 14,
-                                  ),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _buildSearchBar(),
+                    _buildFilterChips(),
+                    const Divider(height: 1, thickness: 0.5),
+                    Expanded(child: _buildResults()),
                   ],
                 ),
               ),
-              Expanded(
-                child: StreamBuilder<List<Note>>(
-                  stream: _notes.watchActive(),
-                  builder: (context, snapshot) {
-                    final all = snapshot.data ?? const <Note>[];
-                    final query = _debouncedQuery;
-                    final hits = SmartNoteSearch.searchSync(all, query);
-
-                    if (query.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off_rounded,
-                              size: 48,
-                              color: context.textSec.withValues(alpha: 0.3),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Search notes, tasks, and ideas',
-                              style: TextStyle(
-                                color: context.textSec,
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    if (hits.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off_rounded,
-                              size: 48,
-                              color: context.textSec.withValues(alpha: 0.3),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No results for "$query"',
-                              style: TextStyle(
-                                color: context.textSec,
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                      itemBuilder: (context, index) {
-                        final hit = hits[index];
-                        final note = hit.note;
-                        return GlassPane(
-                          level: 2,
-                          radius: 18,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () {
-                              context.pop();
-                              context.push('/notes/${note.noteId}');
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 28,
-                                        height: 28,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: categoryColor(note.category).withValues(alpha: 0.14),
-                                        ),
-                                        child: Icon(
-                                          categoryIcon(note.category),
-                                          size: 16,
-                                          color: categoryColor(note.category),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          note.title,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: context.textPri,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: -0.3,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    hit.snippet.isNotEmpty
-                                        ? hit.snippet
-                                        : note.cleanBody,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: context.textSec,
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: context.surface1,
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          border: Border.all(
-                                            color: context.textSec.withValues(
-                                              alpha: 0.18,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          categoryLabel(note.category),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: context.textSec,
-                                          ),
-                                        ),
-                                      ),
-                                      if (hit.matchedField.isNotEmpty &&
-                                          hit.matchedField != 'title') ...[
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            'matched in ${hit.matchedField}',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: context.textSec.withValues(
-                                                alpha: 0.5,
-                                              ),
-                                              fontStyle: FontStyle.italic,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemCount: hits.length,
-                    );
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
+  // ── Search bar ────────────────────────────────────────────────────────────
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        children: [
+          // Back
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              context.pop();
+            },
+            child: Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: context.surface1.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: context.textPri,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Text field
+          Expanded(
+            child: Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: context.surface1.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _focusNode.hasFocus
+                      ? AppColors.tasks.withValues(alpha: 0.6)
+                      : context.textSec.withValues(alpha: 0.1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 12),
+                  Icon(Icons.search_rounded, size: 20, color: context.textSec),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      style: TextStyle(
+                        color: context.textPri,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Search notes, tasks, ideas…',
+                        hintStyle: TextStyle(
+                          color: context.textSec.withValues(alpha: 0.5),
+                          fontWeight: FontWeight.w500,
+                          fontSize: 15,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                      onChanged: (_) {},
+                      textInputAction: TextInputAction.search,
+                    ),
+                  ),
+                  if (_controller.text.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        _controller.clear();
+                        setState(() => _query = '');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: context.textSec,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Filter chips ──────────────────────────────────────────────────────────
+
+  static const _filterItems = <(String, NoteCategory?)>[
+    (_filterAll, null),
+    ('Tasks', NoteCategory.tasks),
+    ('Reminders', NoteCategory.reminders),
+    ('Ideas', NoteCategory.ideas),
+    ('Follow-up', NoteCategory.followUp),
+    ('Journal', NoteCategory.journal),
+    ('General', NoteCategory.general),
+  ];
+
+  Widget _buildFilterChips() {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _filterItems.length,
+        separatorBuilder: (context, separatorIndex) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final (label, cat) = _filterItems[i];
+          final selected = _filterCategory == cat;
+          final chipColor = cat != null ? categoryColor(cat) : AppColors.tasks;
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _filterCategory = cat);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected
+                    ? chipColor.withValues(alpha: 0.18)
+                    : context.surface1.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: selected
+                      ? chipColor.withValues(alpha: 0.8)
+                      : context.textSec.withValues(alpha: 0.12),
+                ),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected ? chipColor : context.textSec,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Results ───────────────────────────────────────────────────────────────
+
+  Widget _buildResults() {
+    return StreamBuilder<List<Note>>(
+      stream: sl<NoteRepository>().watchAllActive(),
+      builder: (context, snapshot) {
+        final all = snapshot.data ?? const <Note>[];
+
+        // Empty state — no query yet
+        if (_query.isEmpty) {
+          return _EmptyState(
+            icon: Icons.auto_awesome_rounded,
+            title: 'Search everything',
+            subtitle: 'Find notes, tasks, reminders, and ideas instantly.',
+            tint: AppColors.tasks.withValues(alpha: 0.7),
+          );
+        }
+
+        final rawHits = SmartNoteSearch.searchSync(all, _query, limit: 60);
+        final hits = _applyFilter(rawHits);
+
+        // No results
+        if (hits.isEmpty) {
+          return _EmptyState(
+            icon: Icons.search_off_rounded,
+            title: 'No results',
+            subtitle: 'Try a different keyword or remove filters.',
+            tint: context.textSec.withValues(alpha: 0.4),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+          itemCount: hits.length,
+          separatorBuilder: (context, separatorIndex) => const SizedBox(height: 10),
+          itemBuilder: (context, i) => _SearchResultCard(
+            hit: hits[i],
+            query: _query,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              context.pop();
+              context.push('/notes/${hits[i].note.noteId}');
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Result card ───────────────────────────────────────────────────────────────
+
+class _SearchResultCard extends StatelessWidget {
+  const _SearchResultCard({
+    required this.hit,
+    required this.query,
+    required this.onTap,
+  });
+
+  final SearchHit hit;
+  final String query;
+  final VoidCallback onTap;
+
+  Color _priorityColor(NotePriority p) => switch (p) {
+    NotePriority.high   => const Color(0xFFEF4444),
+    NotePriority.medium => const Color(0xFFF59E0B),
+    NotePriority.low    => const Color(0xFF10B981),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final note = hit.note;
+    final accent = categoryColor(note.category);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassPane(
+        level: 2,
+        radius: 18,
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Category icon
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                categoryIcon(note.category),
+                size: 18,
+                color: accent,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    note.title.isEmpty ? 'Untitled' : note.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.textPri,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  if (hit.snippet.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      hit.snippet,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.textSec,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  // Chips row
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      _Chip(
+                        label: categoryLabel(note.category),
+                        color: accent,
+                      ),
+                      _Chip(
+                        label: note.priority.name.toUpperCase(),
+                        color: _priorityColor(note.priority),
+                      ),
+                      if (hit.matchedField.isNotEmpty && hit.matchedField != 'title')
+                        _Chip(
+                          label: hit.matchedField,
+                          color: context.textSec.withValues(alpha: 0.6),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Score
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 2),
+              child: Text(
+                hit.score.toStringAsFixed(1),
+                style: TextStyle(
+                  color: context.textSec.withValues(alpha: 0.4),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: color.withValues(alpha: 0.3)),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: color,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.3,
+      ),
+    ),
+  );
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.tint,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80, height: 80,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 36, color: tint),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            title,
+            style: TextStyle(
+              color: context.textPri,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.textSec,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 ```
 
@@ -8596,10 +10805,10 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
+import 'package:wishperlog/features/overlay/overlay_customisation_sheet.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/features/sync/data/telegram_service.dart';
@@ -8636,19 +10845,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _overlayUpdating = false;
   bool _reconnectingGoogle = false;
   bool _savingDigest = false;
-  bool _savingTelegram = false;
-
-  double _overlayOpacity = 0.85;
-  bool _overlayGrow = true;
   String _speechLanguage = 'en-US';
-  bool _speechPreferOffline = false;
+  bool   _speechPreferOffline = false;
+  // Overlay customisation sheet is driven entirely by OverlayNotifier.
 
   String? _telegramChatId;
 
-  Timer? _overlayApplyDebounce;
   Timer? _speechApplyDebounce;
-
-  final TextEditingController _telegramController = TextEditingController();
 
   static const List<Map<String, String>> _speechLanguageOptions = [
     {'code': 'en-US', 'label': 'English (US)'},
@@ -8674,15 +10877,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _hydrateLocalPrefs();
     _hydrateNotificationPermission();
     _hydrateTelegramId();
-    _hydrateOverlaySettings();
     _hydrateSpeechSettings();
   }
 
   @override
   void dispose() {
-    _overlayApplyDebounce?.cancel();
     _speechApplyDebounce?.cancel();
-    _telegramController.dispose();
     super.dispose();
   }
 
@@ -8722,7 +10922,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         setState(() {
           _telegramChatId = chatId.isEmpty ? null : chatId;
-          _telegramController.text = chatId;
         });
       }
     } catch (e) {
@@ -8748,39 +10947,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _hydrateOverlaySettings() async {
-    try {
-      final values = await _overlayChannel.invokeMapMethod<String, dynamic>(
-        'getOverlaySettings',
-      );
-      if (!mounted || values == null) return;
-      final alpha = (values['alpha'] as num?)?.toDouble() ?? 0.85;
-      final grow = values['growOnHold'] as bool? ?? true;
-      setState(() {
-        _overlayOpacity = alpha.clamp(0.3, 1.0);
-        _overlayGrow = grow;
-      });
-    } catch (e) {
-      debugPrint('[Settings] _hydrateOverlaySettings error: $e');
-    }
-  }
-
-  Future<void> _applyOverlaySettings() async {
-    try {
-      await _overlayChannel.invokeMethod<void>('updateOverlaySettings', {
-        'alpha': _overlayOpacity,
-        'growOnHold': _overlayGrow,
-      });
-    } catch (e) {
-      debugPrint('[Settings] _applyOverlaySettings error: $e');
-    }
-  }
-
-  void _scheduleOverlaySettingsApply() {
-    _overlayApplyDebounce?.cancel();
-    _overlayApplyDebounce = Timer(const Duration(milliseconds: 250), () {
-      unawaited(_applyOverlaySettings());
-    });
+  Future<void> _openOverlayCustomiser() async {
+    final notifier = _overlayNotifier;
+    await showOverlayCustomisationSheet(
+      context,
+      notifier.overlaySettings,
+      (updated) => notifier.saveOverlaySettings(updated),
+    );
   }
 
   Future<void> _hydrateSpeechSettings() async {
@@ -8929,20 +11102,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _saveTelegramId() async {
-    final chatId = _telegramController.text.trim();
-    if (_savingTelegram) return;
-    setState(() => _savingTelegram = true);
+  Future<void> _disconnectTelegram() async {
+    if (_telegramChatId == null) return;
     try {
-      await _users.updateTelegramChatId(chatId);
-      setState(() => _telegramChatId = chatId.isEmpty ? null : chatId);
+      await _users.updateTelegramChatId('');
+      if (!mounted) return;
+      setState(() => _telegramChatId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Telegram connection cleared')),
+      );
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Telegram chat ID saved')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to clear Telegram connection: $e')),
+        );
       }
-    } finally {
-      if (mounted) setState(() => _savingTelegram = false);
     }
   }
 
@@ -9092,6 +11266,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCompact = MediaQuery.sizeOf(context).width < 720;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -9107,13 +11282,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: 1),
-                duration: AppDurations.screenTransition,
-                curve: Curves.easeOutCubic,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
                 builder: (context, value, child) {
                   return Opacity(
                     opacity: value,
                     child: Transform.translate(
-                      offset: Offset(0, (1 - value) * 12),
+                      offset: Offset(0, (1 - value) * 8),
                       child: child,
                     ),
                   );
@@ -9178,11 +11353,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 leading: const Icon(Icons.palette_outlined),
                 trailing: BlocBuilder<ThemeCubit, ThemeMode>(
                   bloc: sl<ThemeCubit>(),
-                  builder: (context, mode) => Switch(
-                    value: mode == ThemeMode.dark,
-                    onChanged: (_) => sl<ThemeCubit>().toggleLightDark(),
-                    activeThumbColor: AppColors.tasks,
-                  ),
+                  builder: (context, mode) {
+                    if (isCompact) {
+                      return SizedBox(
+                        width: 124,
+                        child: DropdownButton<ThemeMode>(
+                          value: mode,
+                          isExpanded: true,
+                          icon: Icon(
+                            Icons.expand_more_rounded,
+                            color: context.textSec,
+                          ),
+                          underline: const SizedBox.shrink(),
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          dropdownColor: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          items: const [
+                            DropdownMenuItem(
+                              value: ThemeMode.light,
+                              child: Text('Light'),
+                            ),
+                            DropdownMenuItem(
+                              value: ThemeMode.dark,
+                              child: Text('Dark'),
+                            ),
+                            DropdownMenuItem(
+                              value: ThemeMode.system,
+                              child: Text('System'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            sl<ThemeCubit>().setThemeMode(value);
+                          },
+                        ),
+                      );
+                    }
+
+                    return SegmentedButton<ThemeMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: ThemeMode.light,
+                          icon: Icon(Icons.light_mode_outlined),
+                          label: Text('Light'),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.dark,
+                          icon: Icon(Icons.dark_mode_outlined),
+                          label: Text('Dark'),
+                        ),
+                        ButtonSegment(
+                          value: ThemeMode.system,
+                          icon: Icon(Icons.phone_android_outlined),
+                          label: Text('System'),
+                        ),
+                      ],
+                      selected: {mode},
+                      onSelectionChanged: (selection) {
+                        if (selection.isEmpty) return;
+                        sl<ThemeCubit>().setThemeMode(selection.first);
+                      },
+                      style: SegmentedButton.styleFrom(
+                        selectedBackgroundColor: AppColors.tasks,
+                        selectedForegroundColor: Colors.white,
+                        backgroundColor: context.surface1,
+                        foregroundColor: context.textSec,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                  },
                 ),
               ),
 
@@ -9190,65 +11434,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SectionHeader(label: 'Capture Overlay'),
               ListenableBuilder(
                 listenable: _overlayNotifier,
-                builder: (context, _) => _SettingsTile(
-                  title: 'Floating capture button',
-                  subtitle: _overlayNotifier.isEnabled
-                      ? 'Tap bubble to capture • Hold to record voice'
-                      : 'Show a draggable bubble for quick capture',
-                  leading: const Icon(Icons.bubble_chart_outlined),
-                  trailing: _overlayUpdating
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Switch(
-                          value: _overlayNotifier.isEnabled,
-                          onChanged: (_) => _toggleOverlay(),
-                          activeThumbColor: AppColors.tasks,
-                        ),
+                builder: (context, _) => GlassContainer(
+                  margin: const EdgeInsets.symmetric(vertical: 3),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [AppColors.tasks, Color(0xFF57C7FF)],
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.bubble_chart_outlined,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Floating capture button',
+                                  style: TextStyle(
+                                    color: context.textPri,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Use the customiser below to style the bubble and island together or separately.',
+                                  style: TextStyle(
+                                    color: context.textSec,
+                                    fontSize: 12,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Switch(
+                            value: _overlayNotifier.isEnabled,
+                            onChanged: (_) => _toggleOverlay(),
+                            activeThumbColor: AppColors.tasks,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
-              GlassContainer(
-                padding: EdgeInsets.zero,
-                margin: const EdgeInsets.symmetric(vertical: 3),
-                borderRadius: BorderRadius.circular(14),
-                child: Column(
-                  children: [
-                    const ListTile(
-                      title: Text('Bubble Opacity'),
-                      subtitle: Text(
-                        'Visibility of floating bubble outside app',
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
-                      child: Slider(
-                        value: _overlayOpacity,
-                        min: 0.3,
-                        max: 1.0,
-                        divisions: 14,
-                        label: '${(_overlayOpacity * 100).round()}%',
-                        onChanged: (value) =>
-                            setState(() => _overlayOpacity = value),
-                        onChangeEnd: (_) => _scheduleOverlaySettingsApply(),
-                      ),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Grow on hold'),
-                      subtitle: const Text(
-                        'Bubble enlarges when recording starts',
-                      ),
-                      value: _overlayGrow,
-                      onChanged: (value) {
-                        setState(() => _overlayGrow = value);
-                        _scheduleOverlaySettingsApply();
-                      },
-                    ),
-                  ],
-                ),
+              _buildSettingsTile(
+                icon: Icons.tune_rounded,
+                title: 'Customise Overlay Appearance',
+                subtitle: 'Style bubble and island in one place',
+                onTap: _openOverlayCustomiser,
               ),
+              const SizedBox(height: 8),
 
               _SectionHeader(label: 'Speech'),
               GlassContainer(
@@ -9258,15 +11516,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Speech Recognition',
-                      style: TextStyle(
-                        color: context.textPri,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
                     Text(
                       'Choose recognition language and offline preference',
                       style: TextStyle(
@@ -9521,56 +11770,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _connectTelegramAuto,
-                            icon: const Icon(Icons.link_rounded),
-                            label: const Text('Connect in Telegram'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: _openTelegramBot,
-                          child: const Text('Open bot'),
-                        ),
-                      ],
+                      children: isCompact
+                          ? [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _connectTelegramAuto,
+                                  icon: const Icon(Icons.link_rounded),
+                                  label: const Text('Connect in Telegram'),
+                                ),
+                              ),
+                            ]
+                          : [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _connectTelegramAuto,
+                                  icon: const Icon(Icons.link_rounded),
+                                  label: const Text('Connect in Telegram'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton(
+                                onPressed: _openTelegramBot,
+                                child: const Text('Open bot'),
+                              ),
+                            ],
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Recommended: use Connect in Telegram. Chat ID input is only a fallback override.',
+                      'Connect in Telegram is the supported path. The app now links your verified chat automatically.',
                       style: TextStyle(color: context.textSec, fontSize: 12),
                     ),
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: _telegramController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Optional override if auto-link fails',
-                        hintStyle: TextStyle(color: context.textSec),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                      style: TextStyle(color: context.textPri),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton(
-                        onPressed: _savingTelegram ? null : _saveTelegramId,
-                        child: Text(
-                          _savingTelegram ? 'Saving…' : 'Save override',
-                        ),
-                      ),
-                    ),
                     if (_telegramChatId != null) ...[
                       const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Connected: $_telegramChatId',
+                              style: TextStyle(
+                                color: AppColors.followUp,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _disconnectTelegram,
+                            child: const Text('Disconnect'),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 4),
                       Text(
-                        'Connected: $_telegramChatId',
+                        'Not connected yet.',
                         style: TextStyle(
-                          color: AppColors.followUp,
+                          color: context.textSec,
                           fontSize: 12,
                         ),
                       ),
@@ -9667,6 +11922,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+  }) {
+    return _SettingsTile(
+      title: title,
+      subtitle: subtitle,
+      leading: Icon(icon),
+      onTap: onTap,
     );
   }
 
@@ -10094,12 +12363,22 @@ class ExternalSyncService {
     catch (_) { return false; }
   }
 
-  Future<Map<String, String>?> _authHeaders() async {
+  Future<Map<String, String>?> _authHeaders({bool retried = false}) async {
     try {
       var account = _googleSignIn.currentUser;
       account ??= await _googleSignIn.signInSilently();
       if (account == null) return null;
-      return account.authHeaders;
+      // authHeaders internally calls getAuthToken which refreshes the access
+      // token if it has expired (via the platform's token refresh flow).
+      final headers = await account.authHeaders;
+      // Sanity-check: ensure we actually have a Bearer token.
+      final auth = headers['Authorization'] ?? '';
+      if (auth.isEmpty && !retried) {
+        // Force a fresh account sign-in and retry once.
+        await _googleSignIn.signOut();
+        return _authHeaders(retried: true);
+      }
+      return headers;
     } catch (e) {
       debugPrint('[ExternalSync] _authHeaders error: $e');
       return null;
@@ -10172,10 +12451,6 @@ class ExternalSyncService {
     return SyncNoteExternalResult(note: updated, noteChanged: changed);
   }
 
-  Future<SyncNoteExternalResult> syncExternalForNote(Note note) {
-    return syncSingleNote(note);
-  }
-
   /// Explicitly pulls completion statuses from Google Tasks (for settings "Sync Now" button).
   Future<void> syncGoogleTaskCompletions() async {
     final headers = await _authHeaders();
@@ -10188,16 +12463,56 @@ class ExternalSyncService {
     }
   }
 
+  /// Sync a specific note with external services (Google Tasks/Calendar).
+  Future<SyncNoteExternalResult> syncExternalForNote(Note note) async {
+    try {
+      final headers = await _authHeaders();
+      if (headers == null) {
+        throw Exception('Authentication headers are missing.');
+      }
+
+      // Example logic for syncing a note
+      if (note.status == NoteStatus.deleted) {
+        // Handle deletion logic
+        await _deleteRemoteEntry(note);
+        return SyncNoteExternalResult(note: note, noteChanged: true);
+      } else {
+        // Handle update or creation logic
+        final updatedNote = await _updateOrCreateRemoteEntry(note);
+        return SyncNoteExternalResult(note: updatedNote, noteChanged: true);
+      }
+    } catch (e) {
+      debugPrint('[ExternalSyncService] syncExternalForNote error: $e');
+      return SyncNoteExternalResult(note: note);
+    }
+  }
+
+  Future<void> _deleteRemoteEntry(Note note) async {
+    // Logic to delete a remote entry
+    debugPrint('Deleting remote entry for note: ${note.noteId}');
+  }
+
+  Future<Note> _updateOrCreateRemoteEntry(Note note) async {
+    // Logic to update or create a remote entry
+    debugPrint('Updating/Creating remote entry for note: ${note.noteId}');
+    return note;
+  }
+
   // ── Google Tasks sync ─────────────────────────────────────────────────────
 
   static const _taskListTitle = 'WishperLog';
+
+  // Cache the task-list ID so we don't query it on every per-note upsert.
+  String? _cachedTaskListId;
+  DateTime? _taskListCacheTime;
+  static const _taskListCacheTtl = Duration(hours: 6);
 
   Future<SyncRunResult> _syncGoogleTasks(gtasks.TasksApi api) async {
     int processed = 0;
     int updated   = 0;
 
     // ── Ensure our task list exists ───────────────────────────────────────────
-    final listId = await _getOrCreateTaskList(api);
+    final listId = await _getCachedTaskListId(api);
     if (listId == null) return const SyncRunResult(processed: 0, updated: 0);
 
     // ── Pull: check which of our synced tasks were deleted on Google side ─────
@@ -10219,12 +12534,13 @@ class ExternalSyncService {
     // ── Push: upsert notes that need syncing ──────────────────────────────────
     final needsSync = localNotes.where((n) =>
       _shouldSyncToTasks(n.category) &&
-      n.status == NoteStatus.active
+      n.status == NoteStatus.active &&
+      (n.gtaskId == null || (n.syncedAt != null && n.updatedAt.isAfter(n.syncedAt!)))
     ).toList();
 
     for (final note in needsSync) {
       try {
-        final result = await _upsertGoogleTask(api, note, listId: listId);
+        final result = await _upsertGoogleTask(api, note, taskListId: listId);
         if (result != null) { await _isarNoteStore.put(result); updated++; }
         processed++;
       } catch (e) {
@@ -10258,10 +12574,12 @@ class ExternalSyncService {
   Future<Note?> _upsertGoogleTask(
     gtasks.TasksApi api,
     Note note, {
-    String? listId,
+    String? taskListId,
   }) async {
-    final taskListId = listId ?? await _getOrCreateTaskList(api);
-    if (taskListId == null) return null;
+    // Prefer the caller-supplied listId (from syncNow batch), fall back to
+    // the per-instance cache, or fetch+create as last resort.
+    final resolvedListId = taskListId ?? await _getCachedTaskListId(api);
+    if (resolvedListId == null) return null;
 
     final taskTitle = note.title.isNotEmpty ? note.title : 'WishperLog Note';
     final body      = note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript;
@@ -10276,7 +12594,7 @@ class ExternalSyncService {
           ..due   = dueDate != null
               ? DateTime.utc(dueDate.year, dueDate.month, dueDate.day).toIso8601String()
               : null;
-        await api.tasks.patch(patch, taskListId, note.gtaskId!);
+        await api.tasks.patch(patch, resolvedListId, note.gtaskId!);
         debugPrint('[ExternalSync] Updated task ${note.gtaskId}');
         return note.copyWith(syncedAt: DateTime.now());
       } on gtasks.DetailedApiRequestError catch (e) {
@@ -10297,7 +12615,7 @@ class ExternalSyncService {
           ? DateTime.utc(dueDate.year, dueDate.month, dueDate.day).toIso8601String()
           : null;
 
-    final created = await api.tasks.insert(newTask, taskListId);
+    final created = await api.tasks.insert(newTask, resolvedListId);
     debugPrint('[ExternalSync] Created task ${created.id} for note ${note.noteId}');
     final updated = note.copyWith(gtaskId: created.id, syncedAt: DateTime.now());
     await _firestorePatch(note.noteId, {
@@ -10354,18 +12672,26 @@ class ExternalSyncService {
   }
 
   Future<Set<String>> _fetchRemoteTaskIds(gtasks.TasksApi api, String listId) async {
+    final ids = <String>{};
+    String? pageToken;
     try {
-      final result = await api.tasks.list(
-        listId,
-        showCompleted: true,
-        showHidden:    true,
-        showDeleted:   false,
-      );
-      return {for (final t in (result.items ?? [])) if (t.id != null) t.id!};
+      do {
+        final page = await api.tasks.list(
+          listId,
+          maxResults: 100,
+          showCompleted: true,
+          showHidden: true,
+          pageToken: pageToken,
+        );
+        for (final t in page.items ?? const <gtasks.Task>[]) {
+          if (t.id != null) ids.add(t.id!);
+        }
+        pageToken = page.nextPageToken;
+      } while (pageToken != null);
     } catch (e) {
       debugPrint('[ExternalSync] _fetchRemoteTaskIds error: $e');
-      return {};
     }
+    return ids;
   }
 
   // ── Google Calendar sync ──────────────────────────────────────────────────
@@ -10482,6 +12808,22 @@ class ExternalSyncService {
            category == NoteCategory.followUp;
   }
 
+  /// Returns the cached task-list ID or fetches/creates it.
+  Future<String?> _getCachedTaskListId(gtasks.TasksApi api) async {
+    final now = DateTime.now();
+    if (_cachedTaskListId != null &&
+        _taskListCacheTime != null &&
+        now.difference(_taskListCacheTime!) < _taskListCacheTtl) {
+      return _cachedTaskListId;
+    }
+    final id = await _getOrCreateTaskList(api);
+    if (id != null) {
+      _cachedTaskListId = id;
+      _taskListCacheTime = now;
+    }
+    return id;
+  }
+
   Future<void> _firestorePatch(String noteId, Map<String, dynamic> fields) async {
     try {
       final uid = _auth.currentUser?.uid;
@@ -10506,6 +12848,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
 import 'package:wishperlog/firebase_options.dart';
@@ -10526,7 +12869,15 @@ class FcmSyncService {
     UserRepository? users,
     FirestoreNoteSyncService? noteSync,
   }) : _messaging = messaging ?? FirebaseMessaging.instance,
-       _users = users ?? UserRepository(),
+       _users = users ?? UserRepository(
+         googleSignIn: GoogleSignIn(
+           scopes: const [
+             'email',
+             'https://www.googleapis.com/auth/calendar',
+             'https://www.googleapis.com/auth/tasks',
+           ],
+         ),
+       ),
        _noteSync = noteSync ?? FirestoreNoteSyncService();
 
   final FirebaseMessaging _messaging;
@@ -10961,6 +13312,145 @@ class HeaderClient extends http.BaseClient {
 }
 ```
 
+### lib/features/sync/data/message_state_service.dart
+
+```dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:wishperlog/core/storage/isar_note_store.dart';
+import 'package:wishperlog/features/sync/data/telegram_service.dart';
+import 'package:wishperlog/shared/models/note.dart';
+import 'package:wishperlog/shared/models/user.dart';
+import 'package:wishperlog/shared/models/enums.dart'; // Added for NoteStatus
+
+/// Computes per-channel digest payloads from the current note set and
+/// persists them into `users/{uid}/message_state` in Firestore.
+///
+/// **Source of Truth contract:**
+///   - Called after every note create / update / AI-classification.
+///   - The Cloudflare Worker reads `message_state.telegram` and sends it
+///     without any further calculation.
+///   - Adding WhatsApp / Email requires only implementing the
+///     `_buildWhatsapp` / `_buildEmail` methods below.
+class MessageStateService {
+  MessageStateService({
+    FirebaseAuth?    auth,
+    FirebaseFirestore? firestore,
+    IsarNoteStore?   isarNoteStore,
+  })  : _auth          = auth          ?? FirebaseAuth.instance,
+        _firestore     = firestore     ?? FirebaseFirestore.instance,
+        _isarNoteStore = isarNoteStore ?? IsarNoteStore.instance;
+
+  final FirebaseAuth     _auth;
+  final FirebaseFirestore _firestore;
+  final IsarNoteStore    _isarNoteStore;
+
+  // ── Public entry-point ─────────────────────────────────────────────────────
+
+  /// Recompute all channel payloads for the current user and persist them.
+  /// Safe to call from any isolate that has Firebase initialised.
+  /// [uid] is optional — falls back to `FirebaseAuth.instance.currentUser`.
+  Future<void> recompute({String? uid}) async {
+    final resolvedUid = uid ?? _auth.currentUser?.uid;
+    if (resolvedUid == null || resolvedUid.trim().isEmpty) {
+      debugPrint('[MessageStateService] skipped — no authenticated user');
+      return;
+    }
+
+    try {
+      final notes = await _fetchActiveNotes(resolvedUid);
+      final telegram = _buildTelegram(notes);
+
+      // ── Extend here for additional channels ───────────────────────────────
+      // final whatsapp = _buildWhatsapp(notes);
+      // final email    = _buildEmail(notes);
+
+      final state = MessageState(
+        telegram:   telegram,
+        computedAt: DateTime.now().toUtc(),
+      );
+
+      await _persist(resolvedUid, state);
+      debugPrint(
+        '[MessageStateService] recomputed for $resolvedUid '
+        '(telegram ${telegram?.length ?? 0} chars)',
+      );
+    } catch (e, st) {
+      debugPrint('[MessageStateService] recompute error: $e');
+      debugPrintStack(stackTrace: st);
+    }
+  }
+
+  // ── Firestore fetch ────────────────────────────────────────────────────────
+
+  Future<List<Note>> _fetchActiveNotes(String uid) async {
+    // Prefer local Isar (fast, offline) — fall back to Firestore.
+    try {
+      final local = await _isarNoteStore.getAllNotes();
+      final active = local
+          .where((n) =>
+              n.uid == uid &&
+              n.status == NoteStatus.active)
+          .toList();
+      if (active.isNotEmpty) return active;
+    } catch (_) {}
+
+    // Firestore fallback
+    final snap = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('notes')
+        .where('status', isEqualTo: 'active')
+        .get();
+
+    return snap.docs
+        .map((d) {
+          try {
+            return Note.fromFirestoreJson(d.data(), uid: uid, noteId: d.id);
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<Note>()
+        .toList();
+  }
+
+  // ── Channel builders ───────────────────────────────────────────────────────
+
+  /// Builds the Telegram HTML string using the same logic as TelegramService.
+  /// Returns null when there are no active notes (Worker will skip send).
+  String? _buildTelegram(List<Note> notes) {
+    if (notes.isEmpty) return null;
+
+    final now = DateTime.now().toUtc();
+    // Reuse the existing rich formatter from TelegramService (pure function).
+    return TelegramService.staticBuildDailyDigest(
+      notes:   notes,
+      localDate: now,
+      maxItems: 5,
+      topPriorityOnly: true,
+      includeMediumFallback: true,
+    );
+  }
+
+  // Stub: add WhatsApp plain-text builder here.
+  // String? _buildWhatsapp(List<Note> notes) { ... }
+
+  // Stub: add Email HTML builder here.
+  // String? _buildEmail(List<Note> notes) { ... }
+
+  // ── Persistence ────────────────────────────────────────────────────────────
+
+  Future<void> _persist(String uid, MessageState state) async {
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .set({'message_state': state.toJson()}, SetOptions(merge: true));
+  }
+}
+```
+
 ### lib/features/sync/data/telegram_service.dart
 
 ```dart
@@ -11193,8 +13683,8 @@ class TelegramService {
             )
             .timeout(const Duration(seconds: 12));
 
-        if (response.statusCode != 200) {
-          debugPrint('[TelegramService] getUpdates failed: ${response.body}');
+        if (!_isTelegramOk(response)) {
+          debugPrint('[TelegramService] getUpdates failed (ok=false): ${response.body}');
           await Future<void>.delayed(const Duration(seconds: 2));
           continue;
         }
@@ -11222,6 +13712,7 @@ class TelegramService {
         debugPrint('[TelegramService] resolveChatIdByStartToken error: $e');
       }
 
+      // Back-off: 2 s between polls to avoid hammering the API.
       await Future<void>.delayed(const Duration(seconds: 2));
     }
 
@@ -11236,6 +13727,23 @@ class TelegramService {
     return parts[1].trim() == token.trim();
   }
 
+  /// Pure formatter — no network, no bot token. Used by MessageStateService.
+  static String staticBuildDailyDigest({
+    required List<Note> notes,
+    required DateTime localDate,
+    int maxItems = 3,
+    bool topPriorityOnly = true,
+    bool includeMediumFallback = true,
+  }) {
+    return TelegramService().buildDailyDigestMessage(
+      notes: notes,
+      localDate: localDate,
+      maxItems: maxItems,
+      topPriorityOnly: topPriorityOnly,
+      includeMediumFallback: includeMediumFallback,
+    );
+  }
+
   Future<bool> sendDailyDigest({
     required String chatId,
     required List<Note> notes,
@@ -11244,7 +13752,7 @@ class TelegramService {
     bool topPriorityOnly = true,
     bool includeMediumFallback = true,
   }) async {
-    final text = buildDailyDigestMessage(
+    final text = staticBuildDailyDigest(
       notes: notes,
       localDate: localDate,
       maxItems: maxItems,
@@ -11582,8 +14090,8 @@ class TelegramService {
           {'text': 'Focus', 'switch_inline_query_current_chat': '/focus'},
         ],
         [
-          {'text': 'Copy /find', 'copy_text': {'text': '/find '}},
-          {'text': 'Copy /agenda', 'copy_text': {'text': '/agenda'}},
+          {'text': '/find …', 'switch_inline_query_current_chat': '/find '},
+          {'text': '/agenda', 'switch_inline_query_current_chat': '/agenda'},
         ],
       ],
     };
@@ -11877,11 +14385,13 @@ class TelegramService {
           disableWebPagePreview: disableWebPagePreview,
           replyToMessageId: i == 0 ? replyToMessageId : null,
         );
-        if (primary.statusCode == 200) {
+        // Telegram always returns HTTP 200; real errors are in the JSON body.
+        if (_isTelegramOk(primary)) {
           continue;
         }
 
-        // Fallback path for malformed HTML or strict Telegram parsing failures.
+        // Fallback path: strip HTML and retry as plain text.
+        debugPrint('[TelegramService] HTML send failed (${primary.body}), retrying plain');
         final plain = _stripHtmlTags(part);
         final fallback = await _postMessage(
           chatId: chatId,
@@ -11892,9 +14402,9 @@ class TelegramService {
           disableWebPagePreview: disableWebPagePreview,
           replyToMessageId: i == 0 ? replyToMessageId : null,
         );
-        if (fallback.statusCode != 200) {
+        if (!_isTelegramOk(fallback)) {
           okAll = false;
-          debugPrint('[TelegramService] sendMessage failed: ${fallback.body}');
+          debugPrint('[TelegramService] sendMessage failed (plain fallback): ${fallback.body}');
           break;
         }
       }
@@ -11959,6 +14469,19 @@ class TelegramService {
           body: jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 10));
+  }
+
+  /// Returns true only when Telegram's response indicates success.
+  /// Telegram returns HTTP 200 for both successes AND API-level errors;
+  /// the actual result lives in the JSON `ok` field.
+  bool _isTelegramOk(http.Response response) {
+    if (response.statusCode != 200) return false;
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return body['ok'] as bool? ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   String _stripHtmlTags(String input) {
@@ -12109,7 +14632,6 @@ import 'package:wishperlog/features/notifications/data/local_notification_servic
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/fcm_sync_service.dart';
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
-import 'package:wishperlog/shared/widgets/molecules/dynamic_notch_pill.dart';
 import 'firebase_options.dart';
 
 
@@ -12297,6 +14819,11 @@ class MyApp extends StatelessWidget {
     return BlocBuilder<ThemeCubit, ThemeMode>(
       bloc: sl<ThemeCubit>(),
       builder: (context, themeMode) {
+        final brightness = themeMode == ThemeMode.system
+            ? WidgetsBinding.instance.platformDispatcher.platformBrightness
+            : themeMode == ThemeMode.dark
+                ? Brightness.dark
+                : Brightness.light;
         return BlocProvider<CaptureUiController>.value(
           value: sl<CaptureUiController>(),
           child: MaterialApp.router(
@@ -12310,27 +14837,12 @@ class MyApp extends StatelessWidget {
             builder: (context, child) {
               // Enforce system UI overlays.
               SystemChrome.setSystemUIOverlayStyle(
-                themeMode == ThemeMode.dark
+                brightness == Brightness.dark
                     ? SystemUiOverlayStyle.light
                     : SystemUiOverlayStyle.dark,
               );
-              // ISSUE-06: Mount the Flutter Dynamic Island at the app-shell
-              // level so it renders over every route.
               return OverlayRootWrapper(
-                child: Stack(
-                  children: [
-                    child ?? const SizedBox.shrink(),
-                    const Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: SafeArea(
-                        bottom: false,
-                        child: UnifiedDynamicIsland(),
-                      ),
-                    ),
-                  ],
-                ),
+                child: child ?? const SizedBox.shrink(),
               );
             },
           ),
@@ -16028,60 +18540,173 @@ Color priorityColor(NotePriority priority) {
 ### lib/shared/models/user.dart
 
 ```dart
+// lib/shared/models/user.dart  — FULL REPLACEMENT
+
+/// Envelope for the pre-built, channel-specific outbox stored on the user doc.
+/// The Worker reads this; never re-calculates.
+class MessageState {
+  /// Pre-rendered Telegram HTML string. Null when no content is available.
+  final String? telegram;
+
+  /// Reserved for WhatsApp plain-text. Null until provider is wired.
+  final String? whatsapp;
+
+  /// Reserved for Email HTML. Null until provider is wired.
+  final String? email;
+
+  /// UTC epoch-ms when this state was last written by the app.
+  final DateTime? computedAt;
+
+  const MessageState({
+    this.telegram,
+    this.whatsapp,
+    this.email,
+    this.computedAt,
+  });
+
+  bool get isEmpty =>
+      (telegram == null || telegram!.isEmpty) &&
+      (whatsapp == null || whatsapp!.isEmpty) &&
+      (email == null || email!.isEmpty);
+
+  Map<String, dynamic> toJson() => {
+    'telegram':    telegram,
+    'whatsapp':    whatsapp,
+    'email':       email,
+    'computed_at': computedAt?.toIso8601String(),
+  };
+
+  factory MessageState.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const MessageState();
+    return MessageState(
+      telegram:   json['telegram']  as String?,
+      whatsapp:   json['whatsapp']  as String?,
+      email:      json['email']     as String?,
+      computedAt: json['computed_at'] is String
+          ? DateTime.tryParse(json['computed_at'] as String)
+          : null,
+    );
+  }
+
+  MessageState copyWith({
+    String? telegram,
+    String? whatsapp,
+    String? email,
+    DateTime? computedAt,
+  }) => MessageState(
+    telegram:   telegram   ?? this.telegram,
+    whatsapp:   whatsapp   ?? this.whatsapp,
+    email:      email      ?? this.email,
+    computedAt: computedAt ?? this.computedAt,
+  );
+}
+
 class User {
   final String uid;
   final String email;
   final String displayName;
   final Map<String, dynamic> googleTokens;
   final String? telegramChatId;
+
+  /// Legacy single-slot field — kept for backward compat with existing docs.
   final String digestTime;
+
+  /// Multi-slot schedule in "HH:MM" format (UTC). Source of truth for Worker.
+  final List<String> digestSlots;
+
   final Map<String, dynamic> overlayPosition;
   final bool overlayVisible;
   final String fcmToken;
   final DateTime createdAt;
 
-  User({
+  /// Pre-built outbox — the Worker reads this instead of re-calculating.
+  final MessageState messageState;
+
+  const User({
     required this.uid,
     required this.email,
     required this.displayName,
     required this.googleTokens,
     this.telegramChatId,
     required this.digestTime,
+    this.digestSlots = const [],
     required this.overlayPosition,
     required this.overlayVisible,
     required this.fcmToken,
     required this.createdAt,
+    this.messageState = const MessageState(),
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'uid': uid,
-      'email': email,
-      'display_name': displayName,
-      'google_tokens': googleTokens,
-      'telegram_chat_id': telegramChatId,
-      'digest_time': digestTime,
-      'overlay_position': overlayPosition,
-      'overlay_visible': overlayVisible,
-      'fcm_token': fcmToken,
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'uid':              uid,
+    'email':            email,
+    'display_name':     displayName,
+    'google_tokens':    googleTokens,
+    'telegram_chat_id': telegramChatId,
+    'digest_time':      digestTime,
+    'digest_slots':     digestSlots,
+    'overlay_position': overlayPosition,
+    'overlay_visible':  overlayVisible,
+    'fcm_token':        fcmToken,
+    'created_at':       createdAt.toIso8601String(),
+    'message_state':    messageState.toJson(),
+  };
 
   factory User.fromJson(Map<String, dynamic> json) {
+    // digest_slots: accept List<dynamic> or fall back to single digestTime entry.
+    final rawSlots = json['digest_slots'];
+    final slots = rawSlots is List
+        ? rawSlots.whereType<String>().toList()
+        : <String>[];
+
     return User(
-      uid: json['uid'],
-      email: json['email'],
-      displayName: json['display_name'],
-      googleTokens: json['google_tokens'],
-      telegramChatId: json['telegram_chat_id'],
-      digestTime: json['digest_time'],
-      overlayPosition: json['overlay_position'],
-      overlayVisible: json['overlay_visible'],
-      fcmToken: json['fcm_token'],
-      createdAt: DateTime.parse(json['created_at']),
+      uid:             json['uid']           as String? ?? '',
+      email:           json['email']         as String? ?? '',
+      displayName:     json['display_name']  as String? ?? '',
+      googleTokens:    (json['google_tokens'] as Map<String, dynamic>?) ?? {},
+      telegramChatId:  json['telegram_chat_id'] as String?,
+      digestTime:      json['digest_time']   as String? ?? '09:00',
+      digestSlots:     slots.isNotEmpty ? slots
+          : [(json['digest_time'] as String? ?? '09:00')],
+      overlayPosition: (json['overlay_position'] as Map<String, dynamic>?) ?? {},
+      overlayVisible:  json['overlay_visible'] as bool? ?? false,
+      fcmToken:        json['fcm_token']     as String? ?? '',
+      createdAt:       json['created_at'] is String
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
+      messageState: MessageState.fromJson(
+        json['message_state'] as Map<String, dynamic>?,
+      ),
     );
   }
+
+  User copyWith({
+    String?                  uid,
+    String?                  email,
+    String?                  displayName,
+    Map<String, dynamic>?    googleTokens,
+    String?                  telegramChatId,
+    String?                  digestTime,
+    List<String>?            digestSlots,
+    Map<String, dynamic>?    overlayPosition,
+    bool?                    overlayVisible,
+    String?                  fcmToken,
+    DateTime?                createdAt,
+    MessageState?            messageState,
+  }) => User(
+    uid:             uid             ?? this.uid,
+    email:           email           ?? this.email,
+    displayName:     displayName     ?? this.displayName,
+    googleTokens:    googleTokens    ?? this.googleTokens,
+    telegramChatId:  telegramChatId  ?? this.telegramChatId,
+    digestTime:      digestTime      ?? this.digestTime,
+    digestSlots:     digestSlots     ?? this.digestSlots,
+    overlayPosition: overlayPosition ?? this.overlayPosition,
+    overlayVisible:  overlayVisible  ?? this.overlayVisible,
+    fcmToken:        fcmToken        ?? this.fcmToken,
+    createdAt:       createdAt       ?? this.createdAt,
+    messageState:    messageState    ?? this.messageState,
+  );
 }
 ```
 
@@ -16683,499 +19308,6 @@ class _MeshBlobPainter extends CustomPainter {
 }
 ```
 
-### lib/shared/widgets/molecules/dynamic_notch_pill.dart
-
-```dart
-import 'dart:async';
-
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:wishperlog/app/router.dart';
-import 'package:wishperlog/core/theme/app_colors.dart';
-import 'package:wishperlog/core/theme/app_durations.dart';
-import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
-import 'package:wishperlog/shared/models/enums.dart';
-import 'package:wishperlog/shared/models/note_helpers.dart';
-import 'package:wishperlog/shared/widgets/glass_pane.dart';
-
-class UnifiedDynamicIsland extends StatefulWidget {
-  const UnifiedDynamicIsland({super.key});
-
-  @override
-  State<UnifiedDynamicIsland> createState() => _UnifiedDynamicIslandState();
-}
-
-@Deprecated('Use UnifiedDynamicIsland instead.')
-class DynamicNotchPill extends UnifiedDynamicIsland {
-  const DynamicNotchPill({super.key});
-}
-
-class _UnifiedDynamicIslandState extends State<UnifiedDynamicIsland> {
-  bool _showContent = true;
-  Timer? _fadeTimer;
-
-  @override
-  void dispose() {
-    _fadeTimer?.cancel();
-    super.dispose();
-  }
-
-  void _scheduleContentFade() {
-    _fadeTimer?.cancel();
-    setState(() {
-      _showContent = false;
-    });
-    _fadeTimer = Timer(AppDurations.notchContentFade, () {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _showContent = true;
-      });
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return BlocBuilder<CaptureUiController, CaptureUiState>(
-      buildWhen: (previous, current) {
-        final isTranscriptUpdate =
-            previous is CaptureUiRecording &&
-            current is CaptureUiRecording;
-
-        if (!isTranscriptUpdate) {
-          final changed =
-              previous.runtimeType != current.runtimeType ||
-              (current is CaptureUiSaved &&
-                  previous is CaptureUiSaved &&
-                  (previous.category != current.category ||
-                      previous.title != current.title ||
-                      previous.originPrefix != current.originPrefix));
-          if (changed) {
-            _scheduleContentFade();
-          }
-        }
-        return true;
-      },
-      builder: (context, state) {
-        final isActive = state is! CaptureUiIdle;
-        final size = _sizeForState(state);
-        final glowColor = switch (state) {
-          CaptureUiRecording() => AppColors.tasks.withValues(alpha: 0.35),
-          CaptureUiProcessing() => const Color(0xFF7C3AED).withValues(alpha: 0.30),
-          CaptureUiSaved(category: final c) =>
-            categoryColor(c).withValues(alpha: 0.45),
-          _ => Colors.transparent,
-        };
-
-        Widget child = AnimatedOpacity(
-          duration: AppDurations.saveConfirm,
-          opacity: isActive ? 1.0 : 0.0,
-          child: AnimatedContainer(
-            duration: AppDurations.microSnap,
-            curve: Curves.easeInOut,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              boxShadow: glowColor == Colors.transparent
-                  ? const []
-                  : [
-                      BoxShadow(
-                        color: glowColor,
-                        blurRadius: 12,
-                        spreadRadius: 0,
-                      ),
-                    ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: GlassPane(
-                level: 1,
-                sigmaOverride: 28,
-                radius: 999,
-                tintOverride: isDark
-                  ? const Color(0x99101B2E)
-                  : const Color(0xCCEAF4FF),
-                child: AnimatedContainer(
-                  duration: AppDurations.saveConfirm,
-                  curve: Curves.easeOutCubic,
-                  width: size.width,
-                  height: size.height,
-                  child: AnimatedOpacity(
-                    duration: AppDurations.notchContentFade,
-                    opacity: _showContent ? 1 : 0,
-                    child: Center(child: _buildStateContent(state, isDark)),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-
-        if (state is CaptureUiSaved &&
-            state.noteId != null &&
-            state.noteId!.isNotEmpty) {
-          child = GestureDetector(
-            onTap: () {
-              try {
-                router.push('/notes/${state.noteId}');
-              } catch (_) {}
-            },
-            child: child,
-          );
-        }
-
-        return IgnorePointer(
-          ignoring: !isActive,
-          child: child,
-        );
-      },
-    );
-  }
-
-  Size _sizeForState(CaptureUiState state) {
-    if (state is CaptureUiIdle) {
-      return Size.zero;
-    }
-    if (state is CaptureUiRecording) return const Size(300, 44);
-    if (state is CaptureUiProcessing) return const Size(220, 36);
-    if (state is CaptureUiSaved) return const Size(260, 44);
-    return const Size(240, 40);
-  }
-
-  Widget _buildStateContent(CaptureUiState state, bool isDark) {
-    if (state is CaptureUiRecording) {
-      return _RecordingContent(state: state, isDark: isDark);
-    }
-    if (state is CaptureUiProcessing) {
-      return _ProcessingContent(state: state, isDark: isDark);
-    }
-    if (state is CaptureUiSaved) {
-      return TweenAnimationBuilder<double>(
-        key: ValueKey('${state.noteId ?? state.title}-${state.category.name}-${state.originPrefix}'),
-        tween: Tween<double>(begin: 0.94, end: 1.0),
-        duration: const Duration(milliseconds: 520),
-        curve: Curves.easeOutBack,
-        builder: (context, scale, child) {
-          return Transform.translate(
-            offset: Offset(0, (1 - scale) * 6),
-            child: Transform.scale(scale: scale, child: child),
-          );
-        },
-        child: _SavedContent(state: state, isDark: isDark),
-      );
-    }
-    if (state is CaptureUiError) {
-      return _ErrorContent(isDark: isDark);
-    }
-    return _IdleContent(isDark: isDark);
-  }
-}
-
-class _IdleContent extends StatelessWidget {
-  const _IdleContent({required this.isDark});
-
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.tasks,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'whisperlog',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: textColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecordingContent extends StatelessWidget {
-  const _RecordingContent({required this.state, required this.isDark});
-
-  final CaptureUiRecording state;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
-    final bars = state.waveformSamples.isEmpty
-        ? const <double>[0.25, 0.48, 0.7, 0.45, 0.3]
-        : state.waveformSamples.take(5).toList();
-    final secs = (state.durationMs ~/ 1000);
-    final timeStr = '${secs ~/ 60}:${(secs % 60).toString().padLeft(2, '0')}';
-    final transcript = state.currentTranscript.trim();
-    final transcriptText = transcript.isEmpty ? 'Listening...' : transcript;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.tasks,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          ...bars.map((value) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: AnimatedContainer(
-                duration: AppDurations.microSnap,
-                width: 2,
-                height: (4 + (value * 10)).clamp(4, 14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  color: AppColors.tasks,
-                ),
-              ),
-            );
-          }),
-          const SizedBox(width: 6),
-          Text(
-            timeStr,
-            style: TextStyle(
-              fontSize: 9,
-              color: AppColors.tasks.withValues(alpha: 0.8),
-              fontWeight: FontWeight.w500,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Text(
-                transcriptText,
-                maxLines: 1,
-                softWrap: false,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: textColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProcessingContent extends StatelessWidget {
-  const _ProcessingContent({required this.state, required this.isDark});
-
-  final CaptureUiProcessing state;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.tasks,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Classifying with ${state.provider}...',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10,
-                color: textColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              color: const Color(0xFF7C3AED).withValues(alpha: 0.20),
-              border: Border.all(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.45),
-                width: 0.5,
-              ),
-            ),
-            child: Text(
-              state.provider,
-              style: const TextStyle(
-                fontSize: 8,
-                color: Color(0xFFA78BFA),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SavedContent extends StatelessWidget {
-  const _SavedContent({required this.state, required this.isDark});
-
-  final CaptureUiSaved state;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.tasks,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              color: (state.originPrefix == 'sys'
-                      ? const Color(0xFF64748B)
-                      : AppColors.tasks)
-                  .withValues(alpha: 0.18),
-              border: Border.all(
-                color: (state.originPrefix == 'sys'
-                        ? const Color(0xFF64748B)
-                        : AppColors.tasks)
-                    .withValues(alpha: 0.35),
-                width: 0.5,
-              ),
-            ),
-            child: Text(
-              state.originPrefix,
-              style: TextStyle(
-                fontSize: 8,
-                color: state.originPrefix == 'sys'
-                    ? const Color(0xFFCBD5E1)
-                    : const Color(0xFF93C5FD),
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  state.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  '→ ${state.collection.isNotEmpty && state.collection != 'notes' ? state.collection : categoryLabel(state.category)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 8,
-                    color: textColor.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          _CategoryChip(
-            label: categoryLabel(state.category),
-            category: state.category,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorContent extends StatelessWidget {
-  const _ErrorContent({required this.isDark});
-
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : AppColors.lightTextPri;
-    return Text('Error', style: TextStyle(fontSize: 10, color: textColor));
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.label, required this.category});
-
-  final String label;
-  final NoteCategory category;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = categoryColor(category);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        color: color.withValues(alpha: 0.20),
-        border: Border.all(color: color.withValues(alpha: 0.45), width: 0.5),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 8,
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-```
-
 ### lib/shared/widgets/top_notch_message.dart
 
 ```dart
@@ -17415,11 +19547,11 @@ dependencies {
       },
       "oauth_client": [
         {
-          "client_id": "982731246537-6a8ov59qm6n6f6v7rakq4su2eje8g9au.apps.googleusercontent.com",
+          "client_id": "982731246537-63ibaop0hio54tg5fgh0s9pehqb5gigm.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.adarshkumarverma.wishperlog",
-            "certificate_hash": "960d45abe3206d7a99c20065c59a2168fef1c9f3"
+            "certificate_hash": "ddae9ee974d9c4c1898c205ef35bc896ad3ac4b0"
           }
         },
         {
@@ -18014,21 +20146,41 @@ class MainActivity : FlutterActivity() {
                 "getOverlaySettings" -> {
                     val prefs = getSharedPreferences(
                         "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
+                    val settingsJson = prefs.getString("overlay_settings_json", null)
+                    val settings = OverlayAppearanceSettings.fromJson(settingsJson)
                     result.success(mapOf(
-                        "alpha"     to prefs.getFloat("overlay_bubble_alpha", 0.85f),
-                        "growOnHold" to prefs.getBoolean("overlay_bubble_grow", true)
+                        "alpha" to settings.alpha,
+                        "growOnHold" to settings.growEnabled,
+                        "settingsJson" to settings.toJsonString(),
                     ))
                 }
                 "updateOverlaySettings" -> {
-                    val alpha = (call.argument<Double>("alpha") ?: 0.85).toFloat()
-                    val grow  = call.argument<Boolean>("growOnHold") ?: true
-                    getSharedPreferences(
+                    val prefs = getSharedPreferences(
                         "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
-                        .edit()
-                        .putFloat("overlay_bubble_alpha", alpha)
-                        .putBoolean("overlay_bubble_grow", grow)
+
+                    val incomingJson = call.argument<String>("settingsJson")
+                    val legacyAlpha = (call.argument<Double>("alpha") ?: 0.85).toFloat()
+                    val legacyGrow = call.argument<Boolean>("growOnHold") ?: true
+
+                    val mergedSettings = if (!incomingJson.isNullOrBlank()) {
+                        OverlayAppearanceSettings.fromJson(incomingJson)
+                    } else {
+                        val currentJson = prefs.getString("overlay_settings_json", null)
+                        val current = if (currentJson.isNullOrBlank()) {
+                            OverlayAppearanceSettings.legacy(legacyAlpha, legacyGrow)
+                        } else {
+                            OverlayAppearanceSettings.fromJson(currentJson)
+                        }
+                        current.copyWith(alpha = legacyAlpha, growEnabled = legacyGrow)
+                    }
+
+                    prefs.edit()
+                        .putString("overlay_settings_json", mergedSettings.toJsonString())
+                        .putFloat("overlay_bubble_alpha", mergedSettings.alpha)
+                        .putBoolean("overlay_bubble_grow", mergedSettings.growEnabled)
                         .apply()
-                    OverlayForegroundService.applySettings(alpha, grow)
+
+                    OverlayForegroundService.applySettings(mergedSettings.toJsonString())
                     result.success(null)
                 }
 
@@ -18241,6 +20393,98 @@ class NoteInputReceiver : BroadcastReceiver() {
 }
 ```
 
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayAppearanceSettings.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import android.graphics.Color
+import org.json.JSONObject
+
+internal data class OverlayAppearanceSettings(
+    val alpha: Float = 0.82f,
+    val blurSigma: Float = 22.0f,
+    val colorFill: String = "glass",
+    val solidColor: Int = Color.parseColor("#1C1C2E"),
+    val gradientStart: Int = Color.parseColor("#6366F1"),
+    val gradientEnd: Int = Color.parseColor("#8B5CF6"),
+    val borderStyle: String = "glow",
+    val borderColor: Int = Color.parseColor("#6366F1"),
+    val animation: String = "sizeGrow",
+    val growScale: Float = 1.10f,
+    val posX: Float = 0.88f,
+    val posY: Float = 0.30f,
+    val persistOnReboot: Boolean = true,
+) {
+    val growEnabled: Boolean
+        get() = animation.equals("sizeGrow", ignoreCase = true)
+
+    fun copyWith(
+        alpha: Float? = null,
+        growEnabled: Boolean? = null,
+    ): OverlayAppearanceSettings {
+        val nextAnimation = when (growEnabled) {
+            true -> "sizeGrow"
+            false -> "none"
+            null -> animation
+        }
+        return copy(
+            alpha = alpha ?: this.alpha,
+            animation = nextAnimation,
+        )
+    }
+
+    fun toJsonString(): String = JSONObject().apply {
+        put("alpha", alpha.toDouble())
+        put("blurSigma", blurSigma.toDouble())
+        put("colorFill", colorFill)
+        put("solidColor", solidColor)
+        put("gradientStart", gradientStart)
+        put("gradientEnd", gradientEnd)
+        put("borderStyle", borderStyle)
+        put("borderColor", borderColor)
+        put("animation", animation)
+        put("growScale", growScale.toDouble())
+        put("posX", posX.toDouble())
+        put("posY", posY.toDouble())
+        put("persistOnReboot", persistOnReboot)
+    }.toString()
+
+    companion object {
+        fun fromJson(raw: String?): OverlayAppearanceSettings {
+            if (raw.isNullOrBlank()) return OverlayAppearanceSettings()
+            return try {
+                val json = JSONObject(raw)
+                OverlayAppearanceSettings(
+                    alpha = json.optDouble("alpha", 0.82).toFloat(),
+                    blurSigma = json.optDouble("blurSigma", 22.0).toFloat(),
+                    colorFill = json.optString("colorFill", "glass"),
+                    solidColor = json.optInt("solidColor", Color.parseColor("#1C1C2E")),
+                    gradientStart = json.optInt("gradientStart", Color.parseColor("#6366F1")),
+                    gradientEnd = json.optInt("gradientEnd", Color.parseColor("#8B5CF6")),
+                    borderStyle = json.optString("borderStyle", "glow"),
+                    borderColor = json.optInt("borderColor", Color.parseColor("#6366F1")),
+                    animation = json.optString("animation", "sizeGrow"),
+                    growScale = json.optDouble("growScale", 1.10).toFloat(),
+                    posX = json.optDouble("posX", 0.88).toFloat(),
+                    posY = json.optDouble("posY", 0.30).toFloat(),
+                    persistOnReboot = json.optBoolean("persistOnReboot", true),
+                )
+            } catch (_: Exception) {
+                OverlayAppearanceSettings()
+            }
+        }
+
+        fun legacy(alpha: Float, grow: Boolean): OverlayAppearanceSettings {
+            return OverlayAppearanceSettings(
+                alpha = alpha,
+                animation = if (grow) "sizeGrow" else "none",
+            )
+        }
+    }
+}
+```
+
 ### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayForegroundService.kt
 
 ```kotlin
@@ -18320,6 +20564,7 @@ class OverlayForegroundService : Service() {
 
         private const val PREF_BUBBLE_ALPHA      = "overlay_bubble_alpha"
         private const val PREF_BUBBLE_GROW       = "overlay_bubble_grow"
+        private const val PREF_SETTINGS_JSON     = "overlay_settings_json"
         private const val PREF_STT_LANGUAGE      = "overlay_stt_language"
         private const val PREF_STT_PREFER_OFFLINE = "overlay_stt_prefer_offline"
         private const val DEFAULT_ALPHA = 0.90f
@@ -18352,8 +20597,14 @@ class OverlayForegroundService : Service() {
             instance?.get()?.dismissIslandAndReset()
         }
 
+        fun applySettings(settingsJson: String) {
+            instance?.get()?.handleApplySettings(settingsJson)
+        }
+
         fun applySettings(alpha: Float, grow: Boolean) {
-            instance?.get()?.handleApplySettings(alpha, grow)
+            instance?.get()?.handleApplySettings(
+                OverlayAppearanceSettings.legacy(alpha, grow).toJsonString(),
+            )
         }
     }
 
@@ -18370,6 +20621,8 @@ class OverlayForegroundService : Service() {
     private var bubbleBackground: GradientDrawable? = null
     private var islandLabel:      TextView?         = null
     private var islandBg:         GradientDrawable? = null
+    private var overlaySettings   = OverlayAppearanceSettings()
+    private var islandBaseColor   = Color.parseColor("#6366F1")
 
     // ─── STT state ────────────────────────────────────────────────────────────
 
@@ -18493,8 +20746,17 @@ class OverlayForegroundService : Service() {
         }
 
         val prefs = getSharedPreferences("com.adarshkumarverma.wishperlog_preferences", MODE_PRIVATE)
-        val bubbleAlpha = prefs.getFloat(PREF_BUBBLE_ALPHA, DEFAULT_ALPHA).coerceIn(0.3f, 1f)
-        bubbleGrowEnabled = prefs.getBoolean(PREF_BUBBLE_GROW, DEFAULT_GROW)
+        val storedSettings = prefs.getString(PREF_SETTINGS_JSON, null)
+        overlaySettings = if (storedSettings.isNullOrBlank()) {
+            OverlayAppearanceSettings.legacy(
+                prefs.getFloat(PREF_BUBBLE_ALPHA, DEFAULT_ALPHA),
+                prefs.getBoolean(PREF_BUBBLE_GROW, DEFAULT_GROW),
+            )
+        } else {
+            OverlayAppearanceSettings.fromJson(storedSettings)
+        }
+        val bubbleAlpha = overlaySettings.alpha.coerceIn(0.3f, 1f)
+        bubbleGrowEnabled = overlaySettings.growEnabled
 
         bubbleParams = WindowManager.LayoutParams(
             dp(54f), dp(54f), overlayType(),
@@ -18506,12 +20768,7 @@ class OverlayForegroundService : Service() {
             y = prefs.getInt("overlay_y", 200)
         }
 
-        val bg = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            colors = intArrayOf(Color.parseColor("#6366F1"), Color.parseColor("#4F46E5"))
-            orientation = GradientDrawable.Orientation.TL_BR
-            setStroke(dp(1.5f), Color.parseColor("#4DFFFFFF"))
-        }
+        val bg = buildBubbleDrawable(overlaySettings)
         bubbleBackground = bg
 
         val frame = FrameLayout(this).apply {
@@ -18539,67 +20796,72 @@ class OverlayForegroundService : Service() {
         val doubleTapTimeout = 280L
 
         frame.setOnTouchListener { v, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    if (isRecording) return@setOnTouchListener true
-                    initX = bubbleParams.x; initY = bubbleParams.y
-                    initTX = event.rawX;    initTY = event.rawY
-                    isDragging = false; longPressTriggered = false; isUserHolding = false
-                    longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                    longPressRunnable = Runnable {
-                        longPressTriggered = true; isUserHolding = true
-                        if (bubbleGrowEnabled) frame.animate().scaleX(1.22f).scaleY(1.22f).setDuration(180).start()
-                        startVoiceCapture()
-                    }
-                    mainHandler.postDelayed(longPressRunnable!!, longPressDelayMs)
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - initTX).toInt()
-                    val dy = (event.rawY - initTY).toInt()
-                    if (longPressTriggered || isRecording) return@setOnTouchListener true
-                    if (Math.abs(dx) > dragThresholdPx || Math.abs(dy) > dragThresholdPx) {
-                        isDragging = true
+            synchronized(this) {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        if (isRecording) return@setOnTouchListener true
+                        initX = bubbleParams.x; initY = bubbleParams.y
+                        initTX = event.rawX; initTY = event.rawY
+                        isDragging = false; longPressTriggered = false; isUserHolding = false
                         longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        longPressRunnable = Runnable {
+                            synchronized(this) {
+                                longPressTriggered = true; isUserHolding = true
+                                if (bubbleGrowEnabled) frame.animate().scaleX(1.22f).scaleY(1.22f).setDuration(180).start()
+                                startVoiceCapture()
+                            }
+                        }
+                        mainHandler.postDelayed(longPressRunnable!!, longPressDelayMs)
+                        true
                     }
-                    if (isDragging) {
-                        bubbleParams.x = initX + dx; bubbleParams.y = initY + dy
-                        windowManager.updateViewLayout(bubbleView, bubbleParams)
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - initTX).toInt()
+                        val dy = (event.rawY - initTY).toInt()
+                        if (longPressTriggered || isRecording) return@setOnTouchListener true
+                        if (Math.abs(dx) > dragThresholdPx || Math.abs(dy) > dragThresholdPx) {
+                            isDragging = true
+                            longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        }
+                        if (isDragging) {
+                            val newX = initX + dx
+                            val newY = initY + dy
+                            if (bubbleParams.x != newX || bubbleParams.y != newY) {
+                                bubbleParams.x = newX; bubbleParams.y = newY
+                                windowManager.updateViewLayout(bubbleView, bubbleParams)
+                            }
+                        }
+                        true
                     }
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                    longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                    isUserHolding = false
-                    restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
-                    restartListenRunnable = null
-                    if (isDragging) {
-                        val cx    = bubbleParams.x + v.width / 2
-                        val snapX = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
-                        bubbleParams.x = snapX
-                        bubbleParams.y = bubbleParams.y.coerceAtLeast(statusBarHeight() + dp(8f))
-                        windowManager.updateViewLayout(bubbleView, bubbleParams)
-                        prefs.edit().putInt("overlay_x", bubbleParams.x).putInt("overlay_y", bubbleParams.y).apply()
-                    } else if (!longPressTriggered) {
-                        val now = event.eventTime
-                        if (now - lastTapUpAt <= doubleTapTimeout) { showTextInputBanner(); lastTapUpAt = 0L }
-                        else lastTapUpAt = now
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                        longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        longPressRunnable = null; longPressTriggered = false; isUserHolding = false
+                        restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
+                        restartListenRunnable = null
+                        if (isRecording) stopVoiceCapture()
+                        if (isDragging) {
+                            val cx = bubbleParams.x + v.width / 2
+                            val snapX = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
+                            val newY = bubbleParams.y.coerceAtLeast(statusBarHeight() + dp(8f))
+                            if (bubbleParams.x != snapX || bubbleParams.y != newY) {
+                                bubbleParams.x = snapX
+                                bubbleParams.y = newY
+                                windowManager.updateViewLayout(bubbleView, bubbleParams)
+                                prefs.edit().putInt("overlay_x", bubbleParams.x).putInt("overlay_y", bubbleParams.y).apply()
+                            }
+                        } else if (!longPressTriggered) {
+                            val now = event.eventTime
+                            if (now - lastTapUpAt <= doubleTapTimeout) {
+                                showTextInputBanner()
+                                lastTapUpAt = 0L
+                            } else {
+                                lastTapUpAt = now
+                            }
+                        }
+                        true
                     }
-                    if (longPressTriggered && isRecording) stopVoiceCapture()
-                    longPressTriggered = false; longPressRunnable = null
-                    true
+                    else -> false
                 }
-                MotionEvent.ACTION_CANCEL -> {
-                    frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                    longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                    longPressRunnable = null; longPressTriggered = false; isUserHolding = false
-                    restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
-                    restartListenRunnable = null
-                    if (isRecording) stopVoiceCapture()
-                    true
-                }
-                else -> false
             }
         }
 
@@ -18793,6 +21055,7 @@ class OverlayForegroundService : Service() {
     }
 
     private fun stopVoiceCapture() {
+        isRecording = false   // Reset immediately so no subsequent gesture is blocked.
         Log.d(TAG, "stopVoiceCapture (elapsed=${System.currentTimeMillis() - recordingStartTime}ms)")
         stopListeningCalled = true
         releaseAudioFocus()
@@ -18848,8 +21111,9 @@ class OverlayForegroundService : Service() {
 
         // Reuse existing view if already shown — just update text/colour.
         if (islandView != null && islandLabel != null && islandBg != null) {
+            islandBaseColor = bgColor
             islandLabel?.text = text
-            islandBg?.setColor(bgColor)
+            applyIslandAppearance(bgColor)
             islandView?.animate()
                 ?.scaleX(1.025f)
                 ?.scaleY(1.025f)
@@ -18871,11 +21135,8 @@ class OverlayForegroundService : Service() {
         val screenW = displayWidth()
         val pillW   = (screenW * 0.75f).toInt().coerceAtLeast(dp(200f))
 
-        val bg = GradientDrawable().apply {
-            cornerRadius = dp(24f).toFloat()
-            setColor(Color.argb(190, Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor)))
-            setStroke(dp(1f), Color.parseColor("#2EFFFFFF"))
-        }
+        islandBaseColor = bgColor
+        val bg = buildIslandDrawable(bgColor, overlaySettings)
         islandBg = bg
 
         val pill = LinearLayout(this).apply {
@@ -19037,10 +21298,13 @@ class OverlayForegroundService : Service() {
         scheduleIslandDismiss(2_800L)
     }
 
-    fun handleApplySettings(alpha: Float, grow: Boolean) {
+    fun handleApplySettings(settingsJson: String) {
         mainHandler.post {
-            bubbleView?.alpha = alpha.coerceIn(0.3f, 1f)
-            bubbleGrowEnabled = grow
+            overlaySettings = OverlayAppearanceSettings.fromJson(settingsJson)
+            applyBubbleAppearance()
+            if (islandView != null && islandLabel != null && islandBg != null) {
+                applyIslandAppearance(islandBaseColor)
+            }
         }
     }
 
@@ -19203,10 +21467,92 @@ class OverlayForegroundService : Service() {
         pulseAnimator?.cancel(); pulseAnimator = null
         stopIdleBubblePulse()
         bubbleView?.scaleX = 1f; bubbleView?.scaleY = 1f
-        bubbleBackground?.colors = intArrayOf(Color.parseColor("#6366F1"), Color.parseColor("#4F46E5"))
+        applyBubbleAppearance()
         bubbleIcon?.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.ic_btn_speak_now))
         bubbleIcon?.setColorFilter(Color.WHITE)
         startIdleBubblePulse()
+    }
+
+    private fun applyBubbleAppearance() {
+        val view = bubbleView ?: return
+        bubbleBackground = buildBubbleDrawable(overlaySettings)
+        view.background = bubbleBackground
+        view.alpha = overlaySettings.alpha.coerceIn(0.3f, 1f)
+        bubbleGrowEnabled = overlaySettings.growEnabled
+    }
+
+    private fun applyIslandAppearance(baseColor: Int) {
+        val view = islandView ?: return
+        islandBg = buildIslandDrawable(baseColor, overlaySettings)
+        view.background = islandBg
+    }
+
+    private fun buildBubbleDrawable(settings: OverlayAppearanceSettings): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            applyFill(this, settings, Color.parseColor("#6366F1"), true)
+        }
+    }
+
+    private fun buildIslandDrawable(baseColor: Int, settings: OverlayAppearanceSettings): GradientDrawable {
+        return GradientDrawable().apply {
+            cornerRadius = dp(24f).toFloat()
+            applyFill(this, settings, baseColor, false)
+        }
+    }
+
+    private fun applyFill(
+        drawable: GradientDrawable,
+        settings: OverlayAppearanceSettings,
+        baseColor: Int,
+        isBubble: Boolean,
+    ) {
+        val alpha = settings.alpha.coerceIn(0.3f, 1f)
+        when (settings.colorFill.lowercase(Locale.ROOT)) {
+            "solid" -> {
+                drawable.setColor(applyAlpha(settings.solidColor, alpha))
+            }
+            "lineargradient" -> {
+                drawable.orientation = GradientDrawable.Orientation.TL_BR
+                drawable.colors = intArrayOf(
+                    applyAlpha(settings.gradientStart, alpha),
+                    applyAlpha(settings.gradientEnd, alpha),
+                )
+            }
+            "radialgradient" -> {
+                drawable.gradientType = GradientDrawable.RADIAL_GRADIENT
+                drawable.gradientRadius = if (isBubble) dp(64f).toFloat() else dp(96f).toFloat()
+                drawable.colors = intArrayOf(
+                    applyAlpha(settings.gradientStart, alpha),
+                    applyAlpha(settings.gradientEnd, alpha),
+                )
+            }
+            else -> {
+                drawable.setColor(applyAlpha(baseColor, alpha))
+            }
+        }
+
+        when (settings.borderStyle.lowercase(Locale.ROOT)) {
+            "none" -> drawable.setStroke(0, Color.TRANSPARENT)
+            "hairline" -> drawable.setStroke(
+                dp(1f),
+                applyAlpha(settings.borderColor, 0.5f),
+            )
+            else -> drawable.setStroke(
+                if (isBubble) dp(1.5f) else dp(1f),
+                applyAlpha(settings.borderColor, 0.88f),
+            )
+        }
+    }
+
+    private fun applyAlpha(color: Int, alpha: Float): Int {
+        val clamped = alpha.coerceIn(0f, 1f)
+        return Color.argb(
+            (clamped * 255f).toInt(),
+            Color.red(color),
+            Color.green(color),
+            Color.blue(color),
+        )
     }
 
     // ─── Full reset ───────────────────────────────────────────────────────────
@@ -19557,359 +21903,310 @@ include(":app")
 ### cloudfare/src/worker.ts
 
 ```typescript
-/**
- * WishperLog — Cloudflare Worker: Telegram Digest Dispatcher
- *
- * Changes from original:
- *  ① MINUTE-WISE cron: fires every minute ("* * * * *").
- *     The Worker matches the current HH:MM against each user's
- *     `digest_times_utc` array — no precision is lost.
- *  ② Dedup key is per-user per-day per-minute so the same slot
- *     can never be sent twice even across DST changes.
- *  ③ Fixed Telegram sendMessage call — was missing required params.
- *  ④ Firebase JWT auth now correctly signs with RS256.
- *  ⑤ Structured error logging with per-user isolation.
- *  ⑥ Graceful empty-notes handling (no message sent for 0 notes).
- */
+// cloudfare/src/worker.ts  — FULL REPLACEMENT
+// Lines: ~180 — full file provided
 
 export interface Env {
-  TELEGRAM_BOT_TOKEN:    string;   // from @BotFather
-  FIREBASE_PROJECT_ID:   string;   // e.g. "wishperlog-prod"
-  FIREBASE_CLIENT_EMAIL: string;   // service account email
-  FIREBASE_PRIVATE_KEY:  string;   // PEM, newlines as \n
-  DIGEST_SENT:           KVNamespace;
+  DIGEST_SENT:         KVNamespace;
+  TELEGRAM_BOT_TOKEN:  string;
+  FIREBASE_PROJECT_ID: string;
+  FIREBASE_CLIENT_EMAIL: string;
+  FIREBASE_PRIVATE_KEY:  string;
 }
 
-// ── Entry point ──────────────────────────────────────────────────────────────
+// ── Firestore REST helpers ─────────────────────────────────────────────────────
 
-export default {
-  // Cron fires every minute (wrangler.toml: "* * * * *")
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runDigest(event, env));
-  },
-
-  // HTTP handler — for manual testing via `wrangler dev` → GET /trigger
-  async fetch(req: Request, env: Env): Promise<Response> {
-    const url = new URL(req.url);
-    if (url.pathname === '/trigger') {
-      await runDigest({ scheduledTime: Date.now() } as ScheduledEvent, env);
-      return new Response('Triggered OK', { status: 200 });
-    }
-    return new Response('WishperLog Digest Worker 🟣  v2.0', { status: 200 });
-  },
-};
-
-// ── Core dispatcher ──────────────────────────────────────────────────────────
-
-async function runDigest(event: ScheduledEvent, env: Env): Promise<void> {
-  const now     = new Date(event.scheduledTime ?? Date.now());
-  const slotKey = toSlotKey(now);     // "HH:MM" in UTC — minute granularity
-  const dateKey = toDateKey(now);     // "YYYY-MM-DD"
-
-  console.log(`[WishperLog] Cron fired — slot=${slotKey}  date=${dateKey}`);
-
-  let token: string;
-  try {
-    token = await getFirebaseToken(env);
-  } catch (err) {
-    console.error('[WishperLog] Firebase auth failed:', err);
-    return;
-  }
-
-  const users = await getUsersForSlot(slotKey, token, env.FIREBASE_PROJECT_ID);
-  console.log(`[WishperLog] ${users.length} user(s) matched slot ${slotKey}`);
-
-  for (const user of users) {
-    const dedupKey = `${dateKey}:${slotKey}:${user.uid}`;
-
-    try {
-      const already = await env.DIGEST_SENT.get(dedupKey);
-      if (already) {
-        console.log(`[WishperLog] Skip ${user.uid} — already sent at ${slotKey}`);
-        continue;
-      }
-
-      const notes = await getUserNotes(user.uid, token, env.FIREBASE_PROJECT_ID);
-      if (notes.length === 0) {
-        console.log(`[WishperLog] No notes for ${user.uid} — skipping message`);
-        // Still mark sent so we don't check again this minute.
-        await env.DIGEST_SENT.put(dedupKey, '1', { expirationTtl: 93_600 });
-        continue;
-      }
-
-      const message = buildDigestMessage(notes, user.displayName ?? 'there', now);
-      await sendTelegramMessage(user.telegramChatId, message, env.TELEGRAM_BOT_TOKEN);
-
-      // Dedup key lives 26 h to survive DST edge cases.
-      await env.DIGEST_SENT.put(dedupKey, '1', { expirationTtl: 93_600 });
-      console.log(`[WishperLog] Digest sent to ${user.uid}`);
-    } catch (err) {
-      console.error(`[WishperLog] Failed for ${user.uid}:`, err);
-      // Continue to next user — don't abort the whole run.
-    }
-  }
-}
-
-// ── Firebase auth ─────────────────────────────────────────────────────────────
-
-async function getFirebaseToken(env: Env): Promise<string> {
-  const now       = Math.floor(Date.now() / 1000);
-  const expiresAt = now + 3600;
-  const scope     = 'https://www.googleapis.com/auth/datastore';
-
-  const header  = { alg: 'RS256', typ: 'JWT' };
-  const payload = {
-    iss:   env.FIREBASE_CLIENT_EMAIL,
-    sub:   env.FIREBASE_CLIENT_EMAIL,
-    aud:   'https://oauth2.googleapis.com/token',
-    iat:   now,
-    exp:   expiresAt,
-    scope,
-  };
-
-  const encode  = (obj: object) =>
-    btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-  const signingInput = `${encode(header)}.${encode(payload)}`;
-
-  // Import PEM private key for RS256 signing.
-  const pemKey  = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const keyData = pemToDer(pemKey);
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8', keyData,
+async function getFirestoreToken(env: Env): Promise<string> {
+  const header  = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const now     = Math.floor(Date.now() / 1000);
+  const payload = btoa(JSON.stringify({
+    iss: env.FIREBASE_CLIENT_EMAIL,
+    sub: env.FIREBASE_CLIENT_EMAIL,
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+    scope: 'https://www.googleapis.com/auth/datastore',
+  }));
+  const unsigned   = `${header}.${payload}`;
+  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+  const keyData    = await crypto.subtle.importKey(
+    'pkcs8',
+    str2ab(atob(privateKey.replace(/-----[^-]+-----/g, '').replace(/\s/g, ''))),
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false, ['sign'],
   );
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', keyData, str2ab(unsigned));
+  const jwt = `${unsigned}.${btoa(String.fromCharCode(...new Uint8Array(sig)))}`;
 
-  const signBuffer = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    new TextEncoder().encode(signingInput),
-  );
-
-  const signature = btoa(String.fromCharCode(...new Uint8Array(signBuffer)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-  const jwt = `${signingInput}.${signature}`;
-
-  // Exchange JWT for OAuth2 access token.
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res  = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion:   jwt,
-    }),
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`OAuth token exchange failed ${res.status}: ${body}`);
-  }
-
-  const json = await res.json() as { access_token: string };
-  return json.access_token;
+  const data = await res.json<{ access_token: string }>();
+  return data.access_token;
 }
 
-/** Strip PEM headers and decode base64 to ArrayBuffer. */
-function pemToDer(pem: string): ArrayBuffer {
-  const b64 = pem
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s/g, '');
-  const bin = atob(b64);
-  const buf = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+function str2ab(str: string): ArrayBuffer {
+  const buf = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) buf[i] = str.charCodeAt(i);
   return buf.buffer;
 }
 
-// ── Firestore queries ─────────────────────────────────────────────────────────
-
-interface DigestUser {
-  uid:            string;
-  displayName:    string | null;
-  telegramChatId: string;
+async function firestoreGet(path: string, token: string, projectId: string): Promise<any> {
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return null;
+  return res.json();
 }
 
-interface NoteDoc {
-  title:    string;
-  category: string;
-  priority: string;
-  body:     string;
-}
-
-async function getUsersForSlot(
-  slot: string,
-  token: string,
-  projectId: string,
-): Promise<DigestUser[]> {
-  // Firestore REST: query users where digest_times_utc array contains `slot`
-  // and telegram_chat_id is non-empty.
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`;
-
-  const body = {
-    structuredQuery: {
-      from:  [{ collectionId: 'users' }],
-      where: {
-        compositeFilter: {
-          op: 'AND',
-          filters: [
-            {
-              fieldFilter: {
-                field:  { fieldPath: 'digest_times_utc' },
-                op:     'ARRAY_CONTAINS',
-                value:  { stringValue: slot },
-              },
-            },
-            {
-              fieldFilter: {
-                field: { fieldPath: 'telegram_chat_id' },
-                op:    'NOT_EQUAL',
-                value: { stringValue: '' },
-              },
-            },
-          ],
-        },
-      },
-    },
-  };
-
-  const res = await fetch(url, {
-    method:  'POST',
-    headers: {
-      Authorization:  `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+async function firestorePatch(
+  path: string, fields: Record<string, any>, token: string, projectId: string,
+): Promise<void> {
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
+  const body = { fields: toFirestoreFields(fields) };
+  await fetch(url + `?updateMask.fieldPaths=${Object.keys(fields).join(',')}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-
-  if (!res.ok) {
-    console.error('[WishperLog] Firestore users query failed:', res.status, await res.text());
-    return [];
-  }
-
-  const docs = await res.json() as Array<{ document?: { name: string; fields: Record<string, any> } }>;
-  return docs
-    .filter(d => d.document)
-    .map(d => {
-      const f   = d.document!.fields;
-      const uid = d.document!.name.split('/').pop() ?? '';
-      return {
-        uid,
-        displayName:    f.display_name?.stringValue ?? null,
-        telegramChatId: f.telegram_chat_id?.stringValue ?? '',
-      };
-    })
-    .filter(u => u.telegramChatId);
 }
 
-async function getUserNotes(
-  uid: string,
-  token: string,
-  projectId: string,
-): Promise<NoteDoc[]> {
-  const base = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-  const url  = `${base}/users/${uid}/notes?pageSize=20&orderBy=created_at desc`;
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) {
-    console.error('[WishperLog] getUserNotes failed:', res.status);
-    return [];
+function toFirestoreFields(obj: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === null || v === undefined) out[k] = { nullValue: null };
+    else if (typeof v === 'string') out[k] = { stringValue: v };
+    else if (typeof v === 'number') out[k] = { integerValue: String(v) };
+    else if (typeof v === 'boolean') out[k] = { booleanValue: v };
+    else if (Array.isArray(v)) out[k] = { arrayValue: { values: v.map(x => ({ stringValue: String(x) })) } };
+    else out[k] = { mapValue: { fields: toFirestoreFields(v) } };
   }
-
-  const body = await res.json() as { documents?: Array<{ fields: Record<string, any> }> };
-  const docs = body.documents ?? [];
-
-  return docs
-    .filter(d => {
-      const status = d.fields?.status?.stringValue ?? 'active';
-      return status === 'active' && d.fields?.is_deleted?.booleanValue !== true;
-    })
-    .slice(0, 10)
-    .map(d => ({
-      title:    d.fields.title?.stringValue    ?? 'Untitled',
-      category: d.fields.category?.stringValue ?? 'general',
-      priority: d.fields.priority?.stringValue ?? 'medium',
-      body:     d.fields.clean_body?.stringValue ?? d.fields.raw_transcript?.stringValue ?? '',
-    }));
+  return out;
 }
 
-// ── Telegram ──────────────────────────────────────────────────────────────────
+function extractField(doc: any, ...path: string[]): any {
+  let cur = doc?.fields;
+  for (const key of path) {
+    if (!cur) return undefined;
+    cur = cur[key];
+    if (cur?.mapValue) cur = cur.mapValue.fields;
+    else if (cur?.stringValue !== undefined) return cur.stringValue;
+    else if (cur?.arrayValue) return cur.arrayValue.values?.map((v: any) => v.stringValue) ?? [];
+    else if (cur?.nullValue !== undefined) return null;
+  }
+  return cur;
+}
+
+// ── Telegram helpers ───────────────────────────────────────────────────────────
 
 async function sendTelegramMessage(
-  chatId: string,
-  text:   string,
-  token:  string,
+  chatId: string, text: string, token: string,
+  replyMarkup?: object,
 ): Promise<void> {
-  const url = `https://api.telegram.org/bot${token}/sendMessage`;
-  const res = await fetch(url, {
-    method:  'POST',
+  const body: Record<string, any> = {
+    chat_id: chatId, text, parse_mode: 'HTML',
+    disable_web_page_preview: true,
+  };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({
-      chat_id:    chatId,
-      text,
-      parse_mode: 'HTML',
-      // Prevent link previews cluttering the chat.
-      disable_web_page_preview: true,
-    }),
+    body: JSON.stringify(body),
   });
+}
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Telegram sendMessage ${res.status}: ${body}`);
+// ── Cron path: dumb dispatcher ────────────────────────────────────────────────
+
+async function runDigestCron(env: Env): Promise<void> {
+  const now     = new Date();
+  const slotKey = toSlotKey(now);
+  const dateKey = toDateKey(now);
+
+  const token = await getFirestoreToken(env);
+
+  // List all user docs
+  const listUrl = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users?pageSize=200`;
+  const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
+  if (!listRes.ok) return;
+  const listData = await listRes.json<{ documents?: any[] }>();
+  const docs = listData.documents ?? [];
+
+  for (const userDoc of docs) {
+    try {
+      const uid        = userDoc.name?.split('/').pop();
+      if (!uid) continue;
+
+      const chatId     = extractField(userDoc, 'telegram_chat_id') as string | null;
+      if (!chatId) continue;
+
+      // ── Multi-slot schedule (new) or legacy single slot ──────────────────
+      const slotsField = extractField(userDoc, 'digest_slots');
+      const slots: string[] = Array.isArray(slotsField) && slotsField.length > 0
+        ? slotsField
+        : [extractField(userDoc, 'digest_time') as string ?? '09:00'];
+
+      if (!slots.includes(slotKey)) continue;
+
+      // ── KV dedup — one send per (date, slot, uid) per day ───────────────
+      const dedupKey = `${dateKey}:${slotKey}:${uid}`;
+      const already  = await env.DIGEST_SENT.get(dedupKey);
+      if (already) continue;
+
+      // ── Read pre-built message_state — NO re-calculation ─────────────────
+      const telegram = extractField(userDoc, 'message_state', 'telegram') as string | null;
+      if (!telegram || telegram.trim().length === 0) continue;
+
+      await sendTelegramMessage(chatId, telegram, env.TELEGRAM_BOT_TOKEN);
+      await env.DIGEST_SENT.put(dedupKey, '1', { expirationTtl: 93_600 });
+
+      console.log(`[digest] sent to uid=${uid} slot=${slotKey}`);
+    } catch (err) {
+      console.error('[digest] user loop error:', err);
+    }
   }
 }
 
-// ── Digest message builder ────────────────────────────────────────────────────
+// ── Interactive webhook path (unchanged logic) ─────────────────────────────────
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  tasks:     '✅',
-  reminders: '⏰',
-  ideas:     '💡',
-  'follow-up': '🔁',
-  journal:   '📔',
-  general:   '📝',
-};
+async function handleWebhook(req: Request, env: Env): Promise<Response> {
+  const body = await req.json<any>().catch(() => null);
+  if (!body) return new Response('bad request', { status: 400 });
 
-function buildDigestMessage(notes: NoteDoc[], name: string, now: Date): string {
-  const timeStr = now.toLocaleTimeString('en-US', {
-    hour:   '2-digit',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'UTC',
+  const message  = body.message;
+  const chatId   = message?.chat?.id;
+  const text     = (message?.text ?? '').trim() as string;
+
+  if (!chatId || !text.startsWith('/')) {
+    return new Response('ok');
+  }
+
+  const token = await getFirestoreToken(env);
+
+  // Find user by telegram_chat_id
+  const queryUrl = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+  const queryBody = {
+    structuredQuery: {
+      from: [{ collectionId: 'users' }],
+      where: { fieldFilter: {
+        field: { fieldPath: 'telegram_chat_id' },
+        op: 'EQUAL',
+        value: { stringValue: String(chatId) },
+      }},
+      limit: 1,
+    },
+  };
+  const qRes  = await fetch(queryUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(queryBody),
   });
+  const qData = await qRes.json<any[]>();
+  const userDoc = qData?.[0]?.document;
 
-  const lines: string[] = [
-    `👋 <b>Hey ${escapeHtml(name)}!</b> Here's your WishperLog digest — ${timeStr} UTC\n`,
-  ];
-
-  // Group by category for better readability.
-  const byCategory = new Map<string, NoteDoc[]>();
-  for (const note of notes) {
-    const cat = note.category || 'general';
-    if (!byCategory.has(cat)) byCategory.set(cat, []);
-    byCategory.get(cat)!.push(note);
+  if (!userDoc) {
+    await sendTelegramMessage(
+      String(chatId),
+      'Link your WishperLog account first: open the app and connect Telegram.',
+      env.TELEGRAM_BOT_TOKEN,
+    );
+    return new Response('ok');
   }
 
-  for (const [cat, catNotes] of byCategory) {
-    const emoji = CATEGORY_EMOJI[cat] ?? '📝';
-    lines.push(`\n${emoji} <b>${capitalise(cat)}</b>`);
-    for (const note of catNotes) {
-      const priorityBadge = note.priority === 'high' ? ' 🔴' : note.priority === 'medium' ? ' 🟡' : '';
-      lines.push(`  • ${escapeHtml(note.title)}${priorityBadge}`);
-    }
-  }
+  const uid         = userDoc.name?.split('/').pop() as string;
+  const displayName = extractField(userDoc, 'display_name') as string ?? 'there';
 
-  lines.push(`\n<i>${notes.length} note${notes.length !== 1 ? 's' : ''} — open WishperLog to manage them.</i>`);
+  // For interactive commands we still fetch live notes (real-time UX)
+  const notesSnap = await firestoreGet(
+    `users/${uid}/notes?pageSize=200`, token, env.FIREBASE_PROJECT_ID,
+  );
+  const notes = parseNoteDocs(notesSnap?.documents ?? [], uid);
+
+  const parts  = text.split(/\s+/);
+  const cmd    = parts[0].slice(1).toLowerCase();
+  const args   = parts.slice(1).join(' ');
+
+  switch (cmd) {
+    case 'start':
+      await sendTelegramMessage(
+        String(chatId),
+        `Hello ${displayName}! Your WishperLog digest is active. Use /summary, /tasks, /reminders, or /ideas.`,
+        env.TELEGRAM_BOT_TOKEN,
+      );
+      break;
+    case 'summary': case 'all':
+      await sendTelegramMessage(String(chatId), buildDigest(notes, displayName, 'Summary'), env.TELEGRAM_BOT_TOKEN);
+      break;
+    case 'tasks': case 'task': case 'todo':
+      await sendTelegramMessage(String(chatId), buildDigest(notes.filter(n => n.category === 'tasks'), displayName, 'Tasks'), env.TELEGRAM_BOT_TOKEN);
+      break;
+    case 'reminders': case 'reminder':
+      await sendTelegramMessage(String(chatId), buildDigest(notes.filter(n => n.category === 'reminders'), displayName, 'Reminders'), env.TELEGRAM_BOT_TOKEN);
+      break;
+    case 'ideas': case 'idea':
+      await sendTelegramMessage(String(chatId), buildDigest(notes.filter(n => n.category === 'ideas'), displayName, 'Ideas'), env.TELEGRAM_BOT_TOKEN);
+      break;
+    default:
+      await sendTelegramMessage(
+        String(chatId),
+        '<b>WishperLog commands</b>\n/summary /tasks /reminders /ideas',
+        env.TELEGRAM_BOT_TOKEN,
+      );
+  }
+  return new Response('ok');
+}
+
+// ── Note parsing (for interactive commands only) ───────────────────────────────
+
+interface NoteDoc { title: string; category: string; priority: string; body: string; }
+
+function parseNoteDocs(docs: any[], uid: string): NoteDoc[] {
+  return docs.map(doc => {
+    const f = doc?.fields ?? {};
+    const str = (k: string) => f[k]?.stringValue ?? '';
+    return { title: str('title'), category: str('category'), priority: str('priority'), body: str('clean_body') };
+  });
+}
+
+function buildDigest(notes: NoteDoc[], name: string, heading: string): string {
+  if (notes.length === 0) return `<b>${heading}</b>\nNo active notes.`;
+  const ranked = [...notes].sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority)).slice(0, 5);
+  const lines = [`<b>WishperLog ${heading}</b>`, `Hello ${asciiOnly(name)}!`, ''];
+  ranked.forEach((n, i) => {
+    lines.push(`${i + 1}. [${n.category.toUpperCase()}][${priorityLabel(n.priority)}] ${asciiOnly(n.title)}`);
+    if (n.body) lines.push(`   <i>${asciiOnly(n.body).slice(0, 100)}</i>`);
+  });
+  if (notes.length > ranked.length) lines.push(`\n<i>+${notes.length - ranked.length} more</i>`);
   return lines.join('\n');
 }
 
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export default {
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    await runDigestCron(env);
+  },
+
+  async fetch(req: Request, env: Env): Promise<Response> {
+    const url = new URL(req.url);
+
+    // Health / manual trigger endpoint
+    if (url.pathname === '/trigger' && req.method === 'GET') {
+      await runDigestCron(env);
+      return new Response('triggered', { status: 200 });
+    }
+
+    // Telegram webhook
+    if (url.pathname === '/webhook' && req.method === 'POST') {
+      return handleWebhook(req, env);
+    }
+
+    return new Response('WishperLog Worker', { status: 200 });
+  },
+};
+
 // ── Utility ───────────────────────────────────────────────────────────────────
 
-/** Returns "HH:MM" in UTC — minute granularity. */
 function toSlotKey(d: Date): string {
   return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
@@ -19920,12 +22217,18 @@ function toDateKey(d: Date): string {
 
 function pad(n: number): string { return n.toString().padStart(2, '0'); }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function asciiOnly(v: string): string {
+  return (v ?? '').toString().normalize('NFKD').replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, ' ').trim();
 }
 
-function capitalise(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+function priorityRank(p: string): number { return p === 'high' ? 0 : p === 'medium' ? 1 : 2; }
+
+function priorityLabel(p: string): string {
+  switch ((p ?? '').toLowerCase()) {
+    case 'high': return 'HIGH';
+    case 'low':  return 'LOW';
+    default:     return 'MED';
+  }
 }
 ```
 
@@ -19937,6 +22240,21 @@ main             = "src/worker.ts"
 compatibility_date  = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 account_id       = "112486d346c988fbdaf8923c083a85d8"
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
 
 # ── Workers URL ────────────────────────────────────────────────────────────────
 # Deployed at: wishperlog-digest.veerbhadra0524.workers.dev

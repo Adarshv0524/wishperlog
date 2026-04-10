@@ -11,7 +11,6 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/theme_cubit.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
@@ -489,13 +488,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: 1),
-                duration: AppDurations.screenTransition,
-                curve: Curves.easeOutCubic,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
                 builder: (context, value, child) {
                   return Opacity(
                     opacity: value,
                     child: Transform.translate(
-                      offset: Offset(0, (1 - value) * 12),
+                      offset: Offset(0, (1 - value) * 8),
                       child: child,
                     ),
                   );
@@ -723,15 +722,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Speech Recognition',
-                      style: TextStyle(
-                        color: context.textPri,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
                     Text(
                       'Choose recognition language and offline preference',
                       style: TextStyle(

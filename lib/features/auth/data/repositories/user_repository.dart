@@ -1,11 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wishperlog/core/config/app_env.dart';
 
 class SignInFriendlyException implements Exception {
   const SignInFriendlyException(this.message);
@@ -19,11 +17,9 @@ class SignInFriendlyException implements Exception {
 class UserRepository {
   final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb
-        ? (AppEnv.googleWebClientId.isEmpty ? null : AppEnv.googleWebClientId)
-        : null,
-  );
+  final GoogleSignIn _googleSignIn;
+
+  UserRepository({required GoogleSignIn googleSignIn}) : _googleSignIn = googleSignIn;
 
   Stream<auth.User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
@@ -57,19 +53,11 @@ class UserRepository {
       final auth.UserCredential userCredential = await _firebaseAuth
           .signInWithCredential(credential);
 
-      await _upsertUserDocument(
-        firebaseUser: userCredential.user!,
-        googleAuth: googleAuth,
-      );
+      await _upsertUserDocument(firebaseUser: userCredential.user!, googleAuth: googleAuth);
 
       return userCredential;
-    } on PlatformException catch (e) {
-      final joined = '${e.code} ${e.message ?? ''}'.toLowerCase();
-      if (joined.contains('10')) {
-        throw const SignInFriendlyException(
-          'Developer Error: SHA-1 mismatch. Please add your debug keystore SHA-1 to the Firebase Console and re-download google-services.json.',
-        );
-      }
+    } catch (e) {
+      debugPrint('[UserRepository] Google sign-in failed: $e');
       rethrow;
     }
   }

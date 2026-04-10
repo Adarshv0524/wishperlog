@@ -13,6 +13,7 @@ import 'package:wishperlog/firebase_options.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';
 
 /// Dart entry-point for [BackgroundNoteService].
 ///
@@ -170,33 +171,17 @@ Future<void> _pushToFirestoreBg(Note note) async {
       debugPrint('[BgNoteHandler] Firestore push skipped — not authenticated');
       return;
     }
+    // Use the canonical serialiser — keeps Firestore in sync with the model.
     await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .collection('notes')
         .doc(note.noteId)
-        .set(_noteToMap(note), SetOptions(merge: true));
+        .set(note.toFirestoreJson(), SetOptions(merge: true));
+
+    // Rebuild message_state so the Worker sees fresh content after AI enrichment.
+    await MessageStateService().recompute(uid: uid);
   } catch (e) {
     debugPrint('[BgNoteHandler] Firestore push error: $e');
   }
 }
-
-Map<String, dynamic> _noteToMap(Note note) => {
-  'note_id':        note.noteId,
-  'uid':            note.uid,
-  'raw_transcript': note.rawTranscript,
-  'title':          note.title,
-  'clean_body':     note.cleanBody,
-  'category':       note.category.name,
-  'priority':       note.priority.name,
-  'ai_model':       note.aiModel,
-  'status':         note.status.name,
-  'source':         note.source.name,
-  'extracted_date': note.extractedDate?.toIso8601String(),
-  'created_at':     note.createdAt.toIso8601String(),
-  'updated_at':     note.updatedAt.toIso8601String(),
-  'synced_at':      note.syncedAt?.toIso8601String(),
-  'gtask_id':       note.gtaskId,
-  'gcal_event_id':  note.gcalEventId,
-  'is_deleted':     note.status == NoteStatus.deleted,
-};

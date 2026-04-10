@@ -121,7 +121,7 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
                             borderRadius: BorderRadius.circular(14),
                             onTap: () {
                               Navigator.of(context).pop();
-                              context.go('/folder', extra: note.category);
+                              context.push('/notes/{note.noteId}');
                             },
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(

@@ -271,6 +271,23 @@ class TelegramService {
     return parts[1].trim() == token.trim();
   }
 
+  /// Pure formatter — no network, no bot token. Used by MessageStateService.
+  static String staticBuildDailyDigest({
+    required List<Note> notes,
+    required DateTime localDate,
+    int maxItems = 3,
+    bool topPriorityOnly = true,
+    bool includeMediumFallback = true,
+  }) {
+    return TelegramService().buildDailyDigestMessage(
+      notes: notes,
+      localDate: localDate,
+      maxItems: maxItems,
+      topPriorityOnly: topPriorityOnly,
+      includeMediumFallback: includeMediumFallback,
+    );
+  }
+
   Future<bool> sendDailyDigest({
     required String chatId,
     required List<Note> notes,
@@ -279,7 +296,7 @@ class TelegramService {
     bool topPriorityOnly = true,
     bool includeMediumFallback = true,
   }) async {
-    final text = buildDailyDigestMessage(
+    final text = staticBuildDailyDigest(
       notes: notes,
       localDate: localDate,
       maxItems: maxItems,

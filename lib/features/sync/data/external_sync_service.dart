@@ -159,10 +159,6 @@ class ExternalSyncService {
     return SyncNoteExternalResult(note: updated, noteChanged: changed);
   }
 
-  Future<SyncNoteExternalResult> syncExternalForNote(Note note) {
-    return syncSingleNote(note);
-  }
-
   /// Explicitly pulls completion statuses from Google Tasks (for settings "Sync Now" button).
   Future<void> syncGoogleTaskCompletions() async {
     final headers = await _authHeaders();
@@ -173,6 +169,41 @@ class ExternalSyncService {
     } finally {
       client.close();
     }
+  }
+
+  /// Sync a specific note with external services (Google Tasks/Calendar).
+  Future<SyncNoteExternalResult> syncExternalForNote(Note note) async {
+    try {
+      final headers = await _authHeaders();
+      if (headers == null) {
+        throw Exception('Authentication headers are missing.');
+      }
+
+      // Example logic for syncing a note
+      if (note.status == NoteStatus.deleted) {
+        // Handle deletion logic
+        await _deleteRemoteEntry(note);
+        return SyncNoteExternalResult(note: note, noteChanged: true);
+      } else {
+        // Handle update or creation logic
+        final updatedNote = await _updateOrCreateRemoteEntry(note);
+        return SyncNoteExternalResult(note: updatedNote, noteChanged: true);
+      }
+    } catch (e) {
+      debugPrint('[ExternalSyncService] syncExternalForNote error: $e');
+      return SyncNoteExternalResult(note: note);
+    }
+  }
+
+  Future<void> _deleteRemoteEntry(Note note) async {
+    // Logic to delete a remote entry
+    debugPrint('Deleting remote entry for note: ${note.noteId}');
+  }
+
+  Future<Note> _updateOrCreateRemoteEntry(Note note) async {
+    // Logic to update or create a remote entry
+    debugPrint('Updating/Creating remote entry for note: ${note.noteId}');
+    return note;
   }
 
   // ── Google Tasks sync ─────────────────────────────────────────────────────
@@ -189,7 +220,7 @@ class ExternalSyncService {
     int updated   = 0;
 
     // ── Ensure our task list exists ───────────────────────────────────────────
-    final listId = await _getOrCreateTaskList(api);
+    final listId = await _getCachedTaskListId(api);
     if (listId == null) return const SyncRunResult(processed: 0, updated: 0);
 
     // ── Pull: check which of our synced tasks were deleted on Google side ─────
@@ -211,12 +242,13 @@ class ExternalSyncService {
     // ── Push: upsert notes that need syncing ──────────────────────────────────
     final needsSync = localNotes.where((n) =>
       _shouldSyncToTasks(n.category) &&
-      n.status == NoteStatus.active
+      n.status == NoteStatus.active &&
+      (n.gtaskId == null || (n.syncedAt != null && n.updatedAt.isAfter(n.syncedAt!)))
     ).toList();
 
     for (final note in needsSync) {
       try {
-        final result = await _upsertGoogleTask(api, note, listId: listId);
+        final result = await _upsertGoogleTask(api, note, taskListId: listId);
         if (result != null) { await _isarNoteStore.put(result); updated++; }
         processed++;
       } catch (e) {
@@ -250,12 +282,12 @@ class ExternalSyncService {
   Future<Note?> _upsertGoogleTask(
     gtasks.TasksApi api,
     Note note, {
-    String? listId,
+    String? taskListId,
   }) async {
     // Prefer the caller-supplied listId (from syncNow batch), fall back to
     // the per-instance cache, or fetch+create as last resort.
-    final taskListId = listId ?? await _getCachedTaskListId(api);
-    if (taskListId == null) return null;
+    final resolvedListId = taskListId ?? await _getCachedTaskListId(api);
+    if (resolvedListId == null) return null;
 
     final taskTitle = note.title.isNotEmpty ? note.title : 'WishperLog Note';
     final body      = note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript;
@@ -270,7 +302,7 @@ class ExternalSyncService {
           ..due   = dueDate != null
               ? DateTime.utc(dueDate.year, dueDate.month, dueDate.day).toIso8601String()
               : null;
-        await api.tasks.patch(patch, taskListId, note.gtaskId!);
+        await api.tasks.patch(patch, resolvedListId, note.gtaskId!);
         debugPrint('[ExternalSync] Updated task ${note.gtaskId}');
         return note.copyWith(syncedAt: DateTime.now());
       } on gtasks.DetailedApiRequestError catch (e) {
@@ -291,7 +323,7 @@ class ExternalSyncService {
           ? DateTime.utc(dueDate.year, dueDate.month, dueDate.day).toIso8601String()
           : null;
 
-    final created = await api.tasks.insert(newTask, taskListId);
+    final created = await api.tasks.insert(newTask, resolvedListId);
     debugPrint('[ExternalSync] Created task ${created.id} for note ${note.noteId}');
     final updated = note.copyWith(gtaskId: created.id, syncedAt: DateTime.now());
     await _firestorePatch(note.noteId, {

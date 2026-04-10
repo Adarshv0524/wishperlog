@@ -58,14 +58,6 @@ final GoRouter router = GoRouter(
       ),
     ),
     GoRoute(
-      path: '/signin',
-      pageBuilder: (context, state) => _buildPage(
-        key: state.pageKey,
-        child: const SignInScreen(),
-        beginOffset: const Offset(0, 0.04),
-      ),
-    ),
-    GoRoute(
       path: '/permissions',
       pageBuilder: (context, state) => _buildPage(
         key: state.pageKey,
@@ -191,10 +183,11 @@ final GoRouter router = GoRouter(
         return '/home';
       }
       return null;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[Router] FirebaseAuthException during redirect: ${e.message}');
+      return '/'; // Sign-in is the safe fallback for all auth errors
     } catch (e) {
-      // If Firebase auth check fails during initialization, stay on current route
-      debugPrint('[Router] Auth check error: $e');
-      return null;
-    }
-  },
+      debugPrint('[Router] Unexpected redirect error: $e');
+      return '/'; // Never strand the user on a missing route
+    }  },
 );

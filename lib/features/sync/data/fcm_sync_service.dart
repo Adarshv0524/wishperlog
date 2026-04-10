@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/features/sync/data/firestore_note_sync_service.dart';
 import 'package:wishperlog/firebase_options.dart';
@@ -24,7 +25,15 @@ class FcmSyncService {
     UserRepository? users,
     FirestoreNoteSyncService? noteSync,
   }) : _messaging = messaging ?? FirebaseMessaging.instance,
-       _users = users ?? UserRepository(),
+       _users = users ?? UserRepository(
+         googleSignIn: GoogleSignIn(
+           scopes: const [
+             'email',
+             'https://www.googleapis.com/auth/calendar',
+             'https://www.googleapis.com/auth/tasks',
+           ],
+         ),
+       ),
        _noteSync = noteSync ?? FirestoreNoteSyncService();
 
   final FirebaseMessaging _messaging;
