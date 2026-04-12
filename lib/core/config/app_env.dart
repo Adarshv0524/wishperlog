@@ -40,7 +40,11 @@ class AppEnv {
 
   static String get groqApiKey => _safeGet('GROQ_API_KEY');
 
+  static String get mistralApiKey => _safeGet('MISTRAL_API_KEY');
+
   static String get huggingFaceApiKey => _safeGet('HUGGINGFACE_API_KEY');
+
+  static String get cerebrasApiKey => _safeGet('CEREBRAS_API_KEY');
 
   static String get googleWebClientId {
     const fromDefine = String.fromEnvironment(
@@ -65,5 +69,12 @@ class AppEnv {
     final trimmedDefine = fromDefine.trim();
     if (trimmedDefine.isNotEmpty) return trimmedDefine;
     return _safeGet('TELEGRAM_BOT_USERNAME');
+  }
+
+  static String get telegramDeepLinkBase {
+    const fromDefine = String.fromEnvironment('TELEGRAM_DEEP_LINK_BASE', defaultValue: '');
+    final trimmedDefine = fromDefine.trim();
+    if (trimmedDefine.isNotEmpty) return trimmedDefine;
+    return _safeGet('TELEGRAM_DEEP_LINK_BASE');
   }
 }

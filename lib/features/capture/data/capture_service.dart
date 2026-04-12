@@ -57,6 +57,9 @@ class CaptureService {
     required String rawTranscript,
     required CaptureSource source,
     bool syncToCloud = true,
+    NoteCategory? categoryOverride,
+    NotePriority? priorityOverride,
+    DateTime? extractedDateOverride,
   }) async {
     final trimmed = rawTranscript.trim();
     if (trimmed.isEmpty) return null;
@@ -65,7 +68,8 @@ class CaptureService {
       final now = DateTime.now();
       final user = _auth?.currentUser;
       final noteId = '${now.microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
-      final inferredCategory = inferCategoryFromText(trimmed);
+      final inferredCategory = categoryOverride ?? inferCategoryFromText(trimmed);
+      final resolvedPriority = priorityOverride ?? NotePriority.medium;
 
       // STEP 1: Instant local save with fallback title.
       final quickTitle = _quickTitle(trimmed);
@@ -76,8 +80,6 @@ class CaptureService {
         title: quickTitle,
         cleanBody: trimmed,
         category: inferredCategory,
-        priority: NotePriority.medium,
-        extractedDate: null,
         createdAt: now,
         updatedAt: now,
         status: NoteStatus.pendingAi,
@@ -85,6 +87,8 @@ class CaptureService {
         gcalEventId: null,
         gtaskId: null,
         source: source,
+        priority: resolvedPriority,
+        extractedDate: extractedDateOverride,
         syncedAt: null,
       );
 

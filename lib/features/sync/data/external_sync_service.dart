@@ -536,10 +536,14 @@ class ExternalSyncService {
     try {
       final uid = _auth.currentUser?.uid;
       if (uid == null) return;
-      await _firestore
+      final docRef = _firestore
           .collection('users').doc(uid)
-          .collection('notes').doc(noteId)
-          .update(fields);
+          .collection('notes').doc(noteId);
+
+      final snap = await docRef.get();
+      if (!snap.exists) return;
+
+      await docRef.set(fields, SetOptions(merge: true));
     } catch (e) {
       debugPrint('[ExternalSync] Firestore patch error for $noteId: $e');
     }

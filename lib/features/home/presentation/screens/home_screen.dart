@@ -10,6 +10,7 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/core/theme/app_durations.dart';
+import 'package:wishperlog/app/route_observer.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/home/presentation/widgets/folder_grid.dart';
@@ -27,7 +28,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with RouteAware {
   static const MethodChannel _overlayChannel = MethodChannel('wishperlog/overlay');
 
   final NoteRepository _notes = sl<NoteRepository>();
@@ -59,6 +60,39 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.unsubscribe(this);
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    _canvasFocusNode.dispose();
+    _writingController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    _clearCanvasFocus();
+  }
+
+  @override
+  void didPopNext() {
+    _clearCanvasFocus();
+  }
+
+  void _clearCanvasFocus() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _canvasFocusNode.unfocus();
+  }
+
   Future<Uint8List?> _loadLauncherIconBytes() async {
     try {
       final bytes = await _overlayChannel.invokeMethod<Uint8List>('getLauncherIcon');
@@ -66,13 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       return null;
     }
-  }
-
-  @override
-  void dispose() {
-    _canvasFocusNode.dispose();
-    _writingController.dispose();
-    super.dispose();
   }
 
   Future<void> _ensureSpeechReady() async {
@@ -171,40 +198,21 @@ class _HomeScreenState extends State<HomeScreen> {
         rawTranscript: textToSave,
         source: CaptureSource.homeWritingBox,
         syncToCloud: true,
+        categoryOverride: _quickCategory,
+        priorityOverride: _quickPriority,
+        extractedDateOverride: _quickReminderAt,
       );
       if (savedNote == null) {
         return;
       }
-
-      final appliedReminder = _quickReminderAt;
-      final shouldApplyMetadata =
-          savedNote.category != _quickCategory ||
-          savedNote.priority != _quickPriority ||
-          savedNote.extractedDate != appliedReminder;
-      if (shouldApplyMetadata) {
-        await _notes.updateEditedNote(
-          noteId: savedNote.noteId,
-          title: savedNote.title,
-          cleanBody: savedNote.cleanBody,
-          category: _quickCategory,
-          priority: _quickPriority,
-          extractedDate: appliedReminder,
-        );
-      }
-
-      final finalNote = savedNote.copyWith(
-        category: _quickCategory,
-        priority: _quickPriority,
-        extractedDate: appliedReminder,
-      );
       _writingController.clear();
 
       if (mounted) {
         sl<CaptureUiController>().notifyExternalRecordingSaved(
-          title: finalNote.title,
-          category: finalNote.category,
-          model: finalNote.aiModel,
-          noteId: finalNote.noteId,
+          title: savedNote.title,
+          category: savedNote.category,
+          model: savedNote.aiModel,
+          noteId: savedNote.noteId,
         );
       }
     } finally {

@@ -1,22 +1,34 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SignInScreen — Entry point with Google sign-in.
-// After sign-in succeeds, shows the animated EnvironmentSetupOverlay before
-// navigating to /permissions, giving users confidence the app is "doing work".
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// sign_in_screen.dart v4.0 — Immediate Gamified Overlay (Race-Condition Fix)
+//
+// CRITICAL FIX — Login Processing Race Condition:
+//   Previous behaviour: overlay appeared AFTER signInWithGoogle() returned.
+//   New behaviour: overlay appears IMMEDIATELY when the user taps the button.
+//   signInWithGoogle(), AI hydration, and Isar init all run concurrently inside
+//   _doPostSignInWork(), which is passed as workFuture to _EnvironmentSetupOverlay.
+//   The overlay animation plays while real work is in progress.
+//
+//   If work fails (e.g. Google sign-in cancelled), the overlay closes itself and
+//   _signIn() surfaces the error through _showGlassError() as before.
+// ══════════════════════════════════════════════════════════════════════════════
+
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
   @override
@@ -52,70 +64,104 @@ class _SignInScreenState extends State<SignInScreen> {
       );
   }
 
+  /// Entry-point when the user taps the Google sign-in button.
+  ///
+  /// KEY CHANGE v4: We show the gamified overlay card IMMEDIATELY (before
+  /// any async work starts) by kicking off [_doPostSignInWork] as a Future
+  /// and passing it to the overlay so both the animation and the real work
+  /// run concurrently.  Any exception from the work is re-surfaced here
+  /// after the dialog closes.
   Future<void> _signIn() async {
     if (_signingIn) return;
     setState(() => _signingIn = true);
     try {
-      await sl<UserRepository>().signInWithGoogle();
-      if (!mounted) return;
-      // Run animation and real background init in parallel.
-      // The overlay will dismiss when BOTH finish.
       await _runSetupAnimationWithWork();
       if (!mounted) return;
       context.go('/permissions');
     } on SignInFriendlyException catch (e) {
       _showGlassError(e.message);
-    } catch (e) {
+    } catch (_) {
       _showGlassError('Sign in failed. Please try again.');
     } finally {
       if (mounted) setState(() => _signingIn = false);
     }
   }
 
+  /// Shows the gamified overlay card immediately, passing real work as a
+  /// concurrent future.  After the dialog closes (success or failure), any
+  /// exception from the work future is re-thrown so [_signIn] can surface it.
   Future<void> _runSetupAnimationWithWork() async {
-    // Completer that the overlay will call when its animation finishes.
-    final animDone  = Completer<void>();
-    // Run actual post-sign-in work in parallel with the animation.
+    // ── Start the real work NOW, before the dialog is even mounted. ──────────
     final workFuture = _doPostSignInWork();
 
+    // ── Show overlay immediately. It drives itself via workFuture. ───────────
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withValues(alpha: 0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.60),
       builder: (_) => _EnvironmentSetupOverlay(
-        // Pass the work future so the overlay can exit early if work
-        // finishes before the minimum animation time, or hold open if work
-        // takes longer.
         workFuture: workFuture,
-        onDone: () {
-          if (!animDone.isCompleted) animDone.complete();
-        },
+        onDone: () {},
       ),
     );
 
-    // Ensure work also completes (it may have finished before dialog closed).
-    await workFuture.catchError((_) {});
+    // ── Re-surface any error that occurred during background work. ────────────
+    // If workFuture completed with an error, awaiting it here will rethrow,
+    // which propagates to _signIn() → catch → _showGlassError().
+    await workFuture;
   }
 
-  /// Real initialisation work that previously happened invisibly after the
-  /// animation. Now runs concurrently with the animation so there is zero
-  /// extra wait.
+  /// All background work runs here, concurrently with the animation overlay.
+  ///
+  /// Includes: Google sign-in, AI hydration, Isar init.
   Future<void> _doPostSignInWork() async {
+    // Step 1 – Authenticate with Google. May throw SignInFriendlyException.
+    await sl<UserRepository>().signInWithGoogle();
+
+    // Steps 2 & 3 – Non-blocking hydration; failures are silenced so they
+    // don't block navigation if optional services are unavailable.
     try {
-      final aiRouter = sl<AiClassifierRouter>();
-      await aiRouter.hydrate();
+      await sl<AiClassifierRouter>().hydrate();
     } catch (_) {}
     try {
       await IsarNoteStore.instance.init();
     } catch (_) {}
-    // Additional lightweight init can be added here.
+
+    // Brief pause so the final "Everything is ready!" step is readable.
     await Future<void>.delayed(const Duration(milliseconds: 200));
   }
 
   @override
   Widget build(BuildContext context) {
-    final titleColor = context.textPri;
-    final subtitleColor = context.textSec;
+    final isDark = context.isDark;
+
+    final List<BoxShadow> logoShadows = [
+      BoxShadow(
+        color: const Color(0xFF6366F1).withValues(alpha: 0.40),
+        blurRadius: 14,
+        spreadRadius: -2,
+        offset: const Offset(0, 4),
+      ),
+      BoxShadow(
+        color: const Color(0xFF6366F1).withValues(alpha: 0.22),
+        blurRadius: 32,
+        spreadRadius: -6,
+        offset: const Offset(0, 10),
+      ),
+      BoxShadow(
+        color: const Color(0xFF6366F1).withValues(alpha: 0.10),
+        blurRadius: 64,
+        spreadRadius: -16,
+        offset: const Offset(0, 24),
+      ),
+    ];
+
+    final logoRimBright = isDark
+        ? Colors.white.withValues(alpha: 0.36)
+        : Colors.white.withValues(alpha: 0.55);
+    final logoRimDark = isDark
+        ? Colors.black.withValues(alpha: 0.24)
+        : Colors.black.withValues(alpha: 0.12);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -124,43 +170,69 @@ class _SignInScreenState extends State<SignInScreen> {
           child: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: GlassContainer(
-                borderRadius: BorderRadius.circular(28),
+              child: GlassPane(
+                level: 1,
+                radius: 28,
                 padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Logo mark
+                    // ── Logo mark ─────────────────────────────────────────────
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
+                          colors: [logoRimBright, logoRimDark],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                        boxShadow: logoShadows,
                       ),
-                      child: const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: Colors.white,
-                        size: 22,
+                      padding: const EdgeInsets.all(1.2),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF7C72FF),
+                              Color(0xFF6045FA),
+                              Color(0xFF4C35E8),
+                            ],
+                            stops: [0.0, 0.5, 1.0],
+                          ),
+                        ),
+                        foregroundDecoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            center: Alignment.topLeft,
+                            radius: 1.6,
+                            colors: [
+                              Color(0x22FFFFFF),
+                              Colors.transparent,
+                              Color(0x12000000),
+                            ],
+                            stops: [0.0, 0.45, 1.0],
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 18),
+
+                    const SizedBox(height: 20),
+
                     Text(
                       'WishperLog',
                       style: TextStyle(
-                        color: titleColor,
+                        color: context.textPri,
                         fontSize: 34,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.3,
@@ -170,25 +242,27 @@ class _SignInScreenState extends State<SignInScreen> {
                     Text(
                       'Capture thoughts instantly.\nLet AI organise your day quietly in the background.',
                       style: TextStyle(
-                        color: subtitleColor,
+                        color: context.textSec,
                         fontSize: 14,
                         height: 1.5,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    // Google sign-in button
-                    _GoogleSignInButton(
+                    const SizedBox(height: 30),
+
+                    // ── Google Sign-In Button ────────────────────────────────
+                    _TactileGoogleSignInButton(
                       onTap: _signIn,
                       loading: _signingIn,
                     ),
-                    const SizedBox(height: 12),
+
+                    const SizedBox(height: 14),
                     Center(
                       child: Text(
                         'By continuing, you agree to our Terms & Privacy Policy.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: subtitleColor.withValues(alpha: 0.6),
+                          color: context.textSec.withValues(alpha: 0.60),
                           fontSize: 11,
                           height: 1.4,
                         ),
@@ -206,46 +280,177 @@ class _SignInScreenState extends State<SignInScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Google sign-in button
+// _TactileGoogleSignInButton — unchanged visual treatment from v3
 // ─────────────────────────────────────────────────────────────────────────────
-class _GoogleSignInButton extends StatelessWidget {
-  const _GoogleSignInButton({required this.onTap, required this.loading});
+class _TactileGoogleSignInButton extends StatefulWidget {
+  const _TactileGoogleSignInButton({required this.onTap, required this.loading});
   final VoidCallback onTap;
   final bool loading;
 
   @override
+  State<_TactileGoogleSignInButton> createState() =>
+      _TactileGoogleSignInButtonState();
+}
+
+class _TactileGoogleSignInButtonState
+    extends State<_TactileGoogleSignInButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return GlassContainer(
-      borderRadius: BorderRadius.circular(999),
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: loading ? null : onTap,
+    final isDark = context.isDark;
+
+    final rimBright = isDark ? AppColors.darkRimBright : AppColors.lightRimBright;
+    final rimMid    = isDark ? AppColors.darkRimMid    : AppColors.lightRimMid;
+    final rimDark   = isDark ? AppColors.darkRimDark   : AppColors.lightRimDark;
+
+    final List<BoxShadow> raisedShadows = isDark
+        ? [
+            BoxShadow(
+              color: AppColors.darkShadowClose,
+              blurRadius: 10,
+              spreadRadius: -2,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: AppColors.darkShadowMid,
+              blurRadius: 26,
+              spreadRadius: -6,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: AppColors.darkShadowFar,
+              blurRadius: 56,
+              spreadRadius: -14,
+              offset: const Offset(0, 22),
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: AppColors.lightShadowClose,
+              blurRadius: 8,
+              spreadRadius: -2,
+              offset: const Offset(0, 3),
+            ),
+            BoxShadow(
+              color: AppColors.lightShadowMid,
+              blurRadius: 22,
+              spreadRadius: -6,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: AppColors.lightShadowFar,
+              blurRadius: 50,
+              spreadRadius: -14,
+              offset: const Offset(0, 18),
+            ),
+          ];
+
+    return GestureDetector(
+      onTapDown: (_) { if (!widget.loading) setState(() => _pressed = true); },
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        if (!widget.loading) widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOutCubic,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-          child: loading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SvgPicture.asset('assets/icons/google.svg', width: 20, height: 20),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Continue with Google',
-                      style: TextStyle(
-                        color: context.textPri,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
+          duration: const Duration(milliseconds: 110),
+          curve: Curves.easeOutCubic,
+          height: 54,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [rimBright, rimMid, rimDark],
+              stops: const [0.0, 0.45, 1.0],
+            ),
+            boxShadow: _pressed ? [] : raisedShadows,
+          ),
+          padding: const EdgeInsets.all(1.0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(998),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 110),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(998),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: isDark
+                        ? [
+                            Colors.white.withValues(alpha: _pressed ? 0.09 : 0.13),
+                            Colors.white.withValues(alpha: _pressed ? 0.04 : 0.06),
+                          ]
+                        : [
+                            Colors.white.withValues(alpha: _pressed ? 0.72 : 0.88),
+                            Colors.white.withValues(alpha: _pressed ? 0.52 : 0.66),
+                          ],
+                  ),
                 ),
+                foregroundDecoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(998),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.transparent,
+                      Colors.transparent,
+                      isDark
+                          ? AppColors.darkExtrusionShadow
+                          : AppColors.lightExtrusionShadow,
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                ),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: widget.loading
+                        ? SizedBox(
+                            key: const ValueKey('loading'),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation(
+                                context.textPri.withValues(alpha: 0.80),
+                              ),
+                            ),
+                          )
+                        : Row(
+                            key: const ValueKey('idle'),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/google_logo.svg',
+                                width: 20,
+                                height: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Continue with Google',
+                                style: TextStyle(
+                                  color: context.textPri,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -255,9 +460,10 @@ class _GoogleSignInButton extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // _EnvironmentSetupOverlay
 //
-// Full-screen animated onboarding overlay shown once after sign-in.
-// Progressive status messages give the user confidence that setup is happening.
-// Auto-dismisses after the last step completes.
+// CRITICAL FIX v4: workFuture now INCLUDES signInWithGoogle() — so the overlay
+// appears immediately on tap, and the animation runs while authentication and
+// hydration happen concurrently.  If workFuture throws, the overlay closes
+// itself so _signIn() can surface the error.
 // ─────────────────────────────────────────────────────────────────────────────
 class _EnvironmentSetupOverlay extends StatefulWidget {
   const _EnvironmentSetupOverlay({
@@ -269,106 +475,131 @@ class _EnvironmentSetupOverlay extends StatefulWidget {
   final VoidCallback onDone;
 
   @override
-  State<_EnvironmentSetupOverlay> createState() => _EnvironmentSetupOverlayState();
+  State<_EnvironmentSetupOverlay> createState() =>
+      _EnvironmentSetupOverlayState();
 }
 
 class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
     with TickerProviderStateMixin {
-  // Steps with realistic timing (ms)
+  late final AnimationController _fadeCtrl;
+  late final Animation<double> _fadeIn;
+  late final AnimationController _orbController;
+  late final Animation<double> _orb1;
+  late final Animation<double> _orb2;
+
+  int _stepIndex = 0;
+  double _progressValue = 0.12;
+
   static const _steps = [
-    (badge: 'processing', text: 'Booting the workspace engine', durationMs: 900),
-    (badge: 'sync', text: 'Getting Google task bridge online', durationMs: 800),
-    (badge: 'seed', text: 'Preparing your note network', durationMs: 950),
-    (badge: 'align', text: 'Aligning preferences and permissions', durationMs: 700),
-    (badge: 'launch', text: 'System ready. Opening the gate.', durationMs: 600),
+    _Step(badge: 'auth',      text: 'Authenticating with Google…'),
+    _Step(badge: 'classify',  text: 'Loading your AI classifier…'),
+    _Step(badge: 'store',     text: 'Preparing your local vault…'),
+    _Step(badge: 'ready',     text: 'Everything is ready!'),
   ];
 
-  int    _stepIndex     = 0;
-  double _progressValue = 0.0;
-
-  late AnimationController _orbController;
-  late AnimationController _fadeController;
-  late Animation<double>   _orb1;
-  late Animation<double>   _orb2;
-  late Animation<double>   _fadeIn;
+  static const _minDuration   = Duration(milliseconds: 2200);
+  static const _stepDuration  = Duration(milliseconds: 520);
 
   @override
   void initState() {
     super.initState();
 
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+    _fadeIn = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOutCubic);
+    _fadeCtrl.forward();
+
     _orbController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: const Duration(milliseconds: 3200),
     )..repeat();
 
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
+    _orb1 = Tween<double>(begin: 0, end: math.pi * 2).animate(_orbController);
+    _orb2 = Tween<double>(begin: math.pi, end: math.pi * 3).animate(_orbController);
 
-    _orb1   = Tween<double>(begin: 0, end: 2 * math.pi).animate(_orbController);
-    _orb2   = Tween<double>(begin: math.pi, end: 3 * math.pi).animate(_orbController);
-    _fadeIn = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
-
-    _fadeController.forward();
     _runSteps();
   }
 
   Future<void> _runSteps() async {
-    // Minimum animation: run all steps.
-    for (var i = 0; i < _steps.length; i++) {
-      if (!mounted) return;
-      setState(() {
-        _stepIndex     = i;
-        _progressValue = (i + 1) / _steps.length;
-      });
-      await Future<void>.delayed(Duration(milliseconds: _steps[i].durationMs));
-      if (!mounted) return;
+    final workAndMin = Future.wait([
+      widget.workFuture,
+      Future<void>.delayed(_minDuration),
+    ]);
+
+    // Animate through steps 0 → n-2 while work + min-duration run.
+    for (var i = 0; i < _steps.length - 1; i++) {
+      await Future<void>.delayed(_stepDuration);
+      if (mounted) {
+        setState(() {
+          _stepIndex = i + 1;
+          _progressValue = (i + 1) / (_steps.length - 1) * 0.88;
+        });
+      }
     }
 
-    // Wait for real work to finish if it hasn't yet — so the animation never
-    // pops prematurely while Isar/AI is still initialising.
-    await widget.workFuture.catchError((_) {});
+    // Wait for work to finish. If it fails, close the dialog so _signIn()
+    // can catch the exception from the re-awaited workFuture.
+    try {
+      await workAndMin;
+    } catch (_) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
 
-    if (!mounted) return;
-    // Brief hold so the "System ready" step is legible.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    widget.onDone();
-    if (mounted) Navigator.of(context).pop();
+    // Success path: show final step, brief pause, dismiss.
+    if (mounted) {
+      setState(() {
+        _stepIndex = _steps.length - 1;
+        _progressValue = 1.0;
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 480));
+      widget.onDone();
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
   @override
   void dispose() {
+    _fadeCtrl.dispose();
     _orbController.dispose();
-    _fadeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return FadeTransition(
       opacity: _fadeIn,
       child: Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 80),
-        child: GlassContainer(
-          borderRadius: BorderRadius.circular(28),
+        child: GlassPane(
+          level: 1,
+          radius: 28,
           padding: const EdgeInsets.fromLTRB(26, 32, 26, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Step badge chip
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: (isDark ? Colors.white : scheme.primary).withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.06),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: isDark ? 0.14 : 0.18),
+                    width: 0.8,
+                  ),
                 ),
                 child: Text(
                   _steps[_stepIndex].badge.toUpperCase(),
                   style: TextStyle(
-                    color: isDark ? Colors.white : scheme.primary,
+                    color: isDark
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
@@ -376,7 +607,8 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                 ),
               ),
               const SizedBox(height: 18),
-              // ── Animated orb illustration ─────────────────────────────────
+
+              // Animated orb
               SizedBox(
                 width: 128,
                 height: 128,
@@ -391,13 +623,14 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                 ),
               ),
               const SizedBox(height: 28),
+
               const Icon(
                 Icons.auto_awesome_rounded,
                 color: Color(0xFF8B5CF6),
                 size: 22,
               ),
               const SizedBox(height: 16),
-              // ── Status text ───────────────────────────────────────────────
+
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 transitionBuilder: (child, anim) => FadeTransition(
@@ -415,7 +648,9 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                   key: ValueKey(_stepIndex),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isDark ? Colors.white : scheme.onPrimary,
+                    color: isDark
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
@@ -433,7 +668,8 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                 ),
               ),
               const SizedBox(height: 24),
-              // ── Progress bar ──────────────────────────────────────────────
+
+              // Progress bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: TweenAnimationBuilder<double>(
@@ -444,7 +680,9 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                     value: value,
                     minHeight: 5,
                     backgroundColor: Colors.white.withValues(alpha: 0.15),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF6366F1),
+                    ),
                   ),
                 ),
               ),
@@ -452,11 +690,11 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _StageChip(label: 'processing'),
+                  _StageChip(label: 'authenticating'),
                   const SizedBox(width: 8),
-                  _StageChip(label: 'getting Google task'),
+                  _StageChip(label: 'syncing AI'),
                   const SizedBox(width: 8),
-                  _StageChip(label: 'readying'),
+                  _StageChip(label: 'readying vault'),
                 ],
               ),
               const SizedBox(height: 12),
@@ -476,8 +714,14 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
   }
 }
 
+class _Step {
+  const _Step({required this.badge, required this.text});
+  final String badge;
+  final String text;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Orb painter — two revolving gradient circles (60 fps, GPU-backed)
+// _OrbPainter — two revolving gradient orbs
 // ─────────────────────────────────────────────────────────────────────────────
 class _OrbPainter extends CustomPainter {
   _OrbPainter({required this.angle1, required this.angle2});
@@ -490,7 +734,6 @@ class _OrbPainter extends CustomPainter {
     final cy = size.height / 2;
     final r  = size.width  * 0.3;
 
-    // Core glow
     canvas.drawCircle(
       Offset(cx, cy),
       r * 0.9,
@@ -501,7 +744,6 @@ class _OrbPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
     );
 
-    // Orb 1
     final o1 = Offset(cx + r * math.cos(angle1), cy + r * math.sin(angle1));
     canvas.drawCircle(
       o1,
@@ -513,8 +755,8 @@ class _OrbPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16),
     );
 
-    // Orb 2
-    final o2 = Offset(cx + r * 0.6 * math.cos(angle2), cy + r * 0.6 * math.sin(angle2));
+    final o2 = Offset(
+        cx + r * 0.6 * math.cos(angle2), cy + r * 0.6 * math.sin(angle2));
     canvas.drawCircle(
       o2,
       r * 0.3,
@@ -527,12 +769,15 @@ class _OrbPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_OrbPainter old) => old.angle1 != angle1 || old.angle2 != angle2;
+  bool shouldRepaint(_OrbPainter old) =>
+      old.angle1 != angle1 || old.angle2 != angle2;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _StageChip — glass mini-badge
+// ─────────────────────────────────────────────────────────────────────────────
 class _StageChip extends StatelessWidget {
   const _StageChip({required this.label});
-
   final String label;
 
   @override
@@ -542,7 +787,7 @@ class _StageChip extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
       child: Text(
         label,

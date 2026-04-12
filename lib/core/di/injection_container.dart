@@ -28,7 +28,7 @@ Future<void> init() async {
   );
     sl.registerLazySingleton<NoteRepository>(() => NoteRepository());
   sl.registerLazySingleton<SpeechToText>(() => SpeechToText());
-  sl.registerLazySingleton<TelegramService>(() => TelegramService());
+  sl.registerLazySingleton<TelegramService>(() => TelegramService.instance);
   sl.registerLazySingleton<NoteEventBus>(() => NoteEventBus.instance);
   sl.registerLazySingleton<IsarNoteStore>(() => IsarNoteStore.instance);
 
@@ -85,6 +85,6 @@ Future<void> init() async {
 
   // ── Message-state service ──────────────────────────────────────────────────
   sl.registerLazySingleton<MessageStateService>(
-    () => MessageStateService(),
+    () => MessageStateService.instance,
   );
 }

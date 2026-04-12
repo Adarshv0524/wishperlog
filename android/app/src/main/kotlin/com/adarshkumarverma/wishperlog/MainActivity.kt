@@ -234,7 +234,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        // Do NOT null the channel here: BackgroundNoteService might still need it.
+        FlutterEngineHolder.channel = null
         super.onDestroy()
     }
 }

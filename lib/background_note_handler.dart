@@ -180,7 +180,8 @@ Future<void> _pushToFirestoreBg(Note note) async {
         .set(note.toFirestoreJson(), SetOptions(merge: true));
 
     // Rebuild message_state so the Worker sees fresh content after AI enrichment.
-    await MessageStateService().recompute(uid: uid);
+    final activeNotes = await IsarNoteStore.instance.getAllActive();
+    await MessageStateService.instance.rebuildDigest(activeNotes, uid: uid);
   } catch (e) {
     debugPrint('[BgNoteHandler] Firestore push error: $e');
   }

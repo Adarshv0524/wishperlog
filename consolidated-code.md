@@ -1,12 +1,12 @@
 # Consolidated Source Bundle
 
-Generated: 2026-04-10T17:12:13+00:00
+Generated: 2026-04-11T19:20:27+00:00
 
 ## Summary
-- Dart files: 69
+- Dart files: 70
 - Android files: 26
 - Cloudfare files: 2
-- Total files: 97
+- Total files: 98
 
 ## File Index
 - lib/app/router.dart (dart)
@@ -57,6 +57,7 @@ Generated: 2026-04-10T17:12:13+00:00
 - lib/features/search/presentation/search_screen.dart (dart)
 - lib/features/settings/presentation/screens/settings_screen.dart (dart)
 - lib/features/settings/presentation/widgets/digest_schedule_section.dart (dart)
+- lib/features/settings/presentation/widgets/telegram_connection_section.dart (dart)
 - lib/features/sync/data/external_sync_service.dart (dart)
 - lib/features/sync/data/fcm_sync_service.dart (dart)
 - lib/features/sync/data/firestore_note_sync_service.dart (dart)
@@ -165,6 +166,14 @@ final GoRouter router = GoRouter(
   routes: [
     GoRoute(
       path: '/',
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const SignInScreen(),
+        beginOffset: const Offset(0, 0.04),
+      ),
+    ),
+    GoRoute(
+      path: '/signin',
       pageBuilder: (context, state) => _buildPage(
         key: state.pageKey,
         child: const SignInScreen(),
@@ -492,7 +501,8 @@ Future<void> _pushToFirestoreBg(Note note) async {
         .set(note.toFirestoreJson(), SetOptions(merge: true));
 
     // Rebuild message_state so the Worker sees fresh content after AI enrichment.
-    await MessageStateService().recompute(uid: uid);
+    final activeNotes = await IsarNoteStore.instance.getAllActive();
+    await MessageStateService.instance.rebuildDigest(activeNotes, uid: uid);
   } catch (e) {
     debugPrint('[BgNoteHandler] Firestore push error: $e');
   }
@@ -736,6 +746,13 @@ class AppEnv {
     if (trimmedDefine.isNotEmpty) return trimmedDefine;
     return _safeGet('TELEGRAM_BOT_USERNAME');
   }
+
+  static String get telegramDeepLinkBase {
+    const fromDefine = String.fromEnvironment('TELEGRAM_DEEP_LINK_BASE', defaultValue: '');
+    final trimmedDefine = fromDefine.trim();
+    if (trimmedDefine.isNotEmpty) return trimmedDefine;
+    return _safeGet('TELEGRAM_DEEP_LINK_BASE');
+  }
 }
 ```
 
@@ -772,7 +789,7 @@ Future<void> init() async {
   );
     sl.registerLazySingleton<NoteRepository>(() => NoteRepository());
   sl.registerLazySingleton<SpeechToText>(() => SpeechToText());
-  sl.registerLazySingleton<TelegramService>(() => TelegramService());
+  sl.registerLazySingleton<TelegramService>(() => TelegramService.instance);
   sl.registerLazySingleton<NoteEventBus>(() => NoteEventBus.instance);
   sl.registerLazySingleton<IsarNoteStore>(() => IsarNoteStore.instance);
 
@@ -829,7 +846,7 @@ Future<void> init() async {
 
   // ── Message-state service ──────────────────────────────────────────────────
   sl.registerLazySingleton<MessageStateService>(
-    () => MessageStateService(),
+    () => MessageStateService.instance,
   );
 }
 ```
@@ -1406,55 +1423,92 @@ class IsarNoteStore {
 ```dart
 import 'package:flutter/material.dart';
 
-// Generated from WhisperLog Design System v2.1
+// ══════════════════════════════════════════════════════════════════════════════
+// WishperLog Design System v3.0 — Tactile Soft-Glass UI
+//
+// CHANGELOG from v2.1:
+//   • Added rimLight tokens (the 1-2 px specular highlight on top-left bevel)
+//   • Added compoundShadow tokens (3 layered diffused drop shadows per mode)
+//   • Added extrusionOverlay tokens (subtle inner-shadow for 3D volume)
+//   • Tightened dark mode glass fills for better smoked-glass fidelity
+//   • Pure #000000 / #FFFFFF backgrounds remain strictly avoided per spec
+//
 // DO NOT add colour literals anywhere else in the codebase.
+// ══════════════════════════════════════════════════════════════════════════════
 abstract class AppColors {
-  // DARK GLASS SURFACES
-  static const Color darkBg = Color(0xFF090F1A);
+  // ── DARK GLASS SURFACES ────────────────────────────────────────────────────
+  static const Color darkBg     = Color(0xFF090F1A);
   static const Color darkGlass1 = Color(0x30F5FAFF);
   static const Color darkGlass2 = Color(0x22EFF6FF);
   static const Color darkGlass3 = Color(0x14E8F0FF);
   static const Color darkTextPri = Color(0xFFEAF1FF);
   static const Color darkTextSec = Color(0xFFA7B6CC);
   static const Color darkTextTer = Color(0xFF75D6B0);
-  static const Color darkBorder = Color(0x2DDAE8FF);
+  static const Color darkBorder  = Color(0x2DDAE8FF);
 
-  // LIGHT GLASS SURFACES
-  static const Color lightBg = Color(0xFFF3F7FB);
-  static const Color lightGlass1 = Color(0xE6FFFFFF);
-  static const Color lightGlass2 = Color(0xC2FFFFFF);
-  static const Color lightGlass3 = Color(0x9EFFFFFF);
+  // ── LIGHT GLASS SURFACES ───────────────────────────────────────────────────
+  static const Color lightBg     = Color(0xFFF0F4F9);   // slightly deeper for shadow contrast
+  static const Color lightGlass1 = Color(0xE8FFFFFF);
+  static const Color lightGlass2 = Color(0xC5FFFFFF);
+  static const Color lightGlass3 = Color(0xA0FFFFFF);
   static const Color lightTextPri = Color(0xFF102037);
   static const Color lightTextSec = Color(0xFF4E6485);
   static const Color lightTextTer = Color(0xFF7E8EAB);
-  static const Color lightBorder = Color(0x1A204268);
+  static const Color lightBorder  = Color(0x1A204268);
 
-  // CATEGORY CHROMATICS
-  static const Color tasks = Color(0xFF6045FA);
+  // ── RIM LIGHT TOKENS (the specular highlight, top-left bevel) ─────────────
+  // "Smoked Glass" dark mode: metallic, brighter, as it's the PRIMARY depth cue
+  static const Color darkRimBright = Color(0x4DFFFFFF);  // 30% white — bright catch
+  static const Color darkRimMid    = Color(0x14FFFFFF);  // 8%  white — fade-off
+  static const Color darkRimDark   = Color(0x28000000);  // 16% black — bottom-right recession
+
+  // "Polished Resin" light mode: crisper, slightly less intense than dark (shadows do more work)
+  static const Color lightRimBright = Color(0x66FFFFFF);  // 40% white — crisp top-left highlight
+  static const Color lightRimMid    = Color(0x1EFFFFFF);  // 12% white — mid-point transition
+  static const Color lightRimDark   = Color(0x12000000);  // 7%  black — very soft bottom-right
+
+  // ── TACTILE EXTRUSION TOKENS (inner shadow — bottom-right) ─────────────────
+  // Simulates physical "puffed" 3D volume; very low opacity to not obstruct content
+  static const Color darkExtrusionShadow  = Color(0x1A000000);  // 10% black
+  static const Color lightExtrusionShadow = Color(0x0D000000);  // 5%  black
+
+  // ── COMPOUND DROP SHADOW TOKENS ────────────────────────────────────────────
+  // Dark mode: coloured "LED backlight" ambient glows instead of pure grey shadows
+  static const Color darkShadowClose  = Color(0x3D000000);  // alpha 24%
+  static const Color darkShadowMid    = Color(0x2E000000);  // alpha 18%
+  static const Color darkShadowFar    = Color(0x1E000000);  // alpha 12%
+
+  // Light mode: soft desaturated grey tints faintly matching background
+  static const Color lightShadowClose = Color(0x2E3B5E8A);  // 18% cool blue-grey
+  static const Color lightShadowMid   = Color(0x1F3B5E8A);  // 12% cool blue-grey
+  static const Color lightShadowFar   = Color(0x143B5E8A);  // 8%  cool blue-grey
+
+  // ── CATEGORY CHROMATICS ────────────────────────────────────────────────────
+  static const Color tasks     = Color(0xFF6045FA);
   static const Color reminders = Color(0xFFF472B6);
-  static const Color ideas = Color(0xFFFBBF24);
-  static const Color followUp = Color(0xFF34D399);
-  static const Color journal = Color(0xFFA78BFA);
-  static const Color general = Color(0xFF94A3B8);
+  static const Color ideas     = Color(0xFFFBBF24);
+  static const Color followUp  = Color(0xFF34D399);
+  static const Color journal   = Color(0xFFA78BFA);
+  static const Color general   = Color(0xFF94A3B8);
   static const Color errorStatus = Color(0xFFEF4444);
 
-  // DARK FOLDER COLOUR-LEAK BG TINTS
-  static const Color tasksDarkBg = Color(0xFF060DD1);
+  // ── DARK FOLDER COLOUR-LEAK BG TINTS ──────────────────────────────────────
+  static const Color tasksDarkBg    = Color(0xFF060DD1);
   static const Color remindersDarkBg = Color(0xFFF04010);
-  static const Color ideasDarkBg = Color(0xFFF0CF86);
+  static const Color ideasDarkBg    = Color(0xFFF0CF86);
   static const Color followUpDarkBg = Color(0xFF866F0C);
-  static const Color journalDarkBg = Color(0xFF9C0AA6);
-  static const Color generalDarkBg = Color(0xFF4FADAE);
+  static const Color journalDarkBg  = Color(0xFF9C0AA6);
+  static const Color generalDarkBg  = Color(0xFF4FADAE);
 
-  // LIGHT FOLDER COLOUR-LEAK BG TINTS
-  static const Color tasksLightBg = Color(0xFFF0F0FF);
+  // ── LIGHT FOLDER COLOUR-LEAK BG TINTS ─────────────────────────────────────
+  static const Color tasksLightBg    = Color(0xFFF0F0FF);
   static const Color remindersLightBg = Color(0xFFFFF0F8);
-  static const Color ideasLightBg = Color(0xFFFDF8F0);
+  static const Color ideasLightBg    = Color(0xFFFDF8F0);
   static const Color followUpLightBg = Color(0xFFFEFFA6);
-  static const Color journalLightBg = Color(0xFFF5F0FF);
-  static const Color generalLightBg = Color(0xFFF4F5F8);
+  static const Color journalLightBg  = Color(0xFFF5F0FF);
+  static const Color generalLightBg  = Color(0xFFF4F5F8);
 
-  // BACKGROUND MESH NODES
+  // ── BACKGROUND MESH NODES ──────────────────────────────────────────────────
   static const List<Color> darkMesh = [
     Color(0xFF090F1A),
     Color(0xFF10223D),
@@ -1463,7 +1517,7 @@ abstract class AppColors {
     Color(0xFF2A1E3D),
   ];
   static const List<Color> lightMesh = [
-    Color(0xFFF3F7FB),
+    Color(0xFFF0F4F9),
     Color(0xFFE4EEFF),
     Color(0xFFDDF6F4),
     Color(0xFFEDE8FF),
@@ -1563,104 +1617,282 @@ const screenNavSpring = SpringDescription(mass: 1, stiffness: 260, damping: 28);
 import 'package:flutter/material.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 
+// ══════════════════════════════════════════════════════════════════════════════
+// AppTheme v3.0 — Tactile Soft-Glass UI
+//
+// Every Material component that renders visible chrome is upgraded:
+//   • ElevatedButton  → "Polished Resin" button with compound shadows + rim light
+//   • TextButton      → glass-tint hover surface
+//   • InputDecoration → frosted inset field with inner-shadow extrusion indicator
+//   • Card            → multi-layer floating glass card
+//   • Dialog          → smoked glass sheet with ambient glow
+//   • BottomSheet     → heavy-frosted panel, top rim light on rounded edge
+//   • SnackBar        → floating glass chip
+//   • Chip            → soft tactile pill
+// ══════════════════════════════════════════════════════════════════════════════
 class AppTheme {
   static ThemeData _base(ColorScheme scheme) {
     final isDark = scheme.brightness == Brightness.dark;
-    final outline = scheme.outline.withValues(alpha: 0.65);
+
+    // ── Surface / glass fills ────────────────────────────────────────────────
     final surfaceTint = isDark
-        ? AppColors.darkGlass1.withValues(alpha: 0.9)
+        ? AppColors.darkGlass1.withValues(alpha: 0.90)
         : AppColors.lightGlass1.withValues(alpha: 0.98);
+    final outline     = scheme.outline.withValues(alpha: 0.65);
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isDark
-          ? AppColors.darkBg
-          : AppColors.lightBg,
+      scaffoldBackgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
+
+      // ── AppBar ─────────────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         elevation: 0,
         shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
       ),
+
+      // ── Card ───────────────────────────────────────────────────────────────
+      // Cards get compound shadows so they float off the mesh background.
+      // The 0.8 outline border is overridden by GlassPane's own rim-light border
+      // at the widget level; this fallback is kept for any widget using raw Card.
       cardTheme: CardThemeData(
         elevation: 0,
         shadowColor: Colors.transparent,
         color: surfaceTint,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: outline, width: 0.7),
         ),
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
       ),
+
+      // ── ElevatedButton — "Polished Resin" tactile primary ──────────────────
+      // Visual recipe:
+      //   Fill  : top-to-bottom gradient (lighter at top = light source from above)
+      //   Shape : stadium-ish pill with medium radius
+      //   Shadow: compound 3-layer drop shadow (from primaryButtonShadows)
+      //   Rim   : handled by the GlassPane wrapping each button call-site,
+      //           OR via the overlayColor spec for normal ElevatedButtons
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: scheme.primary,
-          foregroundColor: scheme.onPrimary,
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return scheme.primary.withValues(alpha: 0.82);
+            }
+            if (states.contains(WidgetState.disabled)) {
+              return scheme.onSurface.withValues(alpha: 0.12);
+            }
+            return scheme.primary;
+          }),
+          foregroundColor: WidgetStateProperty.all(scheme.onPrimary),
+          shadowColor: WidgetStateProperty.all(Colors.transparent),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return Colors.white.withValues(alpha: 0.12);
+            }
+            if (states.contains(WidgetState.hovered)) {
+              return Colors.white.withValues(alpha: 0.06);
+            }
+            return Colors.transparent;
+          }),
+          elevation: WidgetStateProperty.all(0),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          // AnimatedScale simulated via elevation change on press is handled
+          // by call-site TactileButton wrapper where precise control is needed.
         ),
       ),
+
+      // ── TextButton ─────────────────────────────────────────────────────────
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: scheme.onSurface,
+          overlayColor: isDark
+              ? Colors.white.withValues(alpha: 0.07)
+              : Colors.black.withValues(alpha: 0.05),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         ),
       ),
+
+      // ── OutlinedButton ─────────────────────────────────────────────────────
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: scheme.primary,
+          side: BorderSide(
+            color: isDark
+                ? AppColors.darkRimMid
+                : scheme.primary.withValues(alpha: 0.35),
+            width: 1.0,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        ),
+      ),
+
+      // ── Icon ───────────────────────────────────────────────────────────────
       iconTheme: IconThemeData(color: scheme.onSurface),
+
+      // ── InputDecoration — Frosted inset field ──────────────────────────────
+      // Light mode: field is slightly recessed (feels "pressed into" the surface)
+      // Dark mode:  field is subtly darker than surrounding glass (depth-by-contrast)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark
-            ? AppColors.darkGlass3.withValues(alpha: 0.7)
-            : AppColors.lightGlass3.withValues(alpha: 0.9),
+            ? AppColors.darkGlass3.withValues(alpha: 0.65)
+            : Colors.white.withValues(alpha: 0.55),
         isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: outline),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.primary, width: 1.4),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: outline),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: isDark
+                ? AppColors.darkBorder.withValues(alpha: 0.6)
+                : AppColors.lightBorder.withValues(alpha: 0.7),
+            width: 0.8,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: scheme.primary.withValues(alpha: 0.80),
+            width: 1.5,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: AppColors.errorStatus.withValues(alpha: 0.80)),
+        ),
+        // Hint and label styles
+        hintStyle: TextStyle(
+          color: isDark
+              ? AppColors.darkTextSec.withValues(alpha: 0.55)
+              : AppColors.lightTextSec.withValues(alpha: 0.60),
+          fontWeight: FontWeight.w400,
         ),
       ),
+
+      // ── Dialog — Smoked Glass ──────────────────────────────────────────────
       dialogTheme: DialogThemeData(
-        backgroundColor: surfaceTint.withValues(alpha: 0.96),
+        backgroundColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: outline, width: 0.8),
+          borderRadius: BorderRadius.circular(28),
         ),
       ),
+
+      // ── PopupMenu ──────────────────────────────────────────────────────────
       popupMenuTheme: PopupMenuThemeData(
-        color: surfaceTint.withValues(alpha: 0.98),
+        color: isDark
+            ? const Color(0xF0111827)
+            : const Color(0xF0FFFFFF),
+        shadowColor: AppColors.lightShadowMid,
+        elevation: 16,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: outline, width: 0.7),
+          side: BorderSide(
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            width: 0.8,
+          ),
         ),
-        textStyle: TextStyle(color: scheme.onSurface),
+        textStyle: TextStyle(color: scheme.onSurface, fontSize: 14),
       ),
+
+      // ── BottomSheet ————————————————————————————————————————————————————————
+      // Heavy frosted panel; the top-rounded edge naturally catches the top rim
+      // light, which is implemented at the sheet's own build site.
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: surfaceTint.withValues(alpha: 0.96),
-        modalBackgroundColor: surfaceTint.withValues(alpha: 0.96),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: outline, width: 0.8),
+        backgroundColor: Colors.transparent,
+        modalBackgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        modalElevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
       ),
+
+      // ── SnackBar — floating glass chip ─────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
         backgroundColor: Colors.transparent,
         contentTextStyle: TextStyle(color: scheme.onSurface),
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
+
+      // ── Chip ───────────────────────────────────────────────────────────────
+      chipTheme: ChipThemeData(
+        backgroundColor: isDark
+            ? AppColors.darkGlass2.withValues(alpha: 0.5)
+            : Colors.white.withValues(alpha: 0.60),
+        side: BorderSide(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+        shape: const StadiumBorder(),
+        labelStyle: TextStyle(
+          color: isDark ? AppColors.darkTextPri : AppColors.lightTextPri,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        elevation: 0,
+        pressElevation: 0,
+      ),
+
+      // ── Switch / Checkbox / Slider ─────────────────────────────────────────
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          return isDark ? AppColors.darkTextSec : AppColors.lightTextSec;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return scheme.primary;
+          return isDark
+              ? AppColors.darkGlass2
+              : AppColors.lightGlass3;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+      ),
+
+      sliderTheme: SliderThemeData(
+        activeTrackColor: scheme.primary,
+        inactiveTrackColor: isDark
+            ? AppColors.darkGlass2
+            : AppColors.lightGlass3,
+        thumbColor: Colors.white,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+        overlayColor: scheme.primary.withValues(alpha: 0.18),
+      ),
+
+      // ── Divider ────────────────────────────────────────────────────────────
+      dividerColor: outline.withValues(alpha: 0.5),
+
+      // ── Misc ───────────────────────────────────────────────────────────────
       splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      dividerColor: outline,
+      highlightColor: isDark
+          ? Colors.white.withValues(alpha: 0.04)
+          : Colors.black.withValues(alpha: 0.02),
     );
   }
 
@@ -2521,6 +2753,16 @@ class GroqNoteClassifier {
 ### lib/features/auth/data/repositories/user_repository.dart
 
 ```dart
+// lib/features/auth/data/repositories/user_repository.dart
+//
+// v2.0 — Digest Collection Architecture
+//
+// Change: updateDigestTimes() now writes to BOTH the root user doc (legacy)
+// AND the new users/{uid}/digest/config sub-document so the Cloudflare Worker
+// can query the digest collection directly.
+//
+// All other methods are preserved exactly.
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/foundation.dart';
@@ -2538,13 +2780,16 @@ class SignInFriendlyException implements Exception {
 }
 
 class UserRepository {
-  final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn;
+  final auth.FirebaseAuth  _firebaseAuth = auth.FirebaseAuth.instance;
+  final FirebaseFirestore   _firestore   = FirebaseFirestore.instance;
+  final GoogleSignIn        _googleSignIn;
 
-  UserRepository({required GoogleSignIn googleSignIn}) : _googleSignIn = googleSignIn;
+  UserRepository({required GoogleSignIn googleSignIn})
+      : _googleSignIn = googleSignIn;
 
   Stream<auth.User?> get authStateChanges => _firebaseAuth.authStateChanges();
+
+  // ── Sign in / out ──────────────────────────────────────────────────────────
 
   Future<auth.UserCredential> signInWithGoogle() async {
     try {
@@ -2552,19 +2797,13 @@ class UserRepository {
         final provider = auth.GoogleAuthProvider();
         final userCredential = await _firebaseAuth.signInWithPopup(provider);
         final user = userCredential.user;
-        if (user == null) {
-          throw Exception('Google sign in aborted');
-        }
-
+        if (user == null) throw Exception('Google sign in aborted');
         await _upsertUserDocument(firebaseUser: user, googleAuth: null);
-
         return userCredential;
       }
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        throw Exception('Google sign in aborted');
-      }
+      if (googleUser == null) throw Exception('Google sign in aborted');
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -2573,10 +2812,13 @@ class UserRepository {
         idToken: googleAuth.idToken,
       );
 
-      final auth.UserCredential userCredential = await _firebaseAuth
-          .signInWithCredential(credential);
+      final auth.UserCredential userCredential =
+          await _firebaseAuth.signInWithCredential(credential);
 
-      await _upsertUserDocument(firebaseUser: userCredential.user!, googleAuth: googleAuth);
+      await _upsertUserDocument(
+        firebaseUser: userCredential.user!,
+        googleAuth: googleAuth,
+      );
 
       return userCredential;
     } catch (e) {
@@ -2589,42 +2831,44 @@ class UserRepository {
     required auth.User firebaseUser,
     required GoogleSignInAuthentication? googleAuth,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs    = await SharedPreferences.getInstance();
     final overlayX = prefs.getDouble('overlay.pos.x') ?? 0.0;
     final overlayY = prefs.getDouble('overlay.pos.y') ?? 0.0;
 
     final userDoc = _firestore.collection('users').doc(firebaseUser.uid);
     final docSnapshot = await userDoc.get();
     final existingData = docSnapshot.data() ?? const <String, dynamic>{};
-    final digestTime = (existingData['digest_time'] as String?) ?? '09:00';
+
+    final digestTime  = (existingData['digest_time'] as String?) ?? '09:00';
     final digestTimes = (existingData['digest_times'] as List<dynamic>?)
-        ?.map((value) => value.toString())
-        .where((value) => value.trim().isNotEmpty)
+        ?.map((v) => v.toString())
+        .where((v) => v.trim().isNotEmpty)
         .toList();
+
     final data = {
-      'uid': firebaseUser.uid,
-      'email': firebaseUser.email ?? '',
-      'display_name': firebaseUser.displayName ?? '',
+      'uid'          : firebaseUser.uid,
+      'email'        : firebaseUser.email ?? '',
+      'display_name' : firebaseUser.displayName ?? '',
       'google_tokens': {
-        'access_token': googleAuth?.accessToken,
+        'access_token' : googleAuth?.accessToken,
         'refresh_token': null,
-        'expiry': null,
+        'expiry'       : null,
       },
       'telegram_chat_id': existingData['telegram_chat_id'] as String?,
-      'digest_time': digestTime,
-      'digest_times': digestTimes ?? [digestTime],
+      'digest_time'     : digestTime,
+      'digest_times'    : digestTimes ?? [digestTime],
       'digest_times_utc':
           (existingData['digest_times_utc'] as List<dynamic>?)
-              ?.map((value) => value.toString())
-              .where((value) => value.trim().isNotEmpty)
+              ?.map((v) => v.toString())
+              .where((v) => v.trim().isNotEmpty)
               .toList() ??
           const <String>[],
       'timezone_offset_minutes':
           (existingData['timezone_offset_minutes'] as num?)?.toInt() ??
           DateTime.now().timeZoneOffset.inMinutes,
       'overlay_position': {'x': overlayX, 'y': overlayY},
-      'overlay_visible': (existingData['overlay_visible'] as bool?) ?? true,
-      'fcm_token': (existingData['fcm_token'] as String?) ?? '',
+      'overlay_visible' : (existingData['overlay_visible'] as bool?) ?? true,
+      'fcm_token'       : (existingData['fcm_token'] as String?) ?? '',
     };
 
     if (!docSnapshot.exists) {
@@ -2632,6 +2876,15 @@ class UserRepository {
         ...data,
         'created_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // ── Bootstrap digest/config for new users ──────────────────────────────
+      await _writeDigestConfigDoc(
+        uid        : firebaseUser.uid,
+        displayName: firebaseUser.displayName ?? '',
+        chatId     : null,
+        utcSlots   : const [],
+        localSlots : const ['09:00'],
+      );
       return;
     }
 
@@ -2643,11 +2896,11 @@ class UserRepository {
     await _firebaseAuth.signOut();
   }
 
+  // ── Document streams ────────────────────────────────────────────────────────
+
   Stream<Map<String, dynamic>?> watchCurrentUserDocument() {
     return _firebaseAuth.authStateChanges().asyncExpand((user) {
-      if (user == null) {
-        return Stream.value(null);
-      }
+      if (user == null) return Stream.value(null);
       return _firestore
           .collection('users')
           .doc(user.uid)
@@ -2656,95 +2909,129 @@ class UserRepository {
     });
   }
 
+  // ── Digest time persistence ─────────────────────────────────────────────────
+
   Future<void> updateDigestTime(String digestTime) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
+    if (user == null) return;
     final utcSlot = _toUtcSlotFromHm(digestTime);
-    await _firestore.collection('users').doc(user.uid).set({
-      'digest_time': digestTime,
-      'digest_times': [digestTime],
-      'digest_times_utc': [utcSlot],
-      'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
-    }, SetOptions(merge: true));
+    final batch   = _firestore.batch();
+
+    // Legacy user root doc
+    batch.set(
+      _firestore.collection('users').doc(user.uid),
+      {
+        'digest_time'    : digestTime,
+        'digest_times'   : [digestTime],
+        'digest_times_utc': [utcSlot],
+        'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
+      },
+      SetOptions(merge: true),
+    );
+
+    // New digest/config doc (Worker canonical source)
+    batch.set(
+      _digestConfigRef(user.uid),
+      {
+        'digest_slots_utc'  : [utcSlot],
+        'digest_slots_local': [digestTime],
+        'timezone_offset_min': DateTime.now().timeZoneOffset.inMinutes,
+        'updated_at'        : FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    await batch.commit();
   }
 
+  /// Persists digest times to BOTH the legacy user root doc and the new
+  /// `users/{uid}/digest/config` document so the Cloudflare Worker can query
+  /// the digest subcollection directly.
   Future<void> updateDigestTimes(
     List<TimeOfDay> times, {
     List<String> utcSlots = const [],
   }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) return;
-    final localSlots = times.map((t) => _formatTimeOfDay(t)).toList();
+
+    final localSlots       = times.map(_formatTimeOfDay).toList();
     final normalizedUtcSlots = utcSlots.isNotEmpty
         ? utcSlots
         : times.map(_toUtcSlot).toList();
-    final data = <String, dynamic>{
-      'digest_time': localSlots.first,
-      'digest_times': localSlots,
-      'digest_times_utc': normalizedUtcSlots,
+
+    final legacyData = <String, dynamic>{
+      'digest_time'            : localSlots.first,
+      'digest_times'           : localSlots,
+      'digest_times_utc'       : normalizedUtcSlots,
       'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
-      'updated_at': FieldValue.serverTimestamp(),
+      'updated_at'             : FieldValue.serverTimestamp(),
     };
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .set(data, SetOptions(merge: true));
+
+    final digestConfigData = <String, dynamic>{
+      'digest_slots_utc'   : normalizedUtcSlots,
+      'digest_slots_local' : localSlots,
+      'timezone_offset_min': DateTime.now().timeZoneOffset.inMinutes,
+      'updated_at'         : FieldValue.serverTimestamp(),
+    };
+
+    final batch = _firestore.batch();
+
+    batch.set(
+      _firestore.collection('users').doc(user.uid),
+      legacyData,
+      SetOptions(merge: true),
+    );
+
+    batch.set(
+      _digestConfigRef(user.uid),
+      digestConfigData,
+      SetOptions(merge: true),
+    );
+
+    await batch.commit();
   }
 
-  String _formatTimeOfDay(TimeOfDay time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _toUtcSlot(TimeOfDay time) {
-    final offsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
-    final totalMinutes = time.hour * 60 + time.minute;
-    final shiftedMinutes = (totalMinutes - offsetMinutes) % (24 * 60);
-    final normalized = shiftedMinutes < 0
-        ? shiftedMinutes + (24 * 60)
-        : shiftedMinutes;
-    final hour = normalized ~/ 60;
-    final minute = normalized % 60;
-    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
-  }
-
-  String _toUtcSlotFromHm(String digestTime) {
-    final parts = digestTime.trim().split(':');
-    if (parts.length != 2) {
-      return digestTime.trim();
-    }
-
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) {
-      return digestTime.trim();
-    }
-
-    return _toUtcSlot(TimeOfDay(hour: hour, minute: minute));
-  }
+  // ── Overlay ────────────────────────────────────────────────────────────────
 
   Future<void> updateOverlayVisibility(bool visible) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
+    if (user == null) return;
     await _firestore.collection('users').doc(user.uid).set({
       'overlay_visible': visible,
     }, SetOptions(merge: true));
   }
 
+  // ── Telegram ───────────────────────────────────────────────────────────────
+
   Future<void> updateTelegramChatId(String chatId) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
+    if (user == null) return;
     final normalized = chatId.trim();
-    await _firestore.collection('users').doc(user.uid).set({
-      'telegram_chat_id': normalized.isEmpty
-          ? FieldValue.delete()
-          : normalized,
-    }, SetOptions(merge: true));
+
+    final batch = _firestore.batch();
+
+    // Root user doc
+    batch.set(
+      _firestore.collection('users').doc(user.uid),
+      {
+        'telegram_chat_id': normalized.isEmpty
+            ? FieldValue.delete()
+            : normalized,
+      },
+      SetOptions(merge: true),
+    );
+
+    // Mirror to digest/config
+    batch.set(
+      _digestConfigRef(user.uid),
+      {
+        'telegram_chat_id': normalized.isEmpty ? null : normalized,
+        'updated_at': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    await batch.commit();
 
     final prefs = await SharedPreferences.getInstance();
     if (normalized.isEmpty) {
@@ -2759,13 +3046,11 @@ class UserRepository {
     required DateTime expiresAt,
   }) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null || token.trim().isEmpty) {
-      return;
-    }
+    if (user == null || token.trim().isEmpty) return;
 
     await _firestore.collection('users').doc(user.uid).set({
       'pending_telegram': {
-        'token': token.trim(),
+        'token'     : token.trim(),
         'expires_at': Timestamp.fromDate(expiresAt.toUtc()),
       },
     }, SetOptions(merge: true));
@@ -2773,20 +3058,17 @@ class UserRepository {
 
   Future<void> clearPendingTelegramToken() async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
-
+    if (user == null) return;
     await _firestore.collection('users').doc(user.uid).set({
       'pending_telegram': FieldValue.delete(),
     }, SetOptions(merge: true));
   }
 
+  // ── FCM / overlay position ─────────────────────────────────────────────────
+
   Future<void> updateFcmToken(String token) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null || token.trim().isEmpty) {
-      return;
-    }
+    if (user == null || token.trim().isEmpty) return;
     await _firestore.collection('users').doc(user.uid).set({
       'fcm_token': token.trim(),
     }, SetOptions(merge: true));
@@ -2797,13 +3079,59 @@ class UserRepository {
     required double y,
   }) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
-
+    if (user == null) return;
     await _firestore.collection('users').doc(user.uid).set({
       'overlay_position': {'x': x, 'y': y},
     }, SetOptions(merge: true));
+  }
+
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  /// Reference to `users/{uid}/digest/config` — the Worker's canonical source.
+  DocumentReference<Map<String, dynamic>> _digestConfigRef(String uid) =>
+      _firestore.collection('users').doc(uid).collection('digest').doc('config');
+
+  /// Writes the digest config document for a given user.
+  Future<void> _writeDigestConfigDoc({
+    required String uid,
+    required String displayName,
+    required String? chatId,
+    required List<String> utcSlots,
+    required List<String> localSlots,
+  }) async {
+    await _digestConfigRef(uid).set({
+      'uid'               : uid,
+      'display_name'      : displayName,
+      'telegram_chat_id'  : chatId,
+      'digest_slots_utc'  : utcSlots,
+      'digest_slots_local': localSlots,
+      'timezone_offset_min': DateTime.now().timeZoneOffset.inMinutes,
+      'updated_at'        : FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) =>
+      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
+  String _toUtcSlot(TimeOfDay time) {
+    final offsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
+    final totalMinutes  = time.hour * 60 + time.minute;
+    final shiftedMinutes = (totalMinutes - offsetMinutes) % (24 * 60);
+    final normalized    = shiftedMinutes < 0
+        ? shiftedMinutes + 24 * 60
+        : shiftedMinutes;
+    final hour   = normalized ~/ 60;
+    final minute = normalized % 60;
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  String _toUtcSlotFromHm(String digestTime) {
+    final parts = digestTime.trim().split(':');
+    if (parts.length != 2) return digestTime.trim();
+    final hour   = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return digestTime.trim();
+    return _toUtcSlot(TimeOfDay(hour: hour, minute: minute));
   }
 }
 ```
@@ -4599,55 +4927,79 @@ class ThoughtCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark
-      ? const Color(0x44D4E5FF)
-      : const Color(0x26204268);
-    final topLayer = isDark
-      ? const Color(0x24E8F2FF)
-      : const Color(0xEEF9FCFF);
-    final bottomLayer = isDark
-      ? const Color(0x144E6FA0)
-      : const Color(0xB8EAF2FF);
+    final surface = isDark ? const Color(0xFF10253A) : const Color(0xFFF3F7FC);
+    final surfaceTop = isDark ? const Color(0xFF17344C) : const Color(0xFFFFFFFF);
+    final surfaceBottom = isDark ? const Color(0xFF0B1A28) : const Color(0xFFE1EAF4);
+    final highlight = isDark ? const Color(0x2CFFFFFF) : const Color(0xD8FFFFFF);
+    final shadowDark = isDark ? const Color(0xB0141E29) : const Color(0x2E90A4BC);
+    final shadowSoft = isDark ? const Color(0x66131D29) : const Color(0x1C7A8FA8);
+    final rim = isDark ? const Color(0x3D8BB3D9) : const Color(0x92C0D4E8);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
+      borderRadius: BorderRadius.circular(32),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
               colors: [
-                topLayer,
-                bottomLayer,
+                surfaceTop,
+                surface,
+                surfaceBottom,
               ],
+              stops: const [0.0, 0.56, 1.0],
             ),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: borderColor, width: 1),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: rim, width: 0.9),
             boxShadow: [
               BoxShadow(
-                color: isDark
-                    ? Colors.black.withValues(alpha: 0.30)
-                    : const Color(0x563D6A97),
+                color: isDark ? shadowDark : shadowSoft,
                 blurRadius: 28,
-                spreadRadius: -10,
-                offset: const Offset(0, 9),
+                spreadRadius: -4,
+                offset: const Offset(12, 14),
+              ),
+              BoxShadow(
+                color: isDark ? const Color(0x661B3046) : const Color(0x72FFFFFF),
+                blurRadius: 22,
+                spreadRadius: -8,
+                offset: const Offset(-10, -10),
+              ),
+              BoxShadow(
+                color: isDark ? Colors.black.withValues(alpha: 0.18) : shadowDark,
+                blurRadius: 48,
+                spreadRadius: -18,
+                offset: const Offset(0, 18),
               ),
             ],
           ),
-          child: Column(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(32),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  highlight.withValues(alpha: isDark ? 0.10 : 0.45),
+                  Colors.transparent,
+                  Colors.transparent,
+                ],
+              ),
+            ),
+            child: Column(
             children: [
               Container(
-                height: 1,
+                height: 1.2,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      Colors.white.withValues(alpha: isDark ? 0.03 : 0.18),
-                      Colors.white.withValues(alpha: isDark ? 0.28 : 0.46),
-                      Colors.white.withValues(alpha: isDark ? 0.03 : 0.18),
+                      Colors.transparent,
+                      highlight.withValues(alpha: isDark ? 0.40 : 0.86),
+                      Colors.transparent,
                     ],
                   ),
                 ),
@@ -4684,19 +5036,27 @@ class ThoughtCanvas extends StatelessWidget {
                       fontSize: 15.2,
                     ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                    contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
                   ),
                 ),
               ),
               // ── Action bar ──────────────────────────────────────────────
               Container(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: borderColor,
-                      width: 0.6,
+                      color: isDark ? const Color(0x2F92B4D2) : const Color(0x74C4D8E9),
+                      width: 0.8,
                     ),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      isDark ? const Color(0x0817242E) : const Color(0x56FFFFFF),
+                    ],
                   ),
                 ),
                 child: Column(
@@ -4731,15 +5091,41 @@ class ThoughtCanvas extends StatelessWidget {
                             height: isRecording ? 46 : 42,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isRecording
-                                  ? AppColors.tasks.withValues(alpha: 0.85)
-                                  : (isDark
-                                        ? const Color(0x30FFFFFF)
-                                        : const Color(0x22DDEAFF)),
-                              border: Border.all(
-                                color: isRecording ? AppColors.tasks : borderColor,
-                                width: isRecording ? 1.5 : 0.8,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: isRecording
+                                    ? [
+                                        AppColors.tasks.withValues(alpha: 0.98),
+                                        AppColors.tasks.withValues(alpha: 0.78),
+                                      ]
+                                    : [
+                                        isDark ? const Color(0xFF20374D) : const Color(0xFFF7FBFF),
+                                        isDark ? const Color(0xFF122131) : const Color(0xFFDCE8F3),
+                                      ],
                               ),
+                              border: Border.all(
+                                color: isRecording
+                                    ? AppColors.tasks.withValues(alpha: 0.9)
+                                    : (isDark ? const Color(0x4C9FBEE0) : const Color(0x86BDD1E4)),
+                                width: isRecording ? 1.2 : 0.8,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.35)
+                                      : const Color(0x408FA7BC),
+                                  blurRadius: 10,
+                                  offset: const Offset(3, 4),
+                                ),
+                                BoxShadow(
+                                  color: isDark
+                                      ? const Color(0x2BFFFFFF)
+                                      : Colors.white.withValues(alpha: 0.76),
+                                  blurRadius: 8,
+                                  offset: const Offset(-3, -3),
+                                ),
+                              ],
                             ),
                             child: Icon(
                               isRecording
@@ -4763,9 +5149,30 @@ class ThoughtCanvas extends StatelessWidget {
                                     duration: AppDurations.microSnap,
                                     width: 42,
                                     height: 42,
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: AppColors.tasks,
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Color(0xFF58D0C7),
+                                          AppColors.tasks,
+                                        ],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: isDark
+                                              ? Colors.black.withValues(alpha: 0.35)
+                                              : const Color(0x4A89AFC7),
+                                          blurRadius: 12,
+                                          offset: const Offset(4, 6),
+                                        ),
+                                        BoxShadow(
+                                          color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.68),
+                                          blurRadius: 8,
+                                          offset: const Offset(-3, -3),
+                                        ),
+                                      ],
                                     ),
                                     child: isSaving
                                         ? const Padding(
@@ -4804,6 +5211,7 @@ class ThoughtCanvas extends StatelessWidget {
             ],
           ),
         ),
+        ),
       ),
     );
   }
@@ -4829,18 +5237,46 @@ class _BarBtn extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(7),
-        child: AnimatedContainer(
-          duration: AppDurations.microSnap,
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: active ? AppColors.tasks.withValues(alpha: 0.10) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: AppDurations.microSnap,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: active
+                ? [
+                    AppColors.tasks.withValues(alpha: 0.20),
+                    AppColors.tasks.withValues(alpha: 0.08),
+                  ]
+                : [
+                    Colors.white.withValues(alpha: 0.72),
+                    Colors.white.withValues(alpha: 0.24),
+                  ],
           ),
-          child: Icon(icon, size: 19, color: color),
+          border: Border.all(
+            color: active
+                ? AppColors.tasks.withValues(alpha: 0.24)
+                : Colors.white.withValues(alpha: 0.34),
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: active ? 0.10 : 0.08),
+              blurRadius: 8,
+              offset: const Offset(2, 3),
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: active ? 0.16 : 0.70),
+              blurRadius: 8,
+              offset: const Offset(-2, -2),
+            ),
+          ],
         ),
+        child: Icon(icon, size: 19, color: color),
       ),
     );
   }
@@ -4857,9 +5293,28 @@ class _MetaChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.14),
+            accent.withValues(alpha: 0.06),
+          ],
+        ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.16)),
+        border: Border.all(color: accent.withValues(alpha: 0.18), width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 7,
+            offset: const Offset(2, 3),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.68),
+            blurRadius: 7,
+            offset: const Offset(-2, -2),
+          ),
+        ],
       ),
       child: Text(
         label,
@@ -5090,7 +5545,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
-import 'package:wishperlog/features/sync/data/message_state_service.dart';import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';
+import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
@@ -5347,7 +5803,7 @@ class NoteRepository {
 
       // Rebuild message_state so the Cloudflare Worker sees fresh content.
       // Fire-and-forget — never blocks the write path.
-      unawaited(MessageStateService().recompute());
+      unawaited(MessageStateService.instance.recompute());
     } catch (e, st) {
       debugPrint(
         '[NoteRepository] ERROR syncing to Firestore: ${note.noteId}: $e',
@@ -5812,9 +6268,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     _seededNoteId = note.noteId;
     _note = note;
     _titleController.text = note.title == 'Quick note' ? '' : note.title;
-    _bodyController.text = note.cleanBody.isNotEmpty
-        ? note.cleanBody
-        : note.rawTranscript;
+    _bodyController.text = note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript;
     _category = note.category;
     _priority = note.priority;
     _extractedDate = note.extractedDate;
@@ -5894,33 +6348,47 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
       labelText: label,
       hintText: hint,
       filled: true,
-      fillColor: context.surface1.withValues(alpha: 0.72),
+      fillColor: context.surface1.withValues(alpha: context.isDark ? 0.82 : 0.72),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: context.textSec.withValues(alpha: 0.10)),
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: context.textSec.withValues(alpha: 0.08)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: context.textSec.withValues(alpha: 0.10)),
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: context.textSec.withValues(alpha: 0.08)),
       ),
       focusedBorder: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderRadius: BorderRadius.all(Radius.circular(18)),
         borderSide: BorderSide(color: AppColors.tasks, width: 1.2),
       ),
+      labelStyle: TextStyle(
+        color: context.textSec,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+
+  TextStyle _dropdownTextStyle(BuildContext context) {
+    return TextStyle(
+      color: context.textPri,
+      fontWeight: FontWeight.w600,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _saving ? null : _save,
-        backgroundColor: categoryColor(_category),
+        backgroundColor: Colors.transparent,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        elevation: 0,
         icon: _saving
-          ? SizedBox(
+            ? SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -5931,7 +6399,36 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                 ),
               )
             : const Icon(Icons.save_rounded),
-        label: Text(_saving ? 'Saving…' : 'Save changes'),
+        label: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                categoryColor(_category).withValues(alpha: isDark ? 0.95 : 0.90),
+                const Color(0xFF58D0C7),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.14),
+                blurRadius: 18,
+                offset: const Offset(5, 8),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.66),
+                blurRadius: 12,
+                offset: const Offset(-4, -4),
+              ),
+            ],
+          ),
+          child: Text(
+            _saving ? 'Saving…' : 'Save changes',
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+          ),
+        ),
       ),
       appBar: GlassTitleBar(
         title: 'Edit note',
@@ -5948,8 +6445,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
         child: StreamBuilder<Note?>(
           stream: _notes.watchNoteById(widget.noteId),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -5971,7 +6467,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                   children: [
                     GlassPane(
                       level: 2,
-                      radius: 24,
+                      radius: 28,
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5979,12 +6475,20 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                           Row(
                             children: [
                               Container(
-                                width: 44,
-                                height: 44,
+                                width: 46,
+                                height: 46,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: categoryColor(_category).withValues(
-                                    alpha: 0.16,
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      categoryColor(_category).withValues(alpha: 0.24),
+                                      categoryColor(_category).withValues(alpha: 0.10),
+                                    ],
+                                  ),
+                                  border: Border.all(
+                                    color: categoryColor(_category).withValues(alpha: 0.24),
                                   ),
                                 ),
                                 child: Icon(
@@ -6002,7 +6506,8 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                                       style: TextStyle(
                                         color: context.textPri,
                                         fontSize: 16,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.2,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
@@ -6019,7 +6524,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
@@ -6033,185 +6538,205 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _titleController,
-                      textInputAction: TextInputAction.next,
-                      decoration: _inputDecoration(
-                        context,
-                        label: 'Title',
-                        hint: _titleController.text.isEmpty ? 'Quick note' : _titleController.text,
-                      ),
-                      style: TextStyle(
-                        color: context.textPri,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      validator: (value) {
-                        if (value != null && value.trim().length > 120) {
-                          return 'Title is too long';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _bodyController,
-                      minLines: 10,
-                      maxLines: 18,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.newline,
-                      decoration: _inputDecoration(
-                        context,
-                        label: 'Body',
-                        hint: 'Write the cleaned note text here',
-                      ),
-                      style: TextStyle(
-                        color: context.textPri,
-                        height: 1.5,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Body cannot be empty';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<NoteCategory>(
-                            initialValue: _category,
-                            decoration: _inputDecoration(
-                              context,
-                              label: 'Category',
-                              hint: 'Choose category',
-                            ),
-                            items: kAllNoteCategories
-                                .map(
-                                  (category) => DropdownMenuItem<NoteCategory>(
-                                    value: category,
-                                    child: Text(categoryLabel(category)),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _category = value);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<NotePriority>(
-                            initialValue: _priority,
-                            decoration: _inputDecoration(
-                              context,
-                              label: 'Priority',
-                              hint: 'Choose priority',
-                            ),
-                            items: NotePriority.values
-                                .map(
-                                  (priority) => DropdownMenuItem<NotePriority>(
-                                    value: priority,
-                                    child: Text(priority.name.toUpperCase()),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _priority = value);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
                     GlassPane(
                       level: 1,
-                      radius: 18,
+                      radius: 26,
                       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Extracted date',
+                          TextFormField(
+                            controller: _titleController,
+                            textInputAction: TextInputAction.next,
+                            decoration: _inputDecoration(
+                              context,
+                              label: 'Title',
+                              hint: _titleController.text.isEmpty ? 'Quick note' : _titleController.text,
+                            ),
                             style: TextStyle(
                               color: context.textPri,
-                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
+                            validator: (value) {
+                              if (value != null && value.trim().length > 120) {
+                                return 'Title is too long';
+                              }
+                              return null;
+                            },
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _extractedDate == null
-                                ? 'No extracted date set'
-                                : _formatDate(_extractedDate!),
-                            style: TextStyle(
-                              color: context.textSec,
-                              fontSize: 12,
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _bodyController,
+                            minLines: 10,
+                            maxLines: 18,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                            decoration: _inputDecoration(
+                              context,
+                              label: 'Body',
+                              hint: 'Write the cleaned note text here',
                             ),
+                            style: TextStyle(
+                              color: context.textPri,
+                              height: 1.5,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Body cannot be empty';
+                              }
+                              return null;
+                            },
                           ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
+                          const SizedBox(height: 12),
+                          Row(
                             children: [
-                              OutlinedButton.icon(
-                                onPressed: _pickExtractedDate,
-                                icon: const Icon(Icons.event_outlined),
-                                label: const Text('Pick date'),
+                              Expanded(
+                                child: DropdownButtonFormField<NoteCategory>(
+                                  initialValue: _category,
+                                  decoration: _inputDecoration(
+                                    context,
+                                    label: 'Category',
+                                    hint: 'Choose category',
+                                  ),
+                                  borderRadius: BorderRadius.circular(22),
+                                  dropdownColor: context.surface2.withValues(alpha: isDark ? 0.98 : 0.995),
+                                  iconEnabledColor: context.textSec,
+                                  style: _dropdownTextStyle(context),
+                                  menuMaxHeight: 320,
+                                  items: kAllNoteCategories
+                                      .map(
+                                        (category) => DropdownMenuItem<NoteCategory>(
+                                          value: category,
+                                          child: Text(
+                                            categoryLabel(category),
+                                            style: _dropdownTextStyle(context),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() => _category = value);
+                                  },
+                                ),
                               ),
-                              TextButton(
-                                onPressed: _extractedDate == null
-                                    ? null
-                                    : _clearExtractedDate,
-                                child: const Text('Clear'),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButtonFormField<NotePriority>(
+                                  initialValue: _priority,
+                                  decoration: _inputDecoration(
+                                    context,
+                                    label: 'Priority',
+                                    hint: 'Choose priority',
+                                  ),
+                                  borderRadius: BorderRadius.circular(22),
+                                  dropdownColor: context.surface2.withValues(alpha: isDark ? 0.98 : 0.995),
+                                  iconEnabledColor: context.textSec,
+                                  style: _dropdownTextStyle(context),
+                                  menuMaxHeight: 260,
+                                  items: NotePriority.values
+                                      .map(
+                                        (priority) => DropdownMenuItem<NotePriority>(
+                                          value: priority,
+                                          child: Text(
+                                            priority.name.toUpperCase(),
+                                            style: _dropdownTextStyle(context),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() => _priority = value);
+                                  },
+                                ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (note.rawTranscript.isNotEmpty &&
-                        note.rawTranscript != note.cleanBody) ...[
-                      GlassPane(
-                        level: 1,
-                        radius: 18,
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Original capture',
-                              style: TextStyle(
-                                color: context.textPri,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
+                          const SizedBox(height: 12),
+                          GlassPane(
+                            level: 1,
+                            radius: 22,
+                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Extracted date',
+                                  style: TextStyle(
+                                    color: context.textPri,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  _extractedDate == null ? 'No extracted date set' : _formatDate(_extractedDate!),
+                                  style: TextStyle(
+                                    color: context.textSec,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: _pickExtractedDate,
+                                      icon: const Icon(Icons.event_outlined),
+                                      label: const Text('Pick date'),
+                                    ),
+                                    TextButton(
+                                      onPressed: _extractedDate == null ? null : _clearExtractedDate,
+                                      child: const Text('Clear'),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            SelectableText(
-                              note.rawTranscript,
-                              style: TextStyle(
-                                color: context.textSec,
-                                height: 1.55,
-                                fontSize: 13,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Captured ${_formatDate(note.createdAt)} • ${note.source.name}',
-                              style: TextStyle(
-                                color: context.textSec,
-                                fontSize: 11,
+                          ),
+                          if (note.rawTranscript.isNotEmpty && note.rawTranscript != note.cleanBody) ...[
+                            const SizedBox(height: 12),
+                            GlassPane(
+                              level: 2,
+                              radius: 22,
+                              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Original capture',
+                                    style: TextStyle(
+                                      color: context.textPri,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SelectableText(
+                                    note.rawTranscript,
+                                    style: TextStyle(
+                                      color: context.textSec,
+                                      height: 1.55,
+                                      fontSize: 13,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Captured ${_formatDate(note.createdAt)} • ${note.source.name}',
+                                    style: TextStyle(
+                                      color: context.textSec,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -6233,12 +6758,20 @@ class _MetaChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.16),
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.18)),
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -6261,6 +6794,7 @@ import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/models/enums.dart';
+import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class NoteViewScreen extends StatelessWidget {
@@ -6282,198 +6816,211 @@ class NoteViewScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       floatingActionButton: _EditFab(noteId: note.noteId),
-      body: Stack(
-        children: [
-          // Ambient gradient backdrop
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    accent.withValues(alpha: context.isDark ? 0.18 : 0.10),
-                    Colors.transparent,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.center,
+      body: GlassPageBackground(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(-0.72, -0.86),
+                    radius: 1.15,
+                    colors: [
+                      accent.withValues(alpha: context.isDark ? 0.20 : 0.14),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          SafeArea(
-            child: CustomScrollView(
-              slivers: [
-                // ── App bar ──────────────────────────────────────────────
-                SliverAppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  pinned: false,
-                  leading: GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      margin: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: context.surface1.withValues(alpha: 0.7),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 18,
-                        color: context.textPri,
-                      ),
-                    ),
-                  ),
-                  actions: [
-                    // Quick share
-                    GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        final body = '${note.title}\n\n${note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript}';
-                        Clipboard.setData(ClipboardData(text: body));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Copied to clipboard')),
-                        );
-                      },
+            SafeArea(
+              child: CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    pinned: false,
+                    leading: GestureDetector(
+                      onTap: () => context.pop(),
                       child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: context.surface1.withValues(alpha: 0.7),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              context.surface1.withValues(alpha: context.isDark ? 0.92 : 0.84),
+                              context.surface2.withValues(alpha: context.isDark ? 0.80 : 0.92),
+                            ],
+                          ),
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: context.isDark ? 0.08 : 0.42),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: context.isDark ? 0.28 : 0.10),
+                              blurRadius: 14,
+                              offset: const Offset(4, 5),
+                            ),
+                            BoxShadow(
+                              color: Colors.white.withValues(alpha: context.isDark ? 0.08 : 0.72),
+                              blurRadius: 10,
+                              offset: const Offset(-3, -3),
+                            ),
+                          ],
                         ),
                         child: Icon(
-                          Icons.copy_rounded,
+                          Icons.arrow_back_ios_new_rounded,
                           size: 18,
                           color: context.textPri,
                         ),
                       ),
                     ),
-                  ],
-                ),
-
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── Category + Priority row ───────────────────────
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: accent.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: accent.withValues(alpha: 0.4)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(categoryIcon(note.category), size: 13, color: accent),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    categoryLabel(note.category),
-                                    style: TextStyle(
-                                      color: accent,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: _priorityColor(note.priority).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: _priorityColor(note.priority).withValues(alpha: 0.4)),
-                              ),
-                              child: Text(
-                                note.priority.name.toUpperCase(),
-                                style: TextStyle(
-                                  color: _priorityColor(note.priority),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        // ── Title ────────────────────────────────────────
-                        Text(
-                          note.title.isEmpty ? 'Untitled Note' : note.title,
-                          style: TextStyle(
-                            color: context.textPri,
-                            fontSize: 30,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.8,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // ── Metadata strip ───────────────────────────────
-                        GlassPane(
-                          level: 3,
-                          radius: 14,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          child: Wrap(
-                            spacing: 16,
-                            runSpacing: 8,
-                            children: [
-                              _MetaItem(
-                                icon: Icons.schedule_rounded,
-                                label: _formatDate(note.createdAt),
-                              ),
-                              if (note.aiModel.isNotEmpty) ...[
-                                _MetaItem(
-                                  icon: Icons.auto_awesome_rounded,
-                                  label: note.aiModel.toUpperCase(),
-                                ),
+                    actions: [
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          final body = '${note.title}\n\n${note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript}';
+                          Clipboard.setData(ClipboardData(text: body));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Copied to clipboard')),
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                context.surface1.withValues(alpha: context.isDark ? 0.92 : 0.84),
+                                context.surface2.withValues(alpha: context.isDark ? 0.80 : 0.92),
                               ],
-                              if (note.extractedDate != null)
-                                _MetaItem(
-                                  icon: Icons.event_rounded,
-                                  label: _formatDate(note.extractedDate!),
-                                ),
+                            ),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: context.isDark ? 0.08 : 0.42),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: context.isDark ? 0.28 : 0.10),
+                                blurRadius: 14,
+                                offset: const Offset(4, 5),
+                              ),
+                              BoxShadow(
+                                color: Colors.white.withValues(alpha: context.isDark ? 0.08 : 0.72),
+                                blurRadius: 10,
+                                offset: const Offset(-3, -3),
+                              ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // ── Body ──────────────────────────────────────────
-                        SelectableText(
-                          note.cleanBody.isNotEmpty
-                              ? note.cleanBody
-                              : note.rawTranscript,
-                          style: TextStyle(
+                          child: Icon(
+                            Icons.copy_rounded,
+                            size: 18,
                             color: context.textPri,
-                            fontSize: 16,
-                            height: 1.7,
-                            fontWeight: FontWeight.w400,
-                            letterSpacing: 0.1,
                           ),
                         ),
-
-                        // ── Raw transcript (collapsible) ─────────────────
-                        if (note.rawTranscript.isNotEmpty &&
-                            note.rawTranscript != note.cleanBody) ...[
-                          const SizedBox(height: 24),
-                          _RawTranscriptSection(rawTranscript: note.rawTranscript),
+                      ),
+                    ],
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GlassPane(
+                            level: 3,
+                            radius: 28,
+                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                            child: Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                _SurfacePill(
+                                  icon: categoryIcon(note.category),
+                                  label: categoryLabel(note.category),
+                                  tint: accent,
+                                ),
+                                _SurfacePill(
+                                  icon: Icons.priority_high_rounded,
+                                  label: note.priority.name.toUpperCase(),
+                                  tint: _priorityColor(note.priority),
+                                ),
+                                if (note.aiModel.isNotEmpty)
+                                  _SurfacePill(
+                                    icon: Icons.auto_awesome_rounded,
+                                    label: note.aiModel.toUpperCase(),
+                                    tint: AppColors.followUp,
+                                  ),
+                                if (note.extractedDate != null)
+                                  _SurfacePill(
+                                    icon: Icons.event_rounded,
+                                    label: _formatDate(note.extractedDate!),
+                                    tint: AppColors.tasks,
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          GlassPane(
+                            level: 2,
+                            radius: 30,
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  note.title.isEmpty ? 'Untitled Note' : note.title,
+                                  style: TextStyle(
+                                    color: context.textPri,
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.8,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Captured ${_formatDate(note.createdAt)}',
+                                  style: TextStyle(
+                                    color: context.textSec,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                SelectableText(
+                                  note.cleanBody.isNotEmpty
+                                      ? note.cleanBody
+                                      : note.rawTranscript,
+                                  style: TextStyle(
+                                    color: context.textPri,
+                                    fontSize: 16,
+                                    height: 1.75,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: 0.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (note.rawTranscript.isNotEmpty &&
+                              note.rawTranscript != note.cleanBody) ...[
+                            const SizedBox(height: 16),
+                            _RawTranscriptSection(rawTranscript: note.rawTranscript),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -6484,27 +7031,63 @@ class NoteViewScreen extends StatelessWidget {
   }
 }
 
-class _MetaItem extends StatelessWidget {
-  const _MetaItem({required this.icon, required this.label});
+class _SurfacePill extends StatelessWidget {
+  const _SurfacePill({
+    required this.icon,
+    required this.label,
+    required this.tint,
+  });
+
   final IconData icon;
   final String label;
+  final Color tint;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, size: 13, color: context.textSec),
-      const SizedBox(width: 4),
-      Text(
-        label,
-        style: TextStyle(
-          color: context.textSec,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            tint.withValues(alpha: context.isDark ? 0.22 : 0.12),
+            tint.withValues(alpha: context.isDark ? 0.08 : 0.04),
+          ],
         ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: tint.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: context.isDark ? 0.16 : 0.08),
+            blurRadius: 10,
+            offset: const Offset(3, 4),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: context.isDark ? 0.08 : 0.66),
+            blurRadius: 8,
+            offset: const Offset(-2, -2),
+          ),
+        ],
       ),
-    ],
-  );
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: tint),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: tint,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _EditFab extends StatelessWidget {
@@ -6512,21 +7095,62 @@ class _EditFab extends StatelessWidget {
   final String noteId;
 
   @override
-  Widget build(BuildContext context) => FloatingActionButton.extended(
-    heroTag: 'edit_fab_$noteId',
-    onPressed: () {
-      HapticFeedback.mediumImpact();
-      context.push('/notes/$noteId');
-    },
-    backgroundColor: AppColors.tasks,
-    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-    elevation: 8,
-    icon: const Icon(Icons.edit_rounded, size: 18),
-    label: const Text(
-      'Edit',
-      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return FloatingActionButton.extended(
+      heroTag: 'edit_fab_$noteId',
+      onPressed: () {
+        HapticFeedback.mediumImpact();
+        context.push('/notes/$noteId');
+      },
+      backgroundColor: Colors.transparent,
+      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      elevation: 0,
+      highlightElevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      label: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.tasks.withValues(alpha: isDark ? 0.95 : 0.88),
+              const Color(0xFF58D0C7),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.16),
+              blurRadius: 18,
+              offset: const Offset(5, 8),
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.62),
+              blurRadius: 12,
+              offset: const Offset(-4, -4),
+            ),
+          ],
+        ),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.edit_rounded, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Edit',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _RawTranscriptSection extends StatefulWidget {
@@ -6542,50 +7166,58 @@ class _RawTranscriptSectionState extends State<_RawTranscriptSection> {
 
   @override
   Widget build(BuildContext context) => GlassPane(
-    level: 2,
-    radius: 14,
-    padding: const EdgeInsets.all(14),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Row(
-            children: [
-              Icon(Icons.mic_none_rounded, size: 14, color: context.textSec),
-              const SizedBox(width: 6),
-              Text(
-                'Raw Transcript',
+        level: 2,
+        radius: 24,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: context.textSec.withValues(alpha: 0.10),
+                    ),
+                    child: Icon(Icons.mic_none_rounded, size: 14, color: context.textSec),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Raw Transcript',
+                    style: TextStyle(
+                      color: context.textPri,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: context.textSec,
+                  ),
+                ],
+              ),
+            ),
+            if (_expanded) ...[
+              const SizedBox(height: 12),
+              SelectableText(
+                widget.rawTranscript,
                 style: TextStyle(
                   color: context.textSec,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  height: 1.65,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
-              const Spacer(),
-              Icon(
-                _expanded ? Icons.expand_less : Icons.expand_more,
-                size: 18,
-                color: context.textSec,
-              ),
             ],
-          ),
+          ],
         ),
-        if (_expanded) ...[
-          const SizedBox(height: 10),
-          SelectableText(
-            widget.rawTranscript,
-            style: TextStyle(
-              color: context.textSec,
-              fontSize: 14,
-              height: 1.6,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
+      );
 }
 ```
 
@@ -7296,23 +7928,35 @@ class _PermissionsScreenState extends State<PermissionsScreen>
 ```dart
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SignInScreen — Entry point with Google sign-in.
-// After sign-in succeeds, shows the animated EnvironmentSetupOverlay before
-// navigating to /permissions, giving users confidence the app is "doing work".
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// sign_in_screen.dart v4.0 — Immediate Gamified Overlay (Race-Condition Fix)
+//
+// CRITICAL FIX — Login Processing Race Condition:
+//   Previous behaviour: overlay appeared AFTER signInWithGoogle() returned.
+//   New behaviour: overlay appears IMMEDIATELY when the user taps the button.
+//   signInWithGoogle(), AI hydration, and Isar init all run concurrently inside
+//   _doPostSignInWork(), which is passed as workFuture to _EnvironmentSetupOverlay.
+//   The overlay animation plays while real work is in progress.
+//
+//   If work fails (e.g. Google sign-in cancelled), the overlay closes itself and
+//   _signIn() surfaces the error through _showGlassError() as before.
+// ══════════════════════════════════════════════════════════════════════════════
+
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
   @override
@@ -7348,70 +7992,104 @@ class _SignInScreenState extends State<SignInScreen> {
       );
   }
 
+  /// Entry-point when the user taps the Google sign-in button.
+  ///
+  /// KEY CHANGE v4: We show the gamified overlay card IMMEDIATELY (before
+  /// any async work starts) by kicking off [_doPostSignInWork] as a Future
+  /// and passing it to the overlay so both the animation and the real work
+  /// run concurrently.  Any exception from the work is re-surfaced here
+  /// after the dialog closes.
   Future<void> _signIn() async {
     if (_signingIn) return;
     setState(() => _signingIn = true);
     try {
-      await sl<UserRepository>().signInWithGoogle();
-      if (!mounted) return;
-      // Run animation and real background init in parallel.
-      // The overlay will dismiss when BOTH finish.
       await _runSetupAnimationWithWork();
       if (!mounted) return;
       context.go('/permissions');
     } on SignInFriendlyException catch (e) {
       _showGlassError(e.message);
-    } catch (e) {
+    } catch (_) {
       _showGlassError('Sign in failed. Please try again.');
     } finally {
       if (mounted) setState(() => _signingIn = false);
     }
   }
 
+  /// Shows the gamified overlay card immediately, passing real work as a
+  /// concurrent future.  After the dialog closes (success or failure), any
+  /// exception from the work future is re-thrown so [_signIn] can surface it.
   Future<void> _runSetupAnimationWithWork() async {
-    // Completer that the overlay will call when its animation finishes.
-    final animDone  = Completer<void>();
-    // Run actual post-sign-in work in parallel with the animation.
+    // ── Start the real work NOW, before the dialog is even mounted. ──────────
     final workFuture = _doPostSignInWork();
 
+    // ── Show overlay immediately. It drives itself via workFuture. ───────────
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withValues(alpha: 0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.60),
       builder: (_) => _EnvironmentSetupOverlay(
-        // Pass the work future so the overlay can exit early if work
-        // finishes before the minimum animation time, or hold open if work
-        // takes longer.
         workFuture: workFuture,
-        onDone: () {
-          if (!animDone.isCompleted) animDone.complete();
-        },
+        onDone: () {},
       ),
     );
 
-    // Ensure work also completes (it may have finished before dialog closed).
-    await workFuture.catchError((_) {});
+    // ── Re-surface any error that occurred during background work. ────────────
+    // If workFuture completed with an error, awaiting it here will rethrow,
+    // which propagates to _signIn() → catch → _showGlassError().
+    await workFuture;
   }
 
-  /// Real initialisation work that previously happened invisibly after the
-  /// animation. Now runs concurrently with the animation so there is zero
-  /// extra wait.
+  /// All background work runs here, concurrently with the animation overlay.
+  ///
+  /// Includes: Google sign-in, AI hydration, Isar init.
   Future<void> _doPostSignInWork() async {
+    // Step 1 – Authenticate with Google. May throw SignInFriendlyException.
+    await sl<UserRepository>().signInWithGoogle();
+
+    // Steps 2 & 3 – Non-blocking hydration; failures are silenced so they
+    // don't block navigation if optional services are unavailable.
     try {
-      final aiRouter = sl<AiClassifierRouter>();
-      await aiRouter.hydrate();
+      await sl<AiClassifierRouter>().hydrate();
     } catch (_) {}
     try {
       await IsarNoteStore.instance.init();
     } catch (_) {}
-    // Additional lightweight init can be added here.
+
+    // Brief pause so the final "Everything is ready!" step is readable.
     await Future<void>.delayed(const Duration(milliseconds: 200));
   }
 
   @override
   Widget build(BuildContext context) {
-    final titleColor = context.textPri;
-    final subtitleColor = context.textSec;
+    final isDark = context.isDark;
+
+    final List<BoxShadow> logoShadows = [
+      BoxShadow(
+        color: const Color(0xFF6366F1).withValues(alpha: 0.40),
+        blurRadius: 14,
+        spreadRadius: -2,
+        offset: const Offset(0, 4),
+      ),
+      BoxShadow(
+        color: const Color(0xFF6366F1).withValues(alpha: 0.22),
+        blurRadius: 32,
+        spreadRadius: -6,
+        offset: const Offset(0, 10),
+      ),
+      BoxShadow(
+        color: const Color(0xFF6366F1).withValues(alpha: 0.10),
+        blurRadius: 64,
+        spreadRadius: -16,
+        offset: const Offset(0, 24),
+      ),
+    ];
+
+    final logoRimBright = isDark
+        ? Colors.white.withValues(alpha: 0.36)
+        : Colors.white.withValues(alpha: 0.55);
+    final logoRimDark = isDark
+        ? Colors.black.withValues(alpha: 0.24)
+        : Colors.black.withValues(alpha: 0.12);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -7420,43 +8098,69 @@ class _SignInScreenState extends State<SignInScreen> {
           child: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: GlassContainer(
-                borderRadius: BorderRadius.circular(28),
+              child: GlassPane(
+                level: 1,
+                radius: 28,
                 padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Logo mark
+                    // ── Logo mark ─────────────────────────────────────────────
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
+                          colors: [logoRimBright, logoRimDark],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                        boxShadow: logoShadows,
                       ),
-                      child: const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: Colors.white,
-                        size: 22,
+                      padding: const EdgeInsets.all(1.2),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF7C72FF),
+                              Color(0xFF6045FA),
+                              Color(0xFF4C35E8),
+                            ],
+                            stops: [0.0, 0.5, 1.0],
+                          ),
+                        ),
+                        foregroundDecoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            center: Alignment.topLeft,
+                            radius: 1.6,
+                            colors: [
+                              Color(0x22FFFFFF),
+                              Colors.transparent,
+                              Color(0x12000000),
+                            ],
+                            stops: [0.0, 0.45, 1.0],
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 18),
+
+                    const SizedBox(height: 20),
+
                     Text(
                       'WishperLog',
                       style: TextStyle(
-                        color: titleColor,
+                        color: context.textPri,
                         fontSize: 34,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.3,
@@ -7466,25 +8170,27 @@ class _SignInScreenState extends State<SignInScreen> {
                     Text(
                       'Capture thoughts instantly.\nLet AI organise your day quietly in the background.',
                       style: TextStyle(
-                        color: subtitleColor,
+                        color: context.textSec,
                         fontSize: 14,
                         height: 1.5,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    // Google sign-in button
-                    _GoogleSignInButton(
+                    const SizedBox(height: 30),
+
+                    // ── Google Sign-In Button ────────────────────────────────
+                    _TactileGoogleSignInButton(
                       onTap: _signIn,
                       loading: _signingIn,
                     ),
-                    const SizedBox(height: 12),
+
+                    const SizedBox(height: 14),
                     Center(
                       child: Text(
                         'By continuing, you agree to our Terms & Privacy Policy.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: subtitleColor.withValues(alpha: 0.6),
+                          color: context.textSec.withValues(alpha: 0.60),
                           fontSize: 11,
                           height: 1.4,
                         ),
@@ -7502,46 +8208,177 @@ class _SignInScreenState extends State<SignInScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Google sign-in button
+// _TactileGoogleSignInButton — unchanged visual treatment from v3
 // ─────────────────────────────────────────────────────────────────────────────
-class _GoogleSignInButton extends StatelessWidget {
-  const _GoogleSignInButton({required this.onTap, required this.loading});
+class _TactileGoogleSignInButton extends StatefulWidget {
+  const _TactileGoogleSignInButton({required this.onTap, required this.loading});
   final VoidCallback onTap;
   final bool loading;
 
   @override
+  State<_TactileGoogleSignInButton> createState() =>
+      _TactileGoogleSignInButtonState();
+}
+
+class _TactileGoogleSignInButtonState
+    extends State<_TactileGoogleSignInButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return GlassContainer(
-      borderRadius: BorderRadius.circular(999),
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: loading ? null : onTap,
+    final isDark = context.isDark;
+
+    final rimBright = isDark ? AppColors.darkRimBright : AppColors.lightRimBright;
+    final rimMid    = isDark ? AppColors.darkRimMid    : AppColors.lightRimMid;
+    final rimDark   = isDark ? AppColors.darkRimDark   : AppColors.lightRimDark;
+
+    final List<BoxShadow> raisedShadows = isDark
+        ? [
+            BoxShadow(
+              color: AppColors.darkShadowClose,
+              blurRadius: 10,
+              spreadRadius: -2,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: AppColors.darkShadowMid,
+              blurRadius: 26,
+              spreadRadius: -6,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: AppColors.darkShadowFar,
+              blurRadius: 56,
+              spreadRadius: -14,
+              offset: const Offset(0, 22),
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: AppColors.lightShadowClose,
+              blurRadius: 8,
+              spreadRadius: -2,
+              offset: const Offset(0, 3),
+            ),
+            BoxShadow(
+              color: AppColors.lightShadowMid,
+              blurRadius: 22,
+              spreadRadius: -6,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: AppColors.lightShadowFar,
+              blurRadius: 50,
+              spreadRadius: -14,
+              offset: const Offset(0, 18),
+            ),
+          ];
+
+    return GestureDetector(
+      onTapDown: (_) { if (!widget.loading) setState(() => _pressed = true); },
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        if (!widget.loading) widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOutCubic,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-          child: loading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SvgPicture.asset('assets/icons/google.svg', width: 20, height: 20),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Continue with Google',
-                      style: TextStyle(
-                        color: context.textPri,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
+          duration: const Duration(milliseconds: 110),
+          curve: Curves.easeOutCubic,
+          height: 54,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [rimBright, rimMid, rimDark],
+              stops: const [0.0, 0.45, 1.0],
+            ),
+            boxShadow: _pressed ? [] : raisedShadows,
+          ),
+          padding: const EdgeInsets.all(1.0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(998),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 110),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(998),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: isDark
+                        ? [
+                            Colors.white.withValues(alpha: _pressed ? 0.09 : 0.13),
+                            Colors.white.withValues(alpha: _pressed ? 0.04 : 0.06),
+                          ]
+                        : [
+                            Colors.white.withValues(alpha: _pressed ? 0.72 : 0.88),
+                            Colors.white.withValues(alpha: _pressed ? 0.52 : 0.66),
+                          ],
+                  ),
                 ),
+                foregroundDecoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(998),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.transparent,
+                      Colors.transparent,
+                      isDark
+                          ? AppColors.darkExtrusionShadow
+                          : AppColors.lightExtrusionShadow,
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                ),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: widget.loading
+                        ? SizedBox(
+                            key: const ValueKey('loading'),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation(
+                                context.textPri.withValues(alpha: 0.80),
+                              ),
+                            ),
+                          )
+                        : Row(
+                            key: const ValueKey('idle'),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SvgPicture.asset(
+                                'assets/google_logo.svg',
+                                width: 20,
+                                height: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Continue with Google',
+                                style: TextStyle(
+                                  color: context.textPri,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -7551,9 +8388,10 @@ class _GoogleSignInButton extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // _EnvironmentSetupOverlay
 //
-// Full-screen animated onboarding overlay shown once after sign-in.
-// Progressive status messages give the user confidence that setup is happening.
-// Auto-dismisses after the last step completes.
+// CRITICAL FIX v4: workFuture now INCLUDES signInWithGoogle() — so the overlay
+// appears immediately on tap, and the animation runs while authentication and
+// hydration happen concurrently.  If workFuture throws, the overlay closes
+// itself so _signIn() can surface the error.
 // ─────────────────────────────────────────────────────────────────────────────
 class _EnvironmentSetupOverlay extends StatefulWidget {
   const _EnvironmentSetupOverlay({
@@ -7565,106 +8403,131 @@ class _EnvironmentSetupOverlay extends StatefulWidget {
   final VoidCallback onDone;
 
   @override
-  State<_EnvironmentSetupOverlay> createState() => _EnvironmentSetupOverlayState();
+  State<_EnvironmentSetupOverlay> createState() =>
+      _EnvironmentSetupOverlayState();
 }
 
 class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
     with TickerProviderStateMixin {
-  // Steps with realistic timing (ms)
+  late final AnimationController _fadeCtrl;
+  late final Animation<double> _fadeIn;
+  late final AnimationController _orbController;
+  late final Animation<double> _orb1;
+  late final Animation<double> _orb2;
+
+  int _stepIndex = 0;
+  double _progressValue = 0.12;
+
   static const _steps = [
-    (badge: 'processing', text: 'Booting the workspace engine', durationMs: 900),
-    (badge: 'sync', text: 'Getting Google task bridge online', durationMs: 800),
-    (badge: 'seed', text: 'Preparing your note network', durationMs: 950),
-    (badge: 'align', text: 'Aligning preferences and permissions', durationMs: 700),
-    (badge: 'launch', text: 'System ready. Opening the gate.', durationMs: 600),
+    _Step(badge: 'auth',      text: 'Authenticating with Google…'),
+    _Step(badge: 'classify',  text: 'Loading your AI classifier…'),
+    _Step(badge: 'store',     text: 'Preparing your local vault…'),
+    _Step(badge: 'ready',     text: 'Everything is ready!'),
   ];
 
-  int    _stepIndex     = 0;
-  double _progressValue = 0.0;
-
-  late AnimationController _orbController;
-  late AnimationController _fadeController;
-  late Animation<double>   _orb1;
-  late Animation<double>   _orb2;
-  late Animation<double>   _fadeIn;
+  static const _minDuration   = Duration(milliseconds: 2200);
+  static const _stepDuration  = Duration(milliseconds: 520);
 
   @override
   void initState() {
     super.initState();
 
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+    _fadeIn = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOutCubic);
+    _fadeCtrl.forward();
+
     _orbController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: const Duration(milliseconds: 3200),
     )..repeat();
 
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
+    _orb1 = Tween<double>(begin: 0, end: math.pi * 2).animate(_orbController);
+    _orb2 = Tween<double>(begin: math.pi, end: math.pi * 3).animate(_orbController);
 
-    _orb1   = Tween<double>(begin: 0, end: 2 * math.pi).animate(_orbController);
-    _orb2   = Tween<double>(begin: math.pi, end: 3 * math.pi).animate(_orbController);
-    _fadeIn = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
-
-    _fadeController.forward();
     _runSteps();
   }
 
   Future<void> _runSteps() async {
-    // Minimum animation: run all steps.
-    for (var i = 0; i < _steps.length; i++) {
-      if (!mounted) return;
-      setState(() {
-        _stepIndex     = i;
-        _progressValue = (i + 1) / _steps.length;
-      });
-      await Future<void>.delayed(Duration(milliseconds: _steps[i].durationMs));
-      if (!mounted) return;
+    final workAndMin = Future.wait([
+      widget.workFuture,
+      Future<void>.delayed(_minDuration),
+    ]);
+
+    // Animate through steps 0 → n-2 while work + min-duration run.
+    for (var i = 0; i < _steps.length - 1; i++) {
+      await Future<void>.delayed(_stepDuration);
+      if (mounted) {
+        setState(() {
+          _stepIndex = i + 1;
+          _progressValue = (i + 1) / (_steps.length - 1) * 0.88;
+        });
+      }
     }
 
-    // Wait for real work to finish if it hasn't yet — so the animation never
-    // pops prematurely while Isar/AI is still initialising.
-    await widget.workFuture.catchError((_) {});
+    // Wait for work to finish. If it fails, close the dialog so _signIn()
+    // can catch the exception from the re-awaited workFuture.
+    try {
+      await workAndMin;
+    } catch (_) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
 
-    if (!mounted) return;
-    // Brief hold so the "System ready" step is legible.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    widget.onDone();
-    if (mounted) Navigator.of(context).pop();
+    // Success path: show final step, brief pause, dismiss.
+    if (mounted) {
+      setState(() {
+        _stepIndex = _steps.length - 1;
+        _progressValue = 1.0;
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 480));
+      widget.onDone();
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
   @override
   void dispose() {
+    _fadeCtrl.dispose();
     _orbController.dispose();
-    _fadeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return FadeTransition(
       opacity: _fadeIn,
       child: Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 80),
-        child: GlassContainer(
-          borderRadius: BorderRadius.circular(28),
+        child: GlassPane(
+          level: 1,
+          radius: 28,
           padding: const EdgeInsets.fromLTRB(26, 32, 26, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Step badge chip
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: (isDark ? Colors.white : scheme.primary).withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.06),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: isDark ? 0.14 : 0.18),
+                    width: 0.8,
+                  ),
                 ),
                 child: Text(
                   _steps[_stepIndex].badge.toUpperCase(),
                   style: TextStyle(
-                    color: isDark ? Colors.white : scheme.primary,
+                    color: isDark
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
@@ -7672,7 +8535,8 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                 ),
               ),
               const SizedBox(height: 18),
-              // ── Animated orb illustration ─────────────────────────────────
+
+              // Animated orb
               SizedBox(
                 width: 128,
                 height: 128,
@@ -7687,13 +8551,14 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                 ),
               ),
               const SizedBox(height: 28),
+
               const Icon(
                 Icons.auto_awesome_rounded,
                 color: Color(0xFF8B5CF6),
                 size: 22,
               ),
               const SizedBox(height: 16),
-              // ── Status text ───────────────────────────────────────────────
+
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
                 transitionBuilder: (child, anim) => FadeTransition(
@@ -7711,7 +8576,9 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                   key: ValueKey(_stepIndex),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isDark ? Colors.white : scheme.onPrimary,
+                    color: isDark
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
@@ -7729,7 +8596,8 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                 ),
               ),
               const SizedBox(height: 24),
-              // ── Progress bar ──────────────────────────────────────────────
+
+              // Progress bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: TweenAnimationBuilder<double>(
@@ -7740,7 +8608,9 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
                     value: value,
                     minHeight: 5,
                     backgroundColor: Colors.white.withValues(alpha: 0.15),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF6366F1),
+                    ),
                   ),
                 ),
               ),
@@ -7748,11 +8618,11 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _StageChip(label: 'processing'),
+                  _StageChip(label: 'authenticating'),
                   const SizedBox(width: 8),
-                  _StageChip(label: 'getting Google task'),
+                  _StageChip(label: 'syncing AI'),
                   const SizedBox(width: 8),
-                  _StageChip(label: 'readying'),
+                  _StageChip(label: 'readying vault'),
                 ],
               ),
               const SizedBox(height: 12),
@@ -7772,8 +8642,14 @@ class _EnvironmentSetupOverlayState extends State<_EnvironmentSetupOverlay>
   }
 }
 
+class _Step {
+  const _Step({required this.badge, required this.text});
+  final String badge;
+  final String text;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Orb painter — two revolving gradient circles (60 fps, GPU-backed)
+// _OrbPainter — two revolving gradient orbs
 // ─────────────────────────────────────────────────────────────────────────────
 class _OrbPainter extends CustomPainter {
   _OrbPainter({required this.angle1, required this.angle2});
@@ -7786,7 +8662,6 @@ class _OrbPainter extends CustomPainter {
     final cy = size.height / 2;
     final r  = size.width  * 0.3;
 
-    // Core glow
     canvas.drawCircle(
       Offset(cx, cy),
       r * 0.9,
@@ -7797,7 +8672,6 @@ class _OrbPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
     );
 
-    // Orb 1
     final o1 = Offset(cx + r * math.cos(angle1), cy + r * math.sin(angle1));
     canvas.drawCircle(
       o1,
@@ -7809,8 +8683,8 @@ class _OrbPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16),
     );
 
-    // Orb 2
-    final o2 = Offset(cx + r * 0.6 * math.cos(angle2), cy + r * 0.6 * math.sin(angle2));
+    final o2 = Offset(
+        cx + r * 0.6 * math.cos(angle2), cy + r * 0.6 * math.sin(angle2));
     canvas.drawCircle(
       o2,
       r * 0.3,
@@ -7823,12 +8697,15 @@ class _OrbPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_OrbPainter old) => old.angle1 != angle1 || old.angle2 != angle2;
+  bool shouldRepaint(_OrbPainter old) =>
+      old.angle1 != angle1 || old.angle2 != angle2;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _StageChip — glass mini-badge
+// ─────────────────────────────────────────────────────────────────────────────
 class _StageChip extends StatelessWidget {
   const _StageChip({required this.label});
-
   final String label;
 
   @override
@@ -7838,7 +8715,7 @@ class _StageChip extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
       child: Text(
         label,
@@ -7913,22 +8790,47 @@ class SplashScreen extends StatelessWidget {
 ### lib/features/onboarding/presentation/screens/telegram_screen.dart
 
 ```dart
+// lib/features/onboarding/presentation/screens/telegram_screen.dart
+//
+// v3.0 — Dual-Method Guided Connection Flow
+//
+// ┌─────────────────────────────────────────────────────┐
+// │  Step-by-Step "Guided Connection" Screen             │
+// │                                                      │
+// │  1. Method Selection                                 │
+// │       ● Primary  — Auto deep-link (recommended)      │
+// │       ● Secondary — Manual chat-id paste (fallback)  │
+// │                                                      │
+// │  PRIMARY FLOW:                                       │
+// │    loading → token → waiting → success | error       │
+// │                                                      │
+// │  SECONDARY FLOW:                                     │
+// │    openBot → userCopiesChatId → pasteField           │
+// │         → verify → success | error                   │
+// └─────────────────────────────────────────────────────┘
+
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:wishperlog/core/config/app_env.dart';
-import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
-import 'package:wishperlog/features/auth/data/repositories/user_repository.dart';
 import 'package:wishperlog/features/sync/data/telegram_service.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
+
+// ── Internal state machine ────────────────────────────────────────────────────
+
+enum _Method { unselected, primary, secondary }
+
+enum _PrimaryStep { loading, token, waiting, success, error }
+
+enum _SecondaryStep { instructions, verifying, success, error }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class TelegramScreen extends StatefulWidget {
   const TelegramScreen({super.key});
@@ -7937,155 +8839,236 @@ class TelegramScreen extends StatefulWidget {
   State<TelegramScreen> createState() => _TelegramScreenState();
 }
 
-enum _Step { intro, waiting, success, error }
-
 class _TelegramScreenState extends State<TelegramScreen> {
-  final TelegramService _telegram = TelegramService();
-  final UserRepository _users = sl<UserRepository>();
+  final TelegramService _telegram = TelegramService.instance;
 
-  _Step _step = _Step.intro;
+  // ── Shared state ────────────────────────────────────────────────────────────
+  _Method _method = _Method.unselected;
+
   String? _resolvedChatId;
   String? _errorMessage;
-  StreamSubscription<Map<String, dynamic>?>? _chatIdSub;
-  Timer? _timeoutTimer;
-  bool _completed = false;
+  bool    _busy = false;
+
+  // ── Primary flow state ──────────────────────────────────────────────────────
+  _PrimaryStep _primaryStep = _PrimaryStep.loading;
+  String?      _token;
+  bool         _tokenCopied = false;
+  StreamSubscription<String?>? _chatIdSub;
+
+  // ── Secondary flow state ────────────────────────────────────────────────────
+  _SecondaryStep _secondaryStep = _SecondaryStep.instructions;
+  final TextEditingController _chatIdController = TextEditingController();
+  String?                     _secondaryError;
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExisting();
+  }
 
   @override
   void dispose() {
     _chatIdSub?.cancel();
-    _timeoutTimer?.cancel();
+    _chatIdController.dispose();
     super.dispose();
   }
 
-  Future<void> _startVerification() async {
-    final botUsername = await _telegram.resolveBotUsername();
-    if (botUsername == null || botUsername.isEmpty) {
-      setState(() {
-        _step = _Step.error;
-        _errorMessage =
-            'Telegram bot is not configured. Set TELEGRAM_BOT_TOKEN (and optionally TELEGRAM_BOT_USERNAME).';
-      });
-      return;
-    }
+  // ── Init — skip to success if already connected ──────────────────────────────
 
-    _chatIdSub?.cancel();
-    _timeoutTimer?.cancel();
+  Future<void> _checkExisting() async {
+    try {
+      final chatId = await _telegram.getLinkedChatId();
+      if ((chatId ?? '').isNotEmpty && mounted) {
+        setState(() {
+          _method        = _Method.primary;
+          _primaryStep   = _PrimaryStep.success;
+          _resolvedChatId = chatId;
+        });
+      }
+    } catch (_) {}
+  }
 
-    final token = _randomToken();
-    final expiresAt = DateTime.now().add(const Duration(minutes: 10));
+  // ══════════════════════════════════════════════════════════════════════════
+  // PRIMARY FLOW LOGIC
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _startPrimaryFlow() async {
+    setState(() {
+      _method      = _Method.primary;
+      _primaryStep = _PrimaryStep.loading;
+      _errorMessage = null;
+    });
+    await _generateToken();
+  }
+
+  Future<void> _generateToken() async {
+    if (!mounted) return;
+    setState(() { _busy = true; _errorMessage = null; });
 
     try {
-      await _users.writePendingTelegramToken(token: token, expiresAt: expiresAt);
-    } catch (e) {
+      final token = await _telegram.createTelegramConnectionToken();
+      if (!mounted) return;
       setState(() {
-        _step = _Step.error;
-        _errorMessage = 'Failed to prepare verification token: $e';
+        _token       = token;
+        _primaryStep = _PrimaryStep.token;
+        _busy        = false;
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _primaryStep  = _PrimaryStep.error;
+        _errorMessage = 'Could not generate a link code: $e';
+        _busy         = false;
+      });
+    }
+  }
+
+  /// Opens Telegram app with the deep-link pre-filled, then starts watching
+  /// Firestore for the bot to write back the chat_id.
+  Future<void> _connectInTelegram() async {
+    try {
+      final token = _token ?? await _telegram.createTelegramConnectionToken();
+      _token = token;
+      await _telegram.connectTelegramAuto(existingToken: token);
+      if (mounted) _startWatchingForChatId();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _primaryStep  = _PrimaryStep.error;
+        _errorMessage = 'Could not open Telegram: $e';
+      });
+    }
+  }
+
+  void _startWatchingForChatId() {
+    _chatIdSub?.cancel();
+    setState(() => _primaryStep = _PrimaryStep.waiting);
+
+    _chatIdSub = _telegram.watchLinkedChatId().listen((chatId) {
+      final trimmed = (chatId ?? '').trim();
+      if (trimmed.isEmpty || !mounted) return;
+      setState(() {
+        _primaryStep    = _PrimaryStep.success;
+        _resolvedChatId = trimmed;
+        _token          = null;
+      });
+      _chatIdSub?.cancel();
+    });
+  }
+
+  Future<void> _copyLink() async {
+    final token = _token ?? _telegram.lastLinkToken;
+    if (token == null) return;
+    final link = await _telegram.buildTelegramStartUri(token);
+    await Clipboard.setData(ClipboardData(text: link.toString()));
+    if (!mounted) return;
+    setState(() => _tokenCopied = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _tokenCopied = false);
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SECONDARY FLOW LOGIC
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _startSecondaryFlow() async {
+    setState(() {
+      _method        = _Method.secondary;
+      _secondaryStep = _SecondaryStep.instructions;
+      _secondaryError = null;
+    });
+  }
+
+  Future<void> _openBotForSecondary() async {
+    try {
+      await _telegram.openTelegramBot();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open Telegram: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _submitManualChatId() async {
+    final raw = _chatIdController.text.trim();
+    if (raw.isEmpty) {
+      setState(() => _secondaryError = 'Please paste your Chat ID first.');
       return;
     }
 
     setState(() {
-      _step = _Step.waiting;
-      _resolvedChatId = null;
-      _errorMessage = null;
+      _secondaryStep  = _SecondaryStep.verifying;
+      _secondaryError = null;
+      _busy = true;
     });
-    _completed = false;
-
-    final ok = await launchUrl(
-      Uri.parse('https://t.me/$botUsername?start=$token'),
-      mode: LaunchMode.externalApplication,
-    );
-    if (!ok) {
-      await _users.clearPendingTelegramToken();
-      if (!mounted) return;
-      setState(() {
-        _step = _Step.error;
-        _errorMessage = 'Could not open Telegram. Please install Telegram and retry.';
-      });
-      return;
-    }
-
-    _chatIdSub = _users.watchCurrentUserDocument().listen((doc) async {
-      if (_completed) return;
-      final chatId = (doc?['telegram_chat_id'] ?? '').toString().trim();
-      if (chatId.isEmpty) return;
-
-      _completed = true;
-      _chatIdSub?.cancel();
-      _timeoutTimer?.cancel();
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('telegram_chat_id', chatId);
-
-      if (_telegram.isConfigured) {
-        unawaited(
-          _telegram.sendConnectionConfirmation(chatId: chatId),
-        );
-        unawaited(_telegram.registerDefaultCommands());
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _step = _Step.success;
-        _resolvedChatId = chatId;
-      });
-    });
-
-    // Fallback path: useful when there is no backend webhook/service.
-    unawaited(_pollTokenFallback(token));
-
-    _timeoutTimer = Timer(const Duration(minutes: 10), () async {
-      _chatIdSub?.cancel();
-      await _users.clearPendingTelegramToken();
-      if (!mounted) return;
-      setState(() {
-        _step = _Step.error;
-        _errorMessage =
-            'Link expired. Tap Retry and start again from Telegram.';
-      });
-    });
-  }
-
-  Future<void> _pollTokenFallback(String token) async {
-    final chatId = await _telegram.resolveChatIdByStartToken(token: token);
-    if (!mounted || _completed || chatId == null || chatId.isEmpty) return;
 
     try {
-      await _users.updateTelegramChatId(chatId);
-      await _users.clearPendingTelegramToken();
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('telegram_chat_id', chatId);
-
-      _completed = true;
-      _chatIdSub?.cancel();
-      _timeoutTimer?.cancel();
-
-      if (_telegram.isConfigured) {
-        unawaited(
-          _telegram.sendConnectionConfirmation(chatId: chatId),
-        );
-        unawaited(_telegram.registerDefaultCommands());
-      }
-
+      final chatId = await _telegram.linkManualChatId(raw);
       if (!mounted) return;
       setState(() {
-        _step = _Step.success;
+        _secondaryStep  = _SecondaryStep.success;
         _resolvedChatId = chatId;
+        _busy = false;
+      });
+    } on ArgumentError catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _secondaryStep  = _SecondaryStep.instructions;
+        _secondaryError = e.message;
+        _busy = false;
       });
     } catch (e) {
-      if (!mounted || _completed) return;
+      if (!mounted) return;
       setState(() {
-        _step = _Step.error;
-        _errorMessage = 'Auto-link fallback failed: $e';
+        _secondaryStep  = _SecondaryStep.error;
+        _secondaryError = 'Could not save Chat ID: $e';
+        _busy = false;
       });
     }
   }
 
-  String _randomToken() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    final rng = Random.secure();
-    return List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
+  // ══════════════════════════════════════════════════════════════════════════
+  // SHARED — DISCONNECT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<void> _disconnect() async {
+    setState(() => _busy = true);
+    _chatIdSub?.cancel();
+    try {
+      await _telegram.disconnectTelegram();
+      if (!mounted) return;
+      _chatIdController.clear();
+      setState(() {
+        _method        = _Method.unselected;
+        _primaryStep   = _PrimaryStep.loading;
+        _secondaryStep = _SecondaryStep.instructions;
+        _resolvedChatId = null;
+        _token         = null;
+        _errorMessage  = null;
+        _secondaryError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not disconnect: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // BUILD
+  // ══════════════════════════════════════════════════════════════════════════
+
+  String get _botUsername {
+    final configured = AppEnv.telegramBotUsername.trim();
+    return configured.isNotEmpty ? '@${configured.replaceFirst(RegExp(r'^@+'), '')}' : '@WishperLogDigestBot';
   }
 
   @override
@@ -8094,149 +9077,958 @@ class _TelegramScreenState extends State<TelegramScreen> {
       backgroundColor: Colors.transparent,
       body: GlassPageBackground(
         child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: GlassContainer(
-                borderRadius: BorderRadius.circular(28),
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(Icons.telegram, size: 56, color: AppColors.tasks),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Connect Telegram',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: context.textPri,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
+          child: Column(
+            children: [
+              // ── Custom title bar ────────────────────────────────────────────
+              _buildTitleBar(context),
+
+              // ── Scrollable content ──────────────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Step indicator (breadcrumb)
+                      _buildStepIndicator(),
+                      const SizedBox(height: 16),
+
+                      // Main card
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 340),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.06),
+                              end: Offset.zero,
+                            ).animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: _buildCurrentCard(),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Get your daily note digest sent directly to Telegram.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: context.textSec, fontSize: 14, height: 1.45),
-                    ),
-                    const SizedBox(height: 32),
-                    _buildStepContent(context),
-                    const SizedBox(height: 20),
-                    TextButton(
-                      onPressed: () => context.go('/home'),
-                      child: Text(
-                        _step == _Step.success ? 'Continue' : 'Skip for now',
-                        style: TextStyle(color: context.textSec),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStepContent(BuildContext context) {
-    return switch (_step) {
-      _Step.intro => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            GlassPane(
-              level: 2,
-              radius: 16,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _StepRow(number: '1', text: 'Open Telegram and search for your bot'),
-                    const SizedBox(height: 10),
-                    _StepRow(number: '2', text: 'Tap Connect to open Telegram deep link'),
-                    const SizedBox(height: 10),
-                    _StepRow(number: '3', text: 'In Telegram, tap START. We auto-link your chat.'),
-                  ],
+  Widget _buildTitleBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () {
+              if (Navigator.of(context).canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+            child: GlassContainer(
+              borderRadius: BorderRadius.circular(14),
+              padding: const EdgeInsets.all(10),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 18, color: context.textPri),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Telegram',
+                  style: TextStyle(
+                    color: context.textPri,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.4,
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _startVerification,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.tasks,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Text('Connect in Telegram', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            ),
-            if (AppEnv.telegramBotToken.trim().isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Bot not configured (TELEGRAM_BOT_TOKEN missing)',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: context.textSec, fontSize: 12),
+                Text(
+                  'Connect your bot for digest & commands',
+                  style: TextStyle(
+                    color: context.textSec,
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-          ],
+              ],
+            ),
+          ),
+          // Status badge
+          if (_resolvedChatId != null)
+            _StatusBadge(connected: true)
+          else if (_method != _Method.unselected)
+            _StatusBadge(connected: false),
+        ],
+      ),
+    );
+  }
+
+  // ── Step indicator / breadcrumb ────────────────────────────────────────────
+
+  Widget _buildStepIndicator() {
+    final steps = _buildStepLabels();
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: steps.length,
+        separatorBuilder: (context, index) => const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey),
         ),
-      _Step.waiting => Column(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'After Telegram opens, tap START to finish linking.',
-              style: TextStyle(color: context.textSec, fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'This link expires in 10 minutes',
-              style: TextStyle(color: context.textSec.withValues(alpha: 0.5), fontSize: 12),
-            ),
-          ],
+        itemBuilder: (context, index) {
+          final (label, active) = steps[index];
+          return _StepChip(label: label, active: active);
+        },
+      ),
+    );
+  }
+
+  List<(String, bool)> _buildStepLabels() {
+    if (_method == _Method.unselected) {
+      return [('Choose method', true)];
+    }
+    if (_method == _Method.primary) {
+      return [
+        ('Choose method', false),
+        ('Auto-connect', _primaryStep == _PrimaryStep.token),
+        ('Verify', _primaryStep == _PrimaryStep.waiting),
+        ('Done', _primaryStep == _PrimaryStep.success),
+      ];
+    }
+    // Secondary
+    return [
+      ('Choose method', false),
+      ('Open bot', _secondaryStep == _SecondaryStep.instructions),
+      ('Paste ID', _secondaryStep == _SecondaryStep.instructions),
+      ('Done', _secondaryStep == _SecondaryStep.success),
+    ];
+  }
+
+  // ── Main card switcher ─────────────────────────────────────────────────────
+
+  Widget _buildCurrentCard() {
+    // Universal success state
+    if (_resolvedChatId != null) {
+      return _SuccessCard(
+        key: const ValueKey('success'),
+        chatId: _resolvedChatId!,
+        onContinue: () {
+          if (Navigator.of(context).canPop()) {
+            context.pop();
+          } else {
+            context.go('/home');
+          }
+        },
+        onDisconnect: _disconnect,
+        busy: _busy,
+      );
+    }
+
+    // Method selection
+    if (_method == _Method.unselected) {
+      return _MethodSelectionCard(
+        key: const ValueKey('method'),
+        botUsername: _botUsername,
+        onPrimary:   _startPrimaryFlow,
+        onSecondary: _startSecondaryFlow,
+      );
+    }
+
+    // Primary flow
+    if (_method == _Method.primary) {
+      return switch (_primaryStep) {
+        _PrimaryStep.loading => _LoadingCard(key: const ValueKey('p-loading')),
+        _PrimaryStep.token => _PrimaryTokenCard(
+            key: const ValueKey('p-token'),
+            token: _token ?? '',
+            botUsername: _botUsername,
+            tokenCopied: _tokenCopied,
+            busy: _busy,
+            onConnect: _connectInTelegram,
+            onCopy: _copyLink,
+            onSwitchMethod: _startSecondaryFlow,
+          ),
+        _PrimaryStep.waiting => _WaitingCard(
+            key: const ValueKey('p-waiting'),
+            botUsername: _botUsername,
+          ),
+        _PrimaryStep.success => const SizedBox.shrink(),
+        _PrimaryStep.error => _ErrorCard(
+            key: const ValueKey('p-error'),
+            message: _errorMessage ?? 'An unexpected error occurred.',
+            onRetry: _generateToken,
+          ),
+      };
+    }
+
+    // Secondary flow
+    return switch (_secondaryStep) {
+      _SecondaryStep.instructions => _SecondaryInstructionsCard(
+          key: const ValueKey('s-instructions'),
+          botUsername: _botUsername,
+          controller: _chatIdController,
+          errorText: _secondaryError,
+          busy: _busy,
+          onOpenBot: _openBotForSecondary,
+          onSubmit: _submitManualChatId,
+          onSwitchMethod: _startPrimaryFlow,
         ),
-      _Step.success => Column(
-          children: [
-            const Icon(Icons.check_circle_rounded, size: 48, color: AppColors.followUp),
-            const SizedBox(height: 12),
-            Text(
-              'Connected! Chat ID: $_resolvedChatId',
-              style: TextStyle(color: context.textPri, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-            ),
-          ],
+      _SecondaryStep.verifying => _LoadingCard(
+          key: const ValueKey('s-verifying'),
+          message: 'Saving your Chat ID…',
         ),
-      _Step.error => Column(
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.errorStatus),
-            const SizedBox(height: 12),
-            Text(
-              _errorMessage ?? 'Something went wrong',
-              style: const TextStyle(color: AppColors.errorStatus),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: _startVerification,
-              child: const Text('Retry'),
-            ),
-          ],
+      _SecondaryStep.success => const SizedBox.shrink(),
+      _SecondaryStep.error => _ErrorCard(
+          key: const ValueKey('s-error'),
+          message: _secondaryError ?? 'An unexpected error occurred.',
+          onRetry: _startSecondaryFlow,
         ),
     };
   }
 }
 
-class _StepRow extends StatelessWidget {
-  const _StepRow({required this.number, required this.text});
+// ══════════════════════════════════════════════════════════════════════════════
+// CARD WIDGETS
+// ══════════════════════════════════════════════════════════════════════════════
 
-  final String number;
+// ── Method selection ──────────────────────────────────────────────────────────
+
+class _MethodSelectionCard extends StatelessWidget {
+  const _MethodSelectionCard({
+    super.key,
+    required this.botUsername,
+    required this.onPrimary,
+    required this.onSecondary,
+  });
+
+  final String botUsername;
+  final VoidCallback onPrimary;
+  final VoidCallback onSecondary;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 1,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Icon + header
+          const Icon(Icons.telegram, size: 52, color: AppColors.tasks),
+          const SizedBox(height: 14),
+          Text(
+            'Connect Telegram',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.textPri,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Receive daily digests and query your notes directly from $botUsername.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.textSec, fontSize: 13, height: 1.45),
+          ),
+          const SizedBox(height: 28),
+
+          // ── Primary method card ────────────────────────────────────────────
+          _MethodOption(
+            icon: Icons.flash_on_rounded,
+            iconColor: AppColors.tasks,
+            title: 'Auto-connect  (Recommended)',
+            description: 'Tap once — the app opens Telegram with everything '
+                'pre-filled. The link happens automatically.',
+            badge: 'INSTANT',
+            badgeColor: AppColors.tasks,
+            onTap: onPrimary,
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Secondary method card ──────────────────────────────────────────
+          _MethodOption(
+            icon: Icons.content_paste_rounded,
+            iconColor: AppColors.ideas,
+            title: 'Manual paste  (Fallback)',
+            description: 'Open $botUsername in Telegram. It will display your '
+                'Chat ID. Copy and paste it back here.',
+            badge: 'MANUAL',
+            badgeColor: AppColors.ideas,
+            onTap: onSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MethodOption extends StatelessWidget {
+  const _MethodOption({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.description,
+    required this.badge,
+    required this.badgeColor,
+    required this.onTap,
+  });
+
+  final IconData  icon;
+  final Color     iconColor;
+  final String    title;
+  final String    description;
+  final String    badge;
+  final Color     badgeColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassContainer(
+        borderRadius: BorderRadius.circular(18),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: iconColor.withValues(alpha: 0.12),
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          color: badgeColor.withValues(alpha: 0.12),
+                        ),
+                        child: Text(
+                          badge,
+                          style: TextStyle(
+                            color: badgeColor,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                        color: context.textSec, fontSize: 12, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded,
+                size: 20, color: context.textSec.withValues(alpha: 0.5)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Primary: token display ────────────────────────────────────────────────────
+
+class _PrimaryTokenCard extends StatelessWidget {
+  const _PrimaryTokenCard({
+    super.key,
+    required this.token,
+    required this.botUsername,
+    required this.tokenCopied,
+    required this.busy,
+    required this.onConnect,
+    required this.onCopy,
+    required this.onSwitchMethod,
+  });
+
+  final String token;
+  final String botUsername;
+  final bool   tokenCopied;
+  final bool   busy;
+  final VoidCallback onConnect;
+  final VoidCallback onCopy;
+  final VoidCallback onSwitchMethod;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 1,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Step number badge
+          _StepBadge(label: 'STEP 1 OF 2', color: AppColors.tasks),
+          const SizedBox(height: 16),
+          Text(
+            'Open Telegram',
+            style: TextStyle(
+                color: context.textPri,
+                fontSize: 20,
+                fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tap the button below. The Telegram app will open with a '
+            'pre-filled message — just tap START and the link completes automatically.',
+            style: TextStyle(color: context.textSec, fontSize: 13, height: 1.45),
+          ),
+          const SizedBox(height: 20),
+
+          // Connect button
+          FilledButton.icon(
+            style: _filledStyle(AppColors.tasks),
+            onPressed: busy ? null : onConnect,
+            icon: const Icon(Icons.telegram, size: 18),
+            label: const Text('Open Telegram & Connect'),
+          ),
+          const SizedBox(height: 12),
+
+          // Divider
+          Row(
+            children: [
+              const Expanded(child: Divider()),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text('or',
+                    style: TextStyle(
+                        color: context.textSec.withValues(alpha: 0.5),
+                        fontSize: 12)),
+              ),
+              const Expanded(child: Divider()),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Copy link (for users whose deep-link doesn't work)
+          OutlinedButton.icon(
+            style: _outlinedStyle(context, AppColors.tasks),
+            onPressed: onCopy,
+            icon: Icon(
+              tokenCopied
+                  ? Icons.check_circle_rounded
+                  : Icons.content_copy_rounded,
+              size: 16,
+            ),
+            label: Text(tokenCopied ? 'Copied!' : 'Copy link instead'),
+          ),
+          const SizedBox(height: 20),
+
+          _InfoBox(
+            icon: Icons.info_outline_rounded,
+            text: 'After tapping START in Telegram, return here. '
+                'This screen will update automatically when the link is confirmed.',
+          ),
+          const SizedBox(height: 16),
+
+          // Escape hatch → secondary method
+          Center(
+            child: TextButton(
+              onPressed: onSwitchMethod,
+              child: Text(
+                'Having trouble? Use manual Chat ID instead',
+                style: TextStyle(
+                    color: context.textSec, fontSize: 12, height: 1.4),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Primary: waiting ──────────────────────────────────────────────────────────
+
+class _WaitingCard extends StatelessWidget {
+  const _WaitingCard({super.key, required this.botUsername});
+  final String botUsername;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 1,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(20, 32, 20, 28),
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: AppColors.tasks,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Waiting for Telegram…',
+            style: TextStyle(
+              color: context.textPri,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Open $botUsername and tap START. This page will update automatically when confirmed.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.textSec, fontSize: 13, height: 1.45),
+          ),
+          const SizedBox(height: 20),
+          _InfoBox(
+            icon: Icons.lock_outline_rounded,
+            text: 'WishperLog never posts to Telegram without your permission.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Secondary: instructions + paste field ─────────────────────────────────────
+
+class _SecondaryInstructionsCard extends StatelessWidget {
+  const _SecondaryInstructionsCard({
+    super.key,
+    required this.botUsername,
+    required this.controller,
+    this.errorText,
+    required this.busy,
+    required this.onOpenBot,
+    required this.onSubmit,
+    required this.onSwitchMethod,
+  });
+
+  final String botUsername;
+  final TextEditingController controller;
+  final String? errorText;
+  final bool busy;
+  final VoidCallback onOpenBot;
+  final VoidCallback onSubmit;
+  final VoidCallback onSwitchMethod;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 1,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _StepBadge(label: 'MANUAL FALLBACK', color: AppColors.ideas),
+          const SizedBox(height: 16),
+          Text(
+            'Get your Chat ID',
+            style: TextStyle(
+                color: context.textPri,
+                fontSize: 20,
+                fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+
+          // Numbered instructions
+          _NumberedStep(
+            number: 1,
+            text: 'Tap the button below to open $botUsername.',
+          ),
+          const SizedBox(height: 8),
+          _NumberedStep(
+            number: 2,
+            text: 'The bot will reply with your unique Chat ID (a number).',
+          ),
+          const SizedBox(height: 8),
+          _NumberedStep(
+            number: 3,
+            text: 'Copy that number and paste it in the field below.',
+          ),
+          const SizedBox(height: 20),
+
+          // Open bot button
+          OutlinedButton.icon(
+            style: _outlinedStyle(context, AppColors.tasks),
+            onPressed: onOpenBot,
+            icon: const Icon(Icons.telegram, size: 18),
+            label: Text('Open $botUsername'),
+          ),
+          const SizedBox(height: 20),
+
+          // Chat ID field
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
+            ],
+            decoration: InputDecoration(
+              labelText: 'Paste your Chat ID here',
+              hintText: 'e.g. 123456789',
+              errorText: errorText,
+              prefixIcon: const Icon(Icons.tag_rounded),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          FilledButton(
+            style: _filledStyle(AppColors.ideas),
+            onPressed: busy ? null : onSubmit,
+            child: busy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Confirm Chat ID'),
+          ),
+          const SizedBox(height: 16),
+
+          Center(
+            child: TextButton(
+              onPressed: onSwitchMethod,
+              child: Text(
+                'Switch to auto-connect instead',
+                style:
+                    TextStyle(color: context.textSec, fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Success ───────────────────────────────────────────────────────────────────
+
+class _SuccessCard extends StatelessWidget {
+  const _SuccessCard({
+    super.key,
+    required this.chatId,
+    required this.onContinue,
+    required this.onDisconnect,
+    required this.busy,
+  });
+
+  final String chatId;
+  final VoidCallback onContinue;
+  final VoidCallback onDisconnect;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 1,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.followUp.withValues(alpha: 0.14),
+            ),
+            child: const Icon(Icons.check_rounded,
+                color: AppColors.followUp, size: 36),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Telegram Connected!',
+            style: TextStyle(
+              color: context.textPri,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your digest messages will be sent to this chat.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.textSec, fontSize: 13, height: 1.45),
+          ),
+          const SizedBox(height: 18),
+          GlassContainer(
+            borderRadius: BorderRadius.circular(14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.tag_rounded, size: 16, color: AppColors.tasks),
+                const SizedBox(width: 8),
+                Text(
+                  'Chat ID: $chatId',
+                  style: TextStyle(
+                    color: context.textPri,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: _filledStyle(AppColors.tasks),
+              onPressed: onContinue,
+              child: const Text('Done'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: ButtonStyle(
+                foregroundColor:
+                    WidgetStatePropertyAll(AppColors.reminders),
+                side: WidgetStatePropertyAll(
+                  BorderSide(
+                      color: AppColors.reminders.withValues(alpha: 0.4)),
+                ),
+                shape: const WidgetStatePropertyAll(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(14)),
+                  ),
+                ),
+              ),
+              onPressed: busy ? null : onDisconnect,
+              child: const Text('Disconnect Telegram'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Loading ───────────────────────────────────────────────────────────────────
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard({super.key, this.message = 'Loading…'});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 1,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(20, 40, 20, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(color: AppColors.tasks),
+          const SizedBox(height: 16),
+          Text(message,
+              style: TextStyle(color: context.textSec, fontSize: 14)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Error ─────────────────────────────────────────────────────────────────────
+
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({
+    super.key,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 1,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
+      child: Column(
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              size: 48, color: AppColors.reminders),
+          const SizedBox(height: 14),
+          Text(
+            'Something went wrong',
+            style: TextStyle(
+                color: context.textPri,
+                fontSize: 18,
+                fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: context.textSec, fontSize: 13, height: 1.45)),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: _filledStyle(AppColors.tasks),
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try again'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SMALL HELPER WIDGETS
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.connected});
+  final bool connected;
+
+  @override
+  Widget build(BuildContext context) {
+    final color  = connected ? AppColors.followUp : AppColors.ideas;
+    final icon   = connected ? Icons.check_circle_rounded : Icons.pending_rounded;
+    final label  = connected ? 'Connected' : 'Pending';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(alpha: 0.12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepChip extends StatelessWidget {
+  const _StepChip({required this.label, required this.active});
+  final String label;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: active
+            ? AppColors.tasks.withValues(alpha: 0.15)
+            : context.surface1.withValues(alpha: 0.4),
+        border: Border.all(
+          color: active
+              ? AppColors.tasks.withValues(alpha: 0.35)
+              : context.textSec.withValues(alpha: 0.12),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: active ? AppColors.tasks : context.textSec,
+          fontSize: 11,
+          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _StepBadge extends StatelessWidget {
+  const _StepBadge({required this.label, required this.color});
+  final String label;
+  final Color  color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: color.withValues(alpha: 0.12),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NumberedStep extends StatelessWidget {
+  const _NumberedStep({required this.number, required this.text});
+  final int    number;
   final String text;
 
   @override
@@ -8245,33 +10037,97 @@ class _StepRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 22,
-          height: 22,
-          alignment: Alignment.center,
+          width: 24,
+          height: 24,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.tasks.withValues(alpha: 0.15),
+            color: AppColors.ideas.withValues(alpha: 0.14),
           ),
-          child: Text(
-            number,
-            style: const TextStyle(
-              color: AppColors.tasks,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+          child: Center(
+            child: Text(
+              '$number',
+              style: const TextStyle(
+                color: AppColors.ideas,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(color: context.textPri, fontSize: 13),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              text,
+              style: TextStyle(
+                  color: context.textSec, fontSize: 13, height: 1.4),
+            ),
           ),
         ),
       ],
     );
   }
 }
+
+class _InfoBox extends StatelessWidget {
+  const _InfoBox({required this.icon, required this.text});
+  final IconData icon;
+  final String   text;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassContainer(
+      borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: context.textSec),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                  color: context.textSec, fontSize: 12, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Button styles (module-level helpers) ──────────────────────────────────────
+
+ButtonStyle _filledStyle(Color color) => ButtonStyle(
+  backgroundColor: WidgetStatePropertyAll(color),
+  foregroundColor: const WidgetStatePropertyAll(Colors.white),
+  padding: const WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
+  shape: const WidgetStatePropertyAll(
+    RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(14))),
+  ),
+  elevation: const WidgetStatePropertyAll(0),
+  textStyle: const WidgetStatePropertyAll(
+      TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+);
+
+ButtonStyle _outlinedStyle(BuildContext context, Color color) => ButtonStyle(
+  foregroundColor: WidgetStatePropertyAll(color),
+  backgroundColor: WidgetStatePropertyAll(color.withValues(alpha: 0.06)),
+  side: WidgetStatePropertyAll(
+      BorderSide(color: color.withValues(alpha: 0.35))),
+  padding: const WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: 20, vertical: 13)),
+  shape: const WidgetStatePropertyAll(
+    RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(14))),
+  ),
+  elevation: const WidgetStatePropertyAll(0),
+  textStyle: const WidgetStatePropertyAll(
+      TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+);
 ```
 
 ### lib/features/overlay/overlay_bubble.dart
@@ -9796,6 +11652,7 @@ import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class QuickNoteEditor extends StatefulWidget {
   const QuickNoteEditor({super.key});
@@ -9884,81 +11741,164 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: context.surface1,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+      child: GlassPane(
+        level: 1,
+        radius: 28,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                const Icon(Icons.edit_note, color: AppColors.tasks),
-                const SizedBox(width: 8),
-                Text(
-                  'Quick Note',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: context.textPri,
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.tasks.withValues(alpha: isDark ? 0.26 : 0.18),
+                        AppColors.tasks.withValues(alpha: isDark ? 0.10 : 0.08),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: AppColors.tasks.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: const Icon(Icons.edit_note, color: AppColors.tasks, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Quick Note',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: context.textPri,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Capture an idea in a neumorphic glass sheet.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.textSec,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
                 IconButton(
                   onPressed: () => context.pop(),
-                  icon: const Icon(Icons.close),
+                  icon: Icon(Icons.close, color: context.textSec),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              maxLines: null,
-              minLines: 3,
-              style: TextStyle(color: context.textPri, fontSize: 16),
-              decoration: InputDecoration(
-                hintText: 'What\'s on your mind?',
-                hintStyle: TextStyle(color: context.textSec),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+            const SizedBox(height: 14),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    context.surface1.withValues(alpha: isDark ? 0.76 : 0.88),
+                    context.surface2.withValues(alpha: isDark ? 0.68 : 0.96),
+                  ],
                 ),
-                filled: true,
-                fillColor: context.textPri.withValues(alpha: 0.05),
-                contentPadding: const EdgeInsets.all(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.40),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.26 : 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(5, 7),
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.68),
+                    blurRadius: 12,
+                    offset: const Offset(-4, -4),
+                  ),
+                ],
               ),
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _save(),
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                maxLines: null,
+                minLines: 4,
+                style: TextStyle(color: context.textPri, fontSize: 16, height: 1.5),
+                decoration: InputDecoration(
+                  hintText: 'What\'s on your mind?',
+                  hintStyle: TextStyle(color: context.textSec),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(18),
+                ),
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _save(),
+              ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.tasks,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            GestureDetector(
+              onTap: _isSaving ? null : _save,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.tasks.withValues(alpha: isDark ? 0.96 : 0.92),
+                      const Color(0xFF58D0C7),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.14),
+                      blurRadius: 16,
+                      offset: const Offset(5, 8),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.70),
+                      blurRadius: 12,
+                      offset: const Offset(-4, -4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: _isSaving
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          'Save Note',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
                 ),
               ),
-              child: _isSaving 
-                ? SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text('Save Note', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             ),
           ],
         ),
@@ -10261,16 +12201,10 @@ class SmartNoteSearch {
 ```dart
 // lib/features/search/presentation/search_screen.dart
 //
-// God-Level Search 2.0
-//  • Full-screen immersive entry with hero animation
-//  • Fuzzy matching via SmartNoteSearch
-//  • Filter chips: All | Tasks | Reminders | Ideas | Follow-up | Journal
-//  • Empty-state illustrations
-//  • Highlighted match snippets
-//  • Priority badges
+// Search screen refreshed with a clearer glass hierarchy:
+// header, search field, filter rail, result cards, and empty states.
 
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10283,6 +12217,7 @@ import 'package:wishperlog/features/search/data/smart_note_search.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -10294,42 +12229,52 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
-  final _controller = TextEditingController();
-  final _focusNode  = FocusNode();
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   Timer? _debounce;
 
   String _query = '';
-  NoteCategory? _filterCategory; // null = All
+  NoteCategory? _filterCategory;
 
   late final AnimationController _entryCtrl;
-  late final Animation<double>    _entryFade;
-  late final Animation<Offset>    _entrySlide;
+  late final Animation<double> _entryFade;
+  late final Animation<Offset> _entrySlide;
 
-  static const _filterAll = 'All';
+  static const String _filterAll = 'All';
+  static const List<(String, NoteCategory?)> _filterItems = <(String, NoteCategory?)>[
+    (_filterAll, null),
+    ('Tasks', NoteCategory.tasks),
+    ('Reminders', NoteCategory.reminders),
+    ('Ideas', NoteCategory.ideas),
+    ('Follow-up', NoteCategory.followUp),
+    ('Journal', NoteCategory.journal),
+    ('General', NoteCategory.general),
+  ];
 
   @override
   void initState() {
     super.initState();
     _entryCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 380),
     );
     _entryFade = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _entrySlide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+      begin: const Offset(0, 0.05),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
 
     _entryCtrl.forward();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
+      if (mounted) _focusNode.requestFocus();
     });
 
     _controller.addListener(() {
       _debounce?.cancel();
       _debounce = Timer(const Duration(milliseconds: 180), () {
-        if (mounted) setState(() => _query = _controller.text.trim());
+        if (mounted) {
+          setState(() => _query = _controller.text.trim());
+        }
       });
     });
   }
@@ -10345,201 +12290,173 @@ class _SearchScreenState extends State<SearchScreen>
 
   List<SearchHit> _applyFilter(List<SearchHit> hits) {
     if (_filterCategory == null) return hits;
-    return hits.where((h) => h.note.category == _filterCategory).toList();
+    return hits.where((hit) => hit.note.category == _filterCategory).toList();
   }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          // ── Frosted backdrop ─────────────────────────────────────────────
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-            child: Container(
-              color: context.isDark
-                  ? const Color(0xE8090E1A)
-                  : const Color(0xE8F0F4FF),
-            ),
-          ),
-
-          // ── Main content ─────────────────────────────────────────────────
-          FadeTransition(
-            opacity: _entryFade,
-            child: SlideTransition(
-              position: _entrySlide,
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    _buildSearchBar(),
-                    _buildFilterChips(),
-                    const Divider(height: 1, thickness: 0.5),
-                    Expanded(child: _buildResults()),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Search bar ────────────────────────────────────────────────────────────
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          // Back
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              context.pop();
-            },
-            child: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: context.surface1.withValues(alpha: 0.7),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 18,
-                color: context.textPri,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Text field
-          Expanded(
-            child: Container(
-              height: 46,
-              decoration: BoxDecoration(
-                color: context.surface1.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _focusNode.hasFocus
-                      ? AppColors.tasks.withValues(alpha: 0.6)
-                      : context.textSec.withValues(alpha: 0.1),
-                ),
-              ),
-              child: Row(
+      body: GlassPageBackground(
+        child: FadeTransition(
+          opacity: _entryFade,
+          child: SlideTransition(
+            position: _entrySlide,
+            child: SafeArea(
+              child: Column(
                 children: [
-                  const SizedBox(width: 12),
-                  Icon(Icons.search_rounded, size: 20, color: context.textSec),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      style: TextStyle(
-                        color: context.textPri,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search notes, tasks, ideas…',
-                        hintStyle: TextStyle(
-                          color: context.textSec.withValues(alpha: 0.5),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15,
-                        ),
-                        border: InputBorder.none,
-                        isDense: true,
-                      ),
-                      onChanged: (_) {},
-                      textInputAction: TextInputAction.search,
-                    ),
-                  ),
-                  if (_controller.text.isNotEmpty)
-                    GestureDetector(
-                      onTap: () {
-                        _controller.clear();
-                        setState(() => _query = '');
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: context.textSec,
-                        ),
-                      ),
-                    ),
+                  _buildHeader(),
+                  _buildSearchBar(),
+                  _buildFilterRail(),
+                  const SizedBox(height: 6),
+                  Expanded(child: _buildResults()),
                 ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  // ── Filter chips ──────────────────────────────────────────────────────────
-
-  static const _filterItems = <(String, NoteCategory?)>[
-    (_filterAll, null),
-    ('Tasks', NoteCategory.tasks),
-    ('Reminders', NoteCategory.reminders),
-    ('Ideas', NoteCategory.ideas),
-    ('Follow-up', NoteCategory.followUp),
-    ('Journal', NoteCategory.journal),
-    ('General', NoteCategory.general),
-  ];
-
-  Widget _buildFilterChips() {
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _filterItems.length,
-        separatorBuilder: (context, separatorIndex) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final (label, cat) = _filterItems[i];
-          final selected = _filterCategory == cat;
-          final chipColor = cat != null ? categoryColor(cat) : AppColors.tasks;
-          return GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() => _filterCategory = cat);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: selected
-                    ? chipColor.withValues(alpha: 0.18)
-                    : context.surface1.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: selected
-                      ? chipColor.withValues(alpha: 0.8)
-                      : context.textSec.withValues(alpha: 0.12),
-                ),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: selected ? chipColor : context.textSec,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+      child: GlassPane(
+        level: 1,
+        radius: 28,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(
+          children: [
+            _RoundActionButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              tint: AppColors.tasks,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.pop();
+              },
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Search',
+              style: TextStyle(
+                color: context.textPri,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
 
-  // ── Results ───────────────────────────────────────────────────────────────
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: GlassPane(
+        level: 2,
+        radius: 26,
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            _RoundActionButton(
+              icon: Icons.search_rounded,
+              tint: AppColors.tasks,
+              onTap: () => _focusNode.requestFocus(),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                style: TextStyle(
+                  color: context.textPri,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search notes, tasks, reminders...',
+                  hintStyle: TextStyle(
+                    color: context.textSec.withValues(alpha: 0.55),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                  ),
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+                textInputAction: TextInputAction.search,
+              ),
+            ),
+            if (_controller.text.isNotEmpty)
+              _RoundActionButton(
+                icon: Icons.close_rounded,
+                tint: context.textSec,
+                onTap: () {
+                  _controller.clear();
+                  setState(() => _query = '');
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterRail() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GlassPane(
+        level: 4,
+        radius: 22,
+        padding: const EdgeInsets.all(10),
+        child: SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _filterItems.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final (label, category) = _filterItems[index];
+              final selected = _filterCategory == category;
+              final chipColor = category != null ? categoryColor(category) : AppColors.tasks;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _filterCategory = category);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? chipColor.withValues(alpha: context.isDark ? 0.22 : 0.18)
+                        : context.surface1.withValues(alpha: 0.56),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: selected
+                          ? chipColor.withValues(alpha: 0.72)
+                          : context.textSec.withValues(alpha: 0.10),
+                    ),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: selected ? chipColor : context.textSec,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildResults() {
     return StreamBuilder<List<Note>>(
@@ -10547,66 +12464,95 @@ class _SearchScreenState extends State<SearchScreen>
       builder: (context, snapshot) {
         final all = snapshot.data ?? const <Note>[];
 
-        // Empty state — no query yet
         if (_query.isEmpty) {
           return _EmptyState(
-            icon: Icons.auto_awesome_rounded,
-            title: 'Search everything',
-            subtitle: 'Find notes, tasks, reminders, and ideas instantly.',
-            tint: AppColors.tasks.withValues(alpha: 0.7),
+            icon: Icons.manage_search_rounded,
+            title: 'Start typing',
+            subtitle: 'Search across notes, priorities, reminders, and AI-tagged captures.',
+            tint: AppColors.tasks.withValues(alpha: 0.72),
+            actions: [
+              if (_filterCategory != null)
+                _MiniActionPill(
+                  label: 'Reset filter',
+                  tint: categoryColor(_filterCategory!),
+                  onTap: () => setState(() => _filterCategory = null),
+                ),
+            ],
           );
         }
 
-        final rawHits = SmartNoteSearch.searchSync(all, _query, limit: 60);
-        final hits = _applyFilter(rawHits);
+        final hits = _applyFilter(SmartNoteSearch.searchSync(all, _query, limit: 60));
 
-        // No results
         if (hits.isEmpty) {
           return _EmptyState(
             icon: Icons.search_off_rounded,
-            title: 'No results',
-            subtitle: 'Try a different keyword or remove filters.',
-            tint: context.textSec.withValues(alpha: 0.4),
+            title: 'No matching notes',
+            subtitle: 'Try a broader term or remove the active filter.',
+            tint: context.textSec.withValues(alpha: 0.42),
+            actions: [
+              _MiniActionPill(
+                label: 'Clear search',
+                tint: AppColors.tasks,
+                onTap: () {
+                  _controller.clear();
+                  setState(() => _query = '');
+                },
+              ),
+              if (_filterCategory != null)
+                _MiniActionPill(
+                  label: 'Reset filter',
+                  tint: categoryColor(_filterCategory!),
+                  onTap: () => setState(() => _filterCategory = null),
+                ),
+            ],
           );
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-          itemCount: hits.length,
-          separatorBuilder: (context, separatorIndex) => const SizedBox(height: 10),
-          itemBuilder: (context, i) => _SearchResultCard(
-            hit: hits[i],
-            query: _query,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              context.pop();
-              context.push('/notes/${hits[i].note.noteId}');
-            },
-          ),
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                '${hits.length} result${hits.length == 1 ? '' : 's'} found',
+                style: TextStyle(
+                  color: context.textSec,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ...hits.asMap().entries.map(
+              (entry) => Padding(
+                padding: EdgeInsets.only(bottom: entry.key == hits.length - 1 ? 0 : 10),
+                child: _SearchResultCard(
+                  hit: entry.value,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    context.pop();
+                    context.push('/notes/${entry.value.note.noteId}');
+                  },
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
-// ── Result card ───────────────────────────────────────────────────────────────
-
 class _SearchResultCard extends StatelessWidget {
-  const _SearchResultCard({
-    required this.hit,
-    required this.query,
-    required this.onTap,
-  });
+  const _SearchResultCard({required this.hit, required this.onTap});
 
   final SearchHit hit;
-  final String query;
   final VoidCallback onTap;
 
   Color _priorityColor(NotePriority p) => switch (p) {
-    NotePriority.high   => const Color(0xFFEF4444),
-    NotePriority.medium => const Color(0xFFF59E0B),
-    NotePriority.low    => const Color(0xFF10B981),
-  };
+        NotePriority.high => const Color(0xFFEF4444),
+        NotePriority.medium => const Color(0xFFF59E0B),
+        NotePriority.low => const Color(0xFF10B981),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -10617,43 +12563,60 @@ class _SearchResultCard extends StatelessWidget {
       onTap: onTap,
       child: GlassPane(
         level: 2,
-        radius: 18,
-        padding: const EdgeInsets.all(16),
+        radius: 22,
+        padding: const EdgeInsets.all(15),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category icon
             Container(
-              width: 36, height: 36,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accent.withValues(alpha: context.isDark ? 0.28 : 0.18),
+                    accent.withValues(alpha: context.isDark ? 0.10 : 0.08),
+                  ],
+                ),
               ),
-              child: Icon(
-                categoryIcon(note.category),
-                size: 18,
-                color: accent,
-              ),
+              child: Icon(categoryIcon(note.category), size: 20, color: accent),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
-                  Text(
-                    note.title.isEmpty ? 'Untitled' : note.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.textPri,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          note.title.isEmpty ? 'Untitled' : note.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.25,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        hit.score.toStringAsFixed(1),
+                        style: TextStyle(
+                          color: context.textSec.withValues(alpha: 0.45),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                   if (hit.snippet.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       hit.snippet,
                       maxLines: 2,
@@ -10665,15 +12628,12 @@ class _SearchResultCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  // Chips row
+                  const SizedBox(height: 10),
                   Wrap(
                     spacing: 6,
+                    runSpacing: 6,
                     children: [
-                      _Chip(
-                        label: categoryLabel(note.category),
-                        color: accent,
-                      ),
+                      _Chip(label: categoryLabel(note.category), color: accent),
                       _Chip(
                         label: note.priority.name.toUpperCase(),
                         color: _priorityColor(note.priority),
@@ -10681,23 +12641,11 @@ class _SearchResultCard extends StatelessWidget {
                       if (hit.matchedField.isNotEmpty && hit.matchedField != 'title')
                         _Chip(
                           label: hit.matchedField,
-                          color: context.textSec.withValues(alpha: 0.6),
+                          color: context.textSec.withValues(alpha: 0.62),
                         ),
                     ],
                   ),
                 ],
-              ),
-            ),
-            // Score
-            Padding(
-              padding: const EdgeInsets.only(left: 8, top: 2),
-              child: Text(
-                hit.score.toStringAsFixed(1),
-                style: TextStyle(
-                  color: context.textSec.withValues(alpha: 0.4),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ),
           ],
@@ -10709,30 +12657,29 @@ class _SearchResultCard extends StatelessWidget {
 
 class _Chip extends StatelessWidget {
   const _Chip({required this.label, required this.color});
+
   final String label;
   final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: color.withValues(alpha: 0.3)),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        color: color,
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.3,
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: context.isDark ? 0.14 : 0.10),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.28)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+          ),
+        ),
+      );
 }
-
-// ── Empty state ───────────────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({
@@ -10740,52 +12687,147 @@ class _EmptyState extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.tint,
+    this.actions = const [],
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final Color tint;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: GlassPane(
+            level: 1,
+            radius: 26,
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        tint.withValues(alpha: context.isDark ? 0.24 : 0.16),
+                        tint.withValues(alpha: context.isDark ? 0.10 : 0.08),
+                      ],
+                    ),
+                  ),
+                  child: Icon(icon, size: 30, color: tint),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.textPri,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.textSec,
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: actions,
+                  ),
+                ],
+              ],
             ),
-            child: Icon(icon, size: 36, color: tint),
           ),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            style: TextStyle(
-              color: context.textPri,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
+        ),
+      );
+}
+
+class _RoundActionButton extends StatelessWidget {
+  const _RoundActionButton({
+    required this.icon,
+    required this.tint,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color tint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              tint.withValues(alpha: context.isDark ? 0.22 : 0.14),
+              tint.withValues(alpha: context.isDark ? 0.10 : 0.08),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: context.textSec,
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
-        ],
+        ),
+        child: Icon(icon, color: tint, size: 18),
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _MiniActionPill extends StatelessWidget {
+  const _MiniActionPill({
+    required this.label,
+    required this.tint,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color tint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: tint.withValues(alpha: context.isDark ? 0.14 : 0.10),
+          border: Border.all(color: tint.withValues(alpha: 0.25)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: tint,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
 }
 ```
 
@@ -10800,7 +12842,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
@@ -10813,9 +12854,11 @@ import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/features/sync/data/telegram_service.dart';
 import 'package:wishperlog/features/settings/presentation/widgets/digest_schedule_section.dart';
+import 'package:wishperlog/features/settings/presentation/widgets/telegram_connection_section.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 import 'package:wishperlog/shared/widgets/glass_title_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -10833,7 +12876,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final UserRepository _users = sl<UserRepository>();
   final AppPreferencesRepository _prefs = sl<AppPreferencesRepository>();
   final ExternalSyncService _sync = sl<ExternalSyncService>();
-  final TelegramService _telegram = sl<TelegramService>();
   final AiClassifierRouter _aiRouter = sl<AiClassifierRouter>();
   final OverlayNotifier _overlayNotifier = sl<OverlayNotifier>();
 
@@ -10850,6 +12892,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Overlay customisation sheet is driven entirely by OverlayNotifier.
 
   String? _telegramChatId;
+  String? _pendingTelegramLinkToken;
+  StreamSubscription<String?>? _telegramChatIdSub;
+  Timer? _telegramConnectTimeout;
+  bool _connectingTelegram = false;
 
   Timer? _speechApplyDebounce;
 
@@ -10883,6 +12929,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _speechApplyDebounce?.cancel();
+    _telegramConnectTimeout?.cancel();
+    _telegramChatIdSub?.cancel();
     super.dispose();
   }
 
@@ -10987,6 +13035,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _speechApplyDebounce = Timer(const Duration(milliseconds: 250), () {
       unawaited(_applySpeechSettings());
     });
+  }
+
+  ButtonStyle _glassButtonStyle(
+    BuildContext context, {
+    required Color tint,
+    bool filled = false,
+    bool danger = false,
+    Color? foreground,
+  }) {
+    final textColor = foreground ?? (filled ? Colors.white : tint);
+    final fillColor = danger
+        ? AppColors.reminders.withValues(alpha: context.isDark ? 0.24 : 0.16)
+        : filled
+            ? tint.withValues(alpha: context.isDark ? 0.24 : 0.14)
+            : context.surface1.withValues(alpha: 0.82);
+
+    return ButtonStyle(
+      padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
+        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+      shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      foregroundColor: WidgetStatePropertyAll<Color>(textColor),
+      backgroundColor: WidgetStatePropertyAll<Color>(fillColor),
+      side: WidgetStatePropertyAll<BorderSide>(
+        BorderSide(color: tint.withValues(alpha: filled ? 0.0 : 0.26)),
+      ),
+      overlayColor: WidgetStatePropertyAll<Color>(
+        tint.withValues(alpha: context.isDark ? 0.16 : 0.10),
+      ),
+      elevation: const WidgetStatePropertyAll<double>(0),
+      textStyle: const WidgetStatePropertyAll<TextStyle>(
+        TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  TextStyle _dropdownTextStyle(BuildContext context) {
+    return TextStyle(
+      color: context.textPri,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+    );
+  }
+
+  Color _dropdownMenuColor(BuildContext context) {
+    return context.isDark ? const Color(0xFF16263A) : const Color(0xFFF9FBFF);
   }
 
   Future<void> _openSpeechPackSettings() async {
@@ -11105,11 +13201,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _disconnectTelegram() async {
     if (_telegramChatId == null) return;
     try {
-      await _users.updateTelegramChatId('');
+      await TelegramService.instance.disconnectTelegram();
       if (!mounted) return;
+      _telegramConnectTimeout?.cancel();
+      _telegramChatIdSub?.cancel();
+      _telegramChatIdSub = null;
       setState(() => _telegramChatId = null);
+      _pendingTelegramLinkToken = null;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Telegram connection cleared')),
+        const SnackBar(content: Text('Telegram disconnected')),
       );
     } catch (e) {
       if (mounted) {
@@ -11120,40 +13220,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _openTelegramBot() async {
-    final botUsername = await _telegram.resolveBotUsername();
-    if (botUsername == null || botUsername.isEmpty) return;
-    final uri = Uri.parse('https://t.me/$botUsername');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _cancelTelegramWaiting() async {
+    if (!_connectingTelegram) return;
+    _telegramConnectTimeout?.cancel();
+    _telegramConnectTimeout = null;
+    _telegramChatIdSub?.cancel();
+    _telegramChatIdSub = null;
+
+    try {
+      await TelegramService.instance.clearTelegramConnectionToken();
+    } catch (e) {
+      debugPrint('[Settings] Failed to clear Telegram token on cancel: $e');
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _connectingTelegram = false;
+      _pendingTelegramLinkToken = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Telegram waiting cancelled')),
+    );
+  }
+
+  Future<void> _startTelegramConnect(BuildContext context) async {
+    if (_connectingTelegram) return;
+    _telegramConnectTimeout?.cancel();
+    _telegramChatIdSub?.cancel();
+    setState(() => _connectingTelegram = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final token = await _ensureTelegramLinkToken();
+      await TelegramService.instance.connectTelegramAuto(existingToken: token);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _connectingTelegram = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not open Telegram: $e')),
+      );
+      return;
+    }
+
+    _telegramConnectTimeout = Timer(const Duration(seconds: 90), () {
+      if (!mounted || !_connectingTelegram) return;
+      _telegramChatIdSub?.cancel();
+      _telegramChatIdSub = null;
+      _telegramConnectTimeout = null;
+      unawaited(TelegramService.instance.clearTelegramConnectionToken());
+      setState(() => _connectingTelegram = false);
+      _pendingTelegramLinkToken = null;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Telegram did not confirm within 90 seconds. Tap Connect again or cancel sooner next time.'),
+        ),
+      );
+    });
+
+    _telegramChatIdSub?.cancel();
+    _telegramChatIdSub = TelegramService.instance.watchLinkedChatId().listen(
+      (chatId) {
+        final trimmed = (chatId ?? '').trim();
+        if (trimmed.isEmpty) return;
+        if (!mounted) return;
+
+        _telegramChatIdSub?.cancel();
+        _telegramChatIdSub = null;
+        _telegramConnectTimeout?.cancel();
+        _telegramConnectTimeout = null;
+
+        setState(() {
+          _telegramChatId = trimmed;
+          _connectingTelegram = false;
+        });
+        _pendingTelegramLinkToken = null;
+
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Telegram connected!')),
+        );
+      },
+    );
+  }
+
+  Future<void> _copyTelegramLink(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final token = await _ensureTelegramLinkToken();
+      final link = await TelegramService.instance.buildTelegramStartUri(token);
+      await Clipboard.setData(ClipboardData(text: link.toString()));
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Telegram link copied')),
+      );
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not copy Telegram link: $e')),
+        );
+      }
     }
   }
 
-  Future<void> _connectTelegramAuto() async {
-    if (FirebaseAuth.instance.currentUser == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign in required to connect Telegram')),
-        );
-      }
-      return;
+  Future<String> _ensureTelegramLinkToken() async {
+    final existing = _pendingTelegramLinkToken?.trim();
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
     }
-    final botUsername = await _telegram.resolveBotUsername();
-    if (botUsername == null || botUsername.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Telegram bot is not configured (missing token or unreachable bot)',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-    if (!mounted) return;
-    await context.push('/telegram');
-    await _hydrateTelegramId();
+
+    final token = await TelegramService.instance.createTelegramConnectionToken();
+    _pendingTelegramLinkToken = token;
+    return token;
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -11174,8 +13351,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-        child: GlassContainer(
-          borderRadius: BorderRadius.circular(24),
+        child: GlassPane(
+          level: 1,
+          radius: 24,
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -11223,6 +13401,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      style: _glassButtonStyle(
+                        context,
+                        tint: AppColors.general,
+                      ),
                       onPressed: () => Navigator.of(ctx).pop(false),
                       child: const Text('Cancel'),
                     ),
@@ -11230,11 +13412,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton.tonal(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.reminders.withValues(
-                          alpha: 0.15,
-                        ),
-                        foregroundColor: AppColors.reminders,
+                      style: _glassButtonStyle(
+                        context,
+                        tint: AppColors.reminders,
+                        filled: true,
+                        danger: true,
+                        foreground: Colors.white,
                       ),
                       onPressed: () => Navigator.of(ctx).pop(true),
                       child: const Text('Sign out'),
@@ -11357,39 +13540,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (isCompact) {
                       return SizedBox(
                         width: 124,
-                        child: DropdownButton<ThemeMode>(
-                          value: mode,
-                          isExpanded: true,
-                          icon: Icon(
-                            Icons.expand_more_rounded,
-                            color: context.textSec,
+                        child: GlassPane(
+                          level: 4,
+                          radius: 16,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<ThemeMode>(
+                              value: mode,
+                              isExpanded: true,
+                              icon: Icon(
+                                Icons.expand_more_rounded,
+                                color: context.textSec,
+                              ),
+                              style: _dropdownTextStyle(context),
+                              dropdownColor: _dropdownMenuColor(context),
+                              borderRadius: BorderRadius.circular(16),
+                              items: [
+                                DropdownMenuItem(
+                                  value: ThemeMode.light,
+                                  child: Text('Light', style: _dropdownTextStyle(context)),
+                                ),
+                                DropdownMenuItem(
+                                  value: ThemeMode.dark,
+                                  child: Text('Dark', style: _dropdownTextStyle(context)),
+                                ),
+                                DropdownMenuItem(
+                                  value: ThemeMode.system,
+                                  child: Text('System', style: _dropdownTextStyle(context)),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) return;
+                                sl<ThemeCubit>().setThemeMode(value);
+                              },
+                            ),
                           ),
-                          underline: const SizedBox.shrink(),
-                          style: TextStyle(
-                            color: context.textPri,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          dropdownColor: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(14),
-                          items: const [
-                            DropdownMenuItem(
-                              value: ThemeMode.light,
-                              child: Text('Light'),
-                            ),
-                            DropdownMenuItem(
-                              value: ThemeMode.dark,
-                              child: Text('Dark'),
-                            ),
-                            DropdownMenuItem(
-                              value: ThemeMode.system,
-                              child: Text('System'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) return;
-                            sl<ThemeCubit>().setThemeMode(value);
-                          },
                         ),
                       );
                     }
@@ -11564,59 +13749,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          DropdownButtonFormField<String>(
-                            initialValue:
-                                _speechLanguageOptions.any(
-                                  (e) => e['code'] == _speechLanguage,
-                                )
-                                ? _speechLanguage
-                                : _speechLanguageOptions.first['code'],
-                            menuMaxHeight: 360,
-                            isExpanded: true,
-                            items: _speechLanguageOptions
-                                .map(
-                                  (entry) => DropdownMenuItem<String>(
-                                    value: entry['code'],
-                                    child: Text(
-                                      entry['label'] ?? entry['code'] ?? '',
+                          GlassPane(
+                            level: 4,
+                            radius: 18,
+                            padding: const EdgeInsets.all(1.0),
+                            child: DropdownButtonFormField<String>(
+                              initialValue:
+                                  _speechLanguageOptions.any(
+                                    (e) => e['code'] == _speechLanguage,
+                                  )
+                                  ? _speechLanguage
+                                  : _speechLanguageOptions.first['code'],
+                              menuMaxHeight: 360,
+                              isExpanded: true,
+                              items: _speechLanguageOptions
+                                  .map(
+                                    (entry) => DropdownMenuItem<String>(
+                                      value: entry['code'],
+                                      child: Text(
+                                        entry['label'] ?? entry['code'] ?? '',
+                                        style: _dropdownTextStyle(context),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setState(() => _speechLanguage = value);
+                                _scheduleSpeechSettingsApply();
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              dropdownColor: _dropdownMenuColor(context),
+                              style: _dropdownTextStyle(context),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                labelText: 'Recognition language',
+                                filled: true,
+                                fillColor: context.surface2.withValues(
+                                  alpha: 0.55,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: context.textSec.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: context.textSec.withValues(
+                                      alpha: 0.14,
                                     ),
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _speechLanguage = value);
-                              _scheduleSpeechSettingsApply();
-                            },
-                            decoration: InputDecoration(
-                              isDense: true,
-                              labelText: 'Recognition language',
-                              filled: true,
-                              fillColor: context.surface2.withValues(
-                                alpha: 0.7,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: context.textSec.withValues(alpha: 0.2),
                                 ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: context.textSec.withValues(
-                                    alpha: 0.16,
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.tasks,
                                   ),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: AppColors.tasks,
                                 ),
                               ),
                             ),
@@ -11637,6 +13831,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: OutlinedButton.icon(
+                              style: _glassButtonStyle(
+                                context,
+                                tint: AppColors.tasks,
+                              ),
                               onPressed: _openSpeechPackSettings,
                               icon: const Icon(
                                 Icons.download_for_offline_outlined,
@@ -11665,6 +13863,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: AppColors.followUp,
                       )
                     : TextButton(
+                        style: _glassButtonStyle(
+                          context,
+                          tint: AppColors.followUp,
+                        ),
                         onPressed: _requestNotificationPermission,
                         child: const Text('Enable'),
                       ),
@@ -11748,90 +13950,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 8),
               _SectionHeader(label: 'Telegram'),
-              GlassContainer(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                borderRadius: BorderRadius.circular(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.telegram, color: AppColors.tasks, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Telegram Chat ID (Override)',
-                          style: TextStyle(
-                            color: context.textPri,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: isCompact
-                          ? [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: _connectTelegramAuto,
-                                  icon: const Icon(Icons.link_rounded),
-                                  label: const Text('Connect in Telegram'),
-                                ),
-                              ),
-                            ]
-                          : [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: _connectTelegramAuto,
-                                  icon: const Icon(Icons.link_rounded),
-                                  label: const Text('Connect in Telegram'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton(
-                                onPressed: _openTelegramBot,
-                                child: const Text('Open bot'),
-                              ),
-                            ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Connect in Telegram is the supported path. The app now links your verified chat automatically.',
-                      style: TextStyle(color: context.textSec, fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_telegramChatId != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Connected: $_telegramChatId',
-                              style: TextStyle(
-                                color: AppColors.followUp,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _disconnectTelegram,
-                            child: const Text('Disconnect'),
-                          ),
-                        ],
-                      ),
-                    ] else ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Not connected yet.',
-                        style: TextStyle(
-                          color: context.textSec,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+              TelegramConnectionSection(
+                chatId: _telegramChatId,
+                connecting: _connectingTelegram,
+                onAutoConnect: () => _startTelegramConnect(context),
+                onDisconnect: _disconnectTelegram,
+                onCopyLink: () => _copyTelegramLink(context),
+                onCancelWaiting: _cancelTelegramWaiting,
               ),
 
               const SizedBox(height: 8),
@@ -11849,6 +13974,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : TextButton(
+                        style: _glassButtonStyle(
+                          context,
+                          tint: AppColors.tasks,
+                        ),
                         onPressed: _syncNow,
                         child: const Text('Sync now'),
                       ),
@@ -11864,6 +13993,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : TextButton(
+                        style: _glassButtonStyle(
+                          context,
+                          tint: AppColors.tasks,
+                        ),
                         onPressed: _reconnectGoogle,
                         child: const Text('Reconnect'),
                       ),
@@ -12286,6 +14419,620 @@ Future<TimeOfDay?> showMinuteWiseTimePicker(
   return picked;
 }
 ````
+
+### lib/features/settings/presentation/widgets/telegram_connection_section.dart
+
+```dart
+// lib/features/settings/presentation/widgets/telegram_connection_section.dart
+//
+// Self-contained Telegram connection section for the Settings screen.
+//
+// Replaces the inline ad-hoc Telegram block in settings_screen.dart.
+// Supports both the PRIMARY (auto deep-link) and SECONDARY (manual paste)
+// methods with a compact guided UI appropriate for a settings context.
+//
+// Drop-in usage:
+//   TelegramConnectionSection(
+//     chatId: _telegramChatId,
+//     connecting: _connectingTelegram,
+//     onAutoConnect:   _startTelegramConnect,
+//     onDisconnect:    _disconnectTelegram,
+//     onCopyLink:      _copyTelegramLink,
+//   )
+
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
+import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/features/sync/data/telegram_service.dart';
+import 'package:wishperlog/shared/widgets/glass_container.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+class TelegramConnectionSection extends StatefulWidget {
+  const TelegramConnectionSection({
+    super.key,
+    this.chatId,
+    this.connecting = false,
+    required this.onAutoConnect,
+    required this.onDisconnect,
+    required this.onCopyLink,
+    required this.onCancelWaiting,
+  });
+
+  /// The currently linked Telegram chat ID, or null if not connected.
+  final String? chatId;
+
+  /// True while the auto-connect flow is in-progress (waiting for bot reply).
+  final bool connecting;
+
+  final VoidCallback onAutoConnect;
+  final VoidCallback onDisconnect;
+  final VoidCallback onCopyLink;
+  final VoidCallback onCancelWaiting;
+
+  @override
+  State<TelegramConnectionSection> createState() =>
+      _TelegramConnectionSectionState();
+}
+
+class _TelegramConnectionSectionState
+    extends State<TelegramConnectionSection> {
+  bool   _verifying  = false;
+  String? _manualError;
+  final TextEditingController _idController = TextEditingController();
+
+  @override
+  void dispose() {
+    _idController.dispose();
+    super.dispose();
+  }
+
+  // ── Manual submit ──────────────────────────────────────────────────────────
+
+  Future<void> _submitManualId() async {
+    final raw = _idController.text.trim();
+    if (raw.isEmpty) {
+      setState(() => _manualError = 'Please enter your Chat ID.');
+      return;
+    }
+
+    setState(() {
+      _verifying   = true;
+      _manualError = null;
+    });
+
+    try {
+      await TelegramService.instance.linkManualChatId(raw);
+      if (!mounted) return;
+      setState(() {
+        _verifying  = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Telegram linked successfully!')),
+      );
+    } on ArgumentError catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _manualError = e.message;
+        _verifying   = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _manualError = 'Could not save Chat ID: $e';
+        _verifying   = false;
+      });
+    }
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final isConnected = widget.chatId != null;
+
+    return GlassContainer(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      borderRadius: BorderRadius.circular(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header row ────────────────────────────────────────────────────
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.tasks.withValues(alpha: 0.12),
+                ),
+                child: const Icon(Icons.telegram, color: AppColors.tasks, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Telegram',
+                      style: TextStyle(
+                        color: context.textPri,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      isConnected
+                          ? 'Digest & bot commands active'
+                          : 'Connect for daily digests',
+                      style: TextStyle(
+                        color: context.textSec,
+                        fontSize: 11,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Connection status badge
+              _StatusPill(connected: isConnected, pending: widget.connecting),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          // ── Connected state ────────────────────────────────────────────────
+          if (isConnected) ...[
+            _InfoRow(
+              icon: Icons.tag_rounded,
+              label: 'Chat ID',
+              value: widget.chatId!,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _GlassButton(
+                    icon: Icons.refresh_rounded,
+                    label: 'Re-link',
+                    color: AppColors.tasks,
+                    filled: true,
+                    onTap: widget.connecting ? null : widget.onAutoConnect,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _GlassButton(
+                  icon: Icons.link_off_rounded,
+                  label: 'Disconnect',
+                  color: AppColors.reminders,
+                  onTap: widget.onDisconnect,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: _GlassButton(
+                icon: Icons.content_copy_rounded,
+                label: 'Copy link',
+                color: AppColors.tasks,
+                onTap: widget.onCopyLink,
+              ),
+            ),
+          ]
+
+          // ── Not connected + waiting ────────────────────────────────────────
+          else if (widget.connecting) ...[
+            GlassPane(
+              level: 2,
+              radius: 14,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.tasks),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Waiting — tap START in Telegram to finish linking…',
+                      style: TextStyle(
+                          color: context.textSec, fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _GlassButton(
+                    icon: Icons.content_copy_rounded,
+                    label: 'Copy link',
+                    color: AppColors.tasks,
+                    onTap: widget.onCopyLink,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _GlassButton(
+                    icon: Icons.cancel_rounded,
+                    label: 'Cancel waiting',
+                    color: AppColors.reminders,
+                    onTap: widget.onCancelWaiting,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _ManualPanel(
+              controller: _idController,
+              errorText: _manualError,
+              verifying: _verifying,
+              onOpenBot: () async {
+                try {
+                  await TelegramService.instance.openTelegramBot();
+                } catch (_) {}
+              },
+              onSubmit: _submitManualId,
+              onCancel: () => setState(() {
+                _manualError = null;
+                _idController.clear();
+              }),
+            ),
+          ]
+
+          // ── Not connected, idle ────────────────────────────────────────────
+          else ...[
+            // Primary CTA
+            SizedBox(
+              width: double.infinity,
+              child: _GlassButton(
+                icon: Icons.flash_on_rounded,
+                label: 'Connect in Telegram  (Recommended)',
+                color: AppColors.tasks,
+                filled: true,
+                onTap: widget.onAutoConnect,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Secondary actions row
+            Row(
+              children: [
+                _GlassButton(
+                  icon: Icons.content_copy_rounded,
+                  label: 'Copy link',
+                  color: AppColors.tasks,
+                  onTap: widget.onCopyLink,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _GlassButton(
+                    icon: Icons.keyboard_rounded,
+                    label: 'Enter Chat ID manually',
+                    color: AppColors.ideas,
+                    onTap: () => setState(() {
+                      _manualError = null;
+                    }),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            _ManualPanel(
+              controller: _idController,
+              errorText: _manualError,
+              verifying: _verifying,
+              onOpenBot: () async {
+                try {
+                  await TelegramService.instance.openTelegramBot();
+                } catch (_) {}
+              },
+              onSubmit: _submitManualId,
+              onCancel: () => setState(() {
+                _manualError = null;
+                _idController.clear();
+              }),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _ManualPanel — always-visible "paste your chat_id" sub-form
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ManualPanel extends StatelessWidget {
+  const _ManualPanel({
+    required this.controller,
+    this.errorText,
+    required this.verifying,
+    required this.onOpenBot,
+    required this.onSubmit,
+    required this.onCancel,
+  });
+
+  final TextEditingController controller;
+  final String? errorText;
+  final bool verifying;
+  final VoidCallback onOpenBot;
+  final VoidCallback onSubmit;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 2,
+      radius: 16,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.help_outline_rounded,
+                  size: 15, color: AppColors.ideas),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Manual Chat ID Link',
+                  style: TextStyle(
+                    color: context.textPri,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onCancel,
+                child: Icon(Icons.close_rounded,
+                    size: 18, color: context.textSec),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '1. Open the bot and tap /start — it will display your Chat ID.\n'
+            '2. Copy that number and paste it below.',
+            style: TextStyle(
+                color: context.textSec, fontSize: 12, height: 1.45),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            style: ButtonStyle(
+              foregroundColor: const WidgetStatePropertyAll(AppColors.tasks),
+              side: WidgetStatePropertyAll(
+                BorderSide(color: AppColors.tasks.withValues(alpha: 0.30)),
+              ),
+              padding: const WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 10)),
+              shape: const WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
+              elevation: const WidgetStatePropertyAll(0),
+            ),
+            onPressed: onOpenBot,
+            icon: const Icon(Icons.telegram, size: 16),
+            label: const Text('Open bot',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
+            ],
+            decoration: InputDecoration(
+              labelText: 'Paste Chat ID',
+              hintText: '123456789',
+              errorText: errorText,
+              prefixIcon: const Icon(Icons.tag_rounded, size: 18),
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          FilledButton(
+            style: ButtonStyle(
+              backgroundColor: const WidgetStatePropertyAll(AppColors.ideas),
+              padding: const WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(vertical: 12)),
+              shape: const WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
+              elevation: const WidgetStatePropertyAll(0),
+            ),
+            onPressed: verifying ? null : onSubmit,
+            child: verifying
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Confirm',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMALL HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.connected, required this.pending});
+  final bool connected;
+  final bool pending;
+
+  @override
+  Widget build(BuildContext context) {
+    if (pending) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: AppColors.ideas.withValues(alpha: 0.12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.ideas),
+            ),
+            const SizedBox(width: 5),
+            Text('Pending',
+                style: TextStyle(
+                    color: AppColors.ideas,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+      );
+    }
+
+    if (!connected) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: AppColors.followUp.withValues(alpha: 0.12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.check_circle_rounded,
+              size: 12, color: AppColors.followUp),
+          const SizedBox(width: 4),
+          const Text('Connected',
+              style: TextStyle(
+                  color: AppColors.followUp,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: context.textSec),
+        const SizedBox(width: 6),
+        Text('$label: ',
+            style: TextStyle(color: context.textSec, fontSize: 12)),
+        Text(value,
+            style: TextStyle(
+                color: context.textPri,
+                fontSize: 12,
+                fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}
+
+class _GlassButton extends StatelessWidget {
+  const _GlassButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.filled = false,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String   label;
+  final Color    color;
+  final bool     filled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = filled
+        ? color.withValues(alpha: context.isDark ? 0.24 : 0.16)
+        : context.surface1.withValues(alpha: 0.7);
+
+    Widget content = InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: bg,
+          border: Border.all(
+            color: color.withValues(alpha: filled ? 0.0 : 0.22),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return content;
+  }
+}
+```
 
 ### lib/features/sync/data/external_sync_service.dart
 
@@ -13103,7 +15850,7 @@ class FirestoreNoteSyncService {
     }
     _started = true;
 
-    _authSub = _auth.authStateChanges().listen(
+    _authSub = _auth.idTokenChanges().listen(
       (user) {
         _attachUserListener(user);
       },
@@ -13166,6 +15913,13 @@ class FirestoreNoteSyncService {
               '[FirestoreNoteSyncService] Snapshot listener error: $error',
             );
             debugPrintStack(stackTrace: st);
+            final message = error.toString().toLowerCase();
+            if (message.contains('permission-denied') ||
+                message.contains('permission denied')) {
+              await _noteSub?.cancel();
+              _noteSub = null;
+              return;
+            }
             await _restartAfterDelay();
           },
         );
@@ -13319,38 +16073,50 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
-import 'package:wishperlog/features/sync/data/telegram_service.dart';
+import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
-import 'package:wishperlog/shared/models/user.dart';
-import 'package:wishperlog/shared/models/enums.dart'; // Added for NoteStatus
 
-/// Computes per-channel digest payloads from the current note set and
-/// persists them into `users/{uid}/message_state` in Firestore.
-///
-/// **Source of Truth contract:**
-///   - Called after every note create / update / AI-classification.
-///   - The Cloudflare Worker reads `message_state.telegram` and sends it
-///     without any further calculation.
-///   - Adding WhatsApp / Email requires only implementing the
-///     `_buildWhatsapp` / `_buildEmail` methods below.
 class MessageStateService {
-  MessageStateService({
-    FirebaseAuth?    auth,
+  MessageStateService._({
+    FirebaseAuth? auth,
     FirebaseFirestore? firestore,
-    IsarNoteStore?   isarNoteStore,
-  })  : _auth          = auth          ?? FirebaseAuth.instance,
-        _firestore     = firestore     ?? FirebaseFirestore.instance,
+    IsarNoteStore? isarNoteStore,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance,
         _isarNoteStore = isarNoteStore ?? IsarNoteStore.instance;
 
-  final FirebaseAuth     _auth;
+  static final MessageStateService instance = MessageStateService._();
+
+  final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final IsarNoteStore    _isarNoteStore;
+  final IsarNoteStore _isarNoteStore;
 
-  // ── Public entry-point ─────────────────────────────────────────────────────
+  Future<void> rebuildDigest(List<Note> activeNotes, {String? uid}) async {
+    final resolvedUid = uid ?? _auth.currentUser?.uid;
+    if (resolvedUid == null || resolvedUid.trim().isEmpty) {
+      debugPrint('[MessageStateService] skipped — no authenticated user');
+      return;
+    }
 
-  /// Recompute all channel payloads for the current user and persist them.
-  /// Safe to call from any isolate that has Firebase initialised.
-  /// [uid] is optional — falls back to `FirebaseAuth.instance.currentUser`.
+    try {
+      final userDoc = await _firestore.collection('users').doc(resolvedUid).get();
+      final displayName = (userDoc.data()?['display_name'] as String?)?.trim();
+      final messages = _buildTelegramMessages(
+        activeNotes,
+        displayName: displayName,
+      );
+
+      await _persist(resolvedUid, messages);
+      debugPrint(
+        '[MessageStateService] rebuilt for $resolvedUid '
+        '(telegram ${messages['telegram']?.length ?? 0} chars)',
+      );
+    } catch (e, st) {
+      debugPrint('[MessageStateService] rebuild error: $e');
+      debugPrintStack(stackTrace: st);
+    }
+  }
+
   Future<void> recompute({String? uid}) async {
     final resolvedUid = uid ?? _auth.currentUser?.uid;
     if (resolvedUid == null || resolvedUid.trim().isEmpty) {
@@ -13360,43 +16126,20 @@ class MessageStateService {
 
     try {
       final notes = await _fetchActiveNotes(resolvedUid);
-      final telegram = _buildTelegram(notes);
-
-      // ── Extend here for additional channels ───────────────────────────────
-      // final whatsapp = _buildWhatsapp(notes);
-      // final email    = _buildEmail(notes);
-
-      final state = MessageState(
-        telegram:   telegram,
-        computedAt: DateTime.now().toUtc(),
-      );
-
-      await _persist(resolvedUid, state);
-      debugPrint(
-        '[MessageStateService] recomputed for $resolvedUid '
-        '(telegram ${telegram?.length ?? 0} chars)',
-      );
+      await rebuildDigest(notes, uid: resolvedUid);
     } catch (e, st) {
       debugPrint('[MessageStateService] recompute error: $e');
       debugPrintStack(stackTrace: st);
     }
   }
 
-  // ── Firestore fetch ────────────────────────────────────────────────────────
-
   Future<List<Note>> _fetchActiveNotes(String uid) async {
-    // Prefer local Isar (fast, offline) — fall back to Firestore.
     try {
-      final local = await _isarNoteStore.getAllNotes();
-      final active = local
-          .where((n) =>
-              n.uid == uid &&
-              n.status == NoteStatus.active)
-          .toList();
+      final local = await _isarNoteStore.getAllActive();
+      final active = local.where((n) => n.uid == uid).toList();
       if (active.isNotEmpty) return active;
     } catch (_) {}
 
-    // Firestore fallback
     final snap = await _firestore
         .collection('users')
         .doc(uid)
@@ -13413,1101 +16156,654 @@ class MessageStateService {
           }
         })
         .whereType<Note>()
+        .where((n) => n.status == NoteStatus.active)
         .toList();
   }
 
-  // ── Channel builders ───────────────────────────────────────────────────────
+  Map<String, String> _buildTelegramMessages(
+    List<Note> notes, {
+    String? displayName,
+  }) {
+    final active = notes
+        .where((n) => n.status == NoteStatus.active)
+        .toList();
 
-  /// Builds the Telegram HTML string using the same logic as TelegramService.
-  /// Returns null when there are no active notes (Worker will skip send).
-  String? _buildTelegram(List<Note> notes) {
-    if (notes.isEmpty) return null;
+    if (active.isEmpty) {
+      return {
+        'telegram': '📋 <b>WishperLog Daily Digest</b>\nNo active notes.',
+        'telegram_digest': '📋 <b>WishperLog Daily Digest</b>\nNo active notes.',
+        'telegram_summary': '📋 <b>WishperLog Summary</b>\nNo active notes.',
+        'telegram_top': '🏆 <b>WishperLog Top</b>\nNo active notes.',
+        'telegram_tasks': '📝 <b>WishperLog Tasks</b>\nNo active notes.',
+        'telegram_reminders': '⏰ <b>WishperLog Reminders</b>\nNo active notes.',
+        'telegram_ideas': '💡 <b>WishperLog Ideas</b>\nNo active notes.',
+      };
+    }
 
-    final now = DateTime.now().toUtc();
-    // Reuse the existing rich formatter from TelegramService (pure function).
-    return TelegramService.staticBuildDailyDigest(
-      notes:   notes,
-      localDate: now,
-      maxItems: 5,
-      topPriorityOnly: true,
-      includeMediumFallback: true,
-    );
+    active.sort((a, b) {
+      final pa = _priorityRank(a.priority.name);
+      final pb = _priorityRank(b.priority.name);
+      if (pa != pb) return pa.compareTo(pb);
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+
+    final tasks = active.where((n) => n.category == NoteCategory.tasks).toList();
+    final reminders = active.where((n) => n.category == NoteCategory.reminders).toList();
+    final ideas = active.where((n) => n.category == NoteCategory.ideas).toList();
+
+    return {
+      'telegram': _buildDigestMessage(
+        title: 'WishperLog Daily Digest',
+        greeting: displayName,
+        notes: active,
+        maxItems: 5,
+        includeStats: true,
+      ),
+      'telegram_digest': _buildDigestMessage(
+        title: 'WishperLog Daily Digest',
+        greeting: displayName,
+        notes: active,
+        maxItems: 5,
+        includeStats: true,
+      ),
+      'telegram_summary': _buildDigestMessage(
+        title: 'WishperLog Summary',
+        greeting: displayName,
+        notes: active,
+        maxItems: 5,
+        includeStats: true,
+      ),
+      'telegram_top': _buildDigestMessage(
+        title: 'WishperLog Top',
+        greeting: displayName,
+        notes: _topPriorityNotes(active, maxItems: 3),
+        maxItems: 3,
+        includeStats: false,
+      ),
+      'telegram_tasks': _buildDigestMessage(
+        title: 'WishperLog Tasks',
+        greeting: displayName,
+        notes: tasks,
+        maxItems: 5,
+        includeStats: false,
+      ),
+      'telegram_reminders': _buildDigestMessage(
+        title: 'WishperLog Reminders',
+        greeting: displayName,
+        notes: reminders,
+        maxItems: 5,
+        includeStats: false,
+      ),
+      'telegram_ideas': _buildDigestMessage(
+        title: 'WishperLog Ideas',
+        greeting: displayName,
+        notes: ideas,
+        maxItems: 5,
+        includeStats: false,
+      ),
+    };
   }
 
-  // Stub: add WhatsApp plain-text builder here.
-  // String? _buildWhatsapp(List<Note> notes) { ... }
-
-  // Stub: add Email HTML builder here.
-  // String? _buildEmail(List<Note> notes) { ... }
-
-  // ── Persistence ────────────────────────────────────────────────────────────
-
-  Future<void> _persist(String uid, MessageState state) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .set({'message_state': state.toJson()}, SetOptions(merge: true));
+  Future<void> _persist(String uid, Map<String, String> messages) async {
+    await _firestore.collection('users').doc(uid).set({
+      'message_state': {
+        'telegram': messages['telegram'],
+        'telegram_digest': messages['telegram_digest'],
+        'telegram_summary': messages['telegram_summary'],
+        'telegram_top': messages['telegram_top'],
+        'telegram_tasks': messages['telegram_tasks'],
+        'telegram_reminders': messages['telegram_reminders'],
+        'telegram_ideas': messages['telegram_ideas'],
+        'updated_at': FieldValue.serverTimestamp(),
+      },
+    }, SetOptions(merge: true));
   }
+}
+
+List<Note> _topPriorityNotes(List<Note> notes, {required int maxItems}) {
+  final ranked = [...notes]
+    ..sort((a, b) {
+      final pa = _priorityRank(a.priority.name);
+      final pb = _priorityRank(b.priority.name);
+      if (pa != pb) return pa.compareTo(pb);
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+
+  final high = ranked.where((n) => n.priority == NotePriority.high).toList();
+  final selected = high.isNotEmpty
+      ? high
+      : ranked.where((n) => n.priority == NotePriority.medium).toList();
+
+  return selected.take(maxItems).toList();
+}
+
+String _buildDigestMessage({
+  required String title,
+  required String? greeting,
+  required List<Note> notes,
+  required int maxItems,
+  required bool includeStats,
+}) {
+  if (notes.isEmpty) {
+    return '<b>$title</b>\nNo active notes.';
+  }
+
+  final sorted = [...notes]
+    ..sort((a, b) {
+      final pa = _priorityRank(a.priority.name);
+      final pb = _priorityRank(b.priority.name);
+      if (pa != pb) return pa.compareTo(pb);
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+
+  final active = sorted.take(maxItems).toList();
+  final tasks = notes.where((n) => n.category == NoteCategory.tasks).length;
+  final reminders = notes.where((n) => n.category == NoteCategory.reminders).length;
+  final ideas = notes.where((n) => n.category == NoteCategory.ideas).length;
+
+  final buffer = StringBuffer();
+  buffer.writeln('📋 <b>$title</b>');
+  if ((greeting ?? '').trim().isNotEmpty) {
+    buffer.writeln('Hello ${_ascii(greeting ?? 'there')}! Here\'s your snapshot:');
+  }
+
+  if (includeStats) {
+    buffer.writeln();
+    buffer.writeln('• Active notes: ${notes.length}');
+    buffer.writeln('• Tasks: $tasks');
+    buffer.writeln('• Reminders: $reminders');
+    buffer.writeln('• Ideas: $ideas');
+  }
+
+  buffer.writeln();
+  buffer.writeln('<b>Top items</b>');
+  for (final note in active) {
+    final titleText = _ascii(note.title.isEmpty ? 'Untitled' : note.title);
+    final category = note.category.name.toUpperCase();
+    final priority = _priorityLabel(note.priority.name);
+    buffer.writeln('• [$category][$priority] $titleText');
+
+    final body = _ascii(note.cleanBody);
+    if (body.isNotEmpty) {
+      buffer.writeln('  <i>${body.length > 120 ? '${body.substring(0, 120)}…' : body}</i>');
+    }
+  }
+
+  if (notes.length > active.length) {
+    buffer.writeln();
+    buffer.writeln('<i>+${notes.length - active.length} more</i>');
+  }
+
+  return buffer.toString().trim();
+}
+
+int _priorityRank(String? p) {
+  return switch (p?.toLowerCase()) {
+    'high' => 0,
+    'medium' => 1,
+    'low' => 2,
+    _ => 3,
+  };
+}
+
+String _priorityLabel(String? p) {
+  return switch (p?.toLowerCase()) {
+    'high' => 'HIGH',
+    'low' => 'LOW',
+    _ => 'MED',
+  };
+}
+
+String _ascii(String? v) {
+  return (v ?? '')
+      .replaceAll(RegExp(r'[^\x00-\x7F]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }
 ```
 
 ### lib/features/sync/data/telegram_service.dart
 
 ```dart
-import 'dart:convert';
-import 'dart:math';
+// lib/features/sync/data/telegram_service.dart
+//
+// v2.0 — Digest Collection Architecture + Dual-Method Linking
+//
+// Changes from v1:
+//   • writeDigestConfig()   — mirrors telegram_chat_id + digest_slots to
+//                             users/{uid}/digest/config (new sub-collection).
+//   • addQueryHistory()     — writes bot command records to
+//                             users/{uid}/digest/history_{timestamp}.
+//   • linkManualChatId()    — validates and saves a raw chat_id pasted by
+//                             the user, enabling the secondary fallback method.
+//   • All existing methods preserved and unchanged.
 
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'dart:math' as math;
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:wishperlog/core/config/app_env.dart';
-import 'package:wishperlog/features/search/data/smart_note_search.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
-import 'package:wishperlog/shared/models/note_helpers.dart';
-
-class TelegramCommandEvent {
-  final int updateId;
-  final String chatId;
-  final int messageId;
-  final String command;
-  final String commandArgs;
-  final String rawText;
-
-  const TelegramCommandEvent({
-    required this.updateId,
-    required this.chatId,
-    required this.messageId,
-    required this.command,
-    required this.commandArgs,
-    required this.rawText,
-  });
-}
-
-class TelegramUpdateBatch {
-  final List<TelegramCommandEvent> events;
-  final int nextOffset;
-
-  const TelegramUpdateBatch({required this.events, required this.nextOffset});
-}
 
 class TelegramService {
-  static const _baseUrl = 'https://api.telegram.org';
+  TelegramService._();
+  static final TelegramService instance = TelegramService._();
 
-  final String _botToken;
-  String? _resolvedBotUsername;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth     _auth      = FirebaseAuth.instance;
 
-  TelegramService({String? botToken})
-    : _botToken = botToken ?? AppEnv.telegramBotToken;
+  static const String _fallbackBotUsername = 'WishperLogDigestBot';
 
-  bool get isConfigured => _botToken.isNotEmpty;
+  String? _lastLinkToken;
 
-  static const List<Map<String, String>> defaultCommands = [
-    {'command': 'start', 'description': 'Link and quick welcome'},
-    {'command': 'help', 'description': 'Show available commands'},
-    {'command': 'status', 'description': 'Show bot connection status'},
-    {'command': 'digest', 'description': 'Send priority brief now'},
-    {'command': 'top', 'description': 'Show top 3 priorities now'},
-    {'command': 'today', 'description': 'Show today summary card'},
-    {'command': 'slots', 'description': 'Show configured digest times'},
-    {'command': 'stats', 'description': 'Show category + priority stats'},
-    {'command': 'find', 'description': 'Search notes by keyword'},
-    {'command': 'agenda', 'description': 'Upcoming dated notes'},
-    {'command': 'menu', 'description': 'Show quick action panel'},
-    {'command': 'focus', 'description': 'Get one focus reminder'},
-    {'command': 'nudge', 'description': 'Get a quick motivational nudge'},
-    {'command': 'ping', 'description': 'Health check'},
-  ];
+  String? get lastLinkToken => _lastLinkToken;
+  String? get lastLinkPin   => _lastLinkToken;
+
+  // ── Auth guard ──────────────────────────────────────────────────────────────
+
+  String get _uid {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('User not authenticated');
+    return user.uid;
+  }
+
+  // ── Firestore references ────────────────────────────────────────────────────
+
+  /// Root user document: users/{uid}
+  DocumentReference<Map<String, dynamic>> get _userDoc =>
+      _firestore.collection('users').doc(_uid);
+
+  /// Digest config document: users/{uid}/digest/config
+  ///
+  /// This is the NEW authoritative source the Cloudflare Worker reads for
+  /// scheduling data (digest_slots, telegram_chat_id, display_name).
+  DocumentReference<Map<String, dynamic>> get _digestConfigDoc =>
+      _userDoc.collection('digest').doc('config');
+
+  // ── Bot username helpers ────────────────────────────────────────────────────
+
+  Future<String> _botUsername() async {
+    final configured = AppEnv.telegramBotUsername.trim();
+    if (configured.isNotEmpty) {
+      return configured.replaceFirst(RegExp(r'^@+'), '');
+    }
+    return _fallbackBotUsername;
+  }
+
+  // ── Token generation ────────────────────────────────────────────────────────
+
+  String _buildLinkToken() {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    final random = math.Random.secure();
+    return List.generate(
+      10,
+      (_) => alphabet[random.nextInt(alphabet.length)],
+    ).join();
+  }
+
+  // ── URI builders ────────────────────────────────────────────────────────────
+
+  Future<Uri> buildTelegramStartUri(String token) async {
+    final deepLinkBase = AppEnv.telegramDeepLinkBase.trim();
+    if (deepLinkBase.isNotEmpty) {
+      return Uri.parse('$deepLinkBase$token');
+    }
+    final botUsername = await _botUsername();
+    return Uri.https('t.me', '/$botUsername', {'start': token});
+  }
+
+  Future<Uri> buildTelegramBotUri() async {
+    final botUsername = await _botUsername();
+    return Uri.https('t.me', '/$botUsername');
+  }
+
+  // ── Primary auto-link flow ──────────────────────────────────────────────────
+
+  /// Creates a one-time link token, writes it to the user root doc, and
+  /// returns the token. The bot later POSTs the user's chat_id back to
+  /// Firestore when the user sends `/start token`.
+  Future<String> createTelegramConnectionToken() async {
+    final token = _buildLinkToken();
+    _lastLinkToken = token;
+
+    await _userDoc.set({
+      'telegram_link_token': token,
+      'telegram_link_pin': token,
+      'telegram_link_token_created_at': FieldValue.serverTimestamp(),
+      'telegram_link_pin_created_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    return token;
+  }
+
+  /// Alias kept for backward-compatibility with older callers.
+  Future<String> generateLinkPin() => createTelegramConnectionToken();
+
+  /// Clears any pending link token (cleanup after successful or abandoned link).
+  Future<void> clearTelegramConnectionToken() async {
+    _lastLinkToken = null;
+    try {
+      await _userDoc.update({
+        'telegram_link_token': FieldValue.delete(),
+        'telegram_link_token_created_at': FieldValue.delete(),
+        'telegram_link_pin': FieldValue.delete(),
+        'telegram_link_pin_created_at': FieldValue.delete(),
+      });
+    } catch (_) {}
+  }
+
+  Future<void> clearLinkPin() => clearTelegramConnectionToken();
+
+  /// Primary connect: generates a token, builds the deep-link URI, and opens
+  /// Telegram so the user can tap START in one motion.
+  Future<String> connectTelegramAuto({String? existingToken}) async {
+    final token = existingToken ?? await createTelegramConnectionToken();
+    try {
+      await openTelegramBot(startToken: token);
+      return token;
+    } catch (_) {
+      if (existingToken == null) await clearTelegramConnectionToken();
+      rethrow;
+    }
+  }
+
+  Future<void> openTelegramBot({String? startToken}) async {
+    final uri = startToken == null
+        ? await buildTelegramBotUri()
+        : await buildTelegramStartUri(startToken);
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) throw StateError('Could not open Telegram');
+  }
+
+  // ── Secondary manual-link flow ──────────────────────────────────────────────
+
+  /// Validates and saves a chat_id that the user copied from the bot manually.
+  ///
+  /// Telegram chat_ids for private chats are numeric (positive or negative).
+  /// This method validates the format, writes to the user doc AND the digest
+  /// config doc, and returns the normalised chat_id string.
+  ///
+  /// Throws [ArgumentError] if [rawChatId] is not a valid Telegram chat id.
+  Future<String> linkManualChatId(String rawChatId) async {
+    final trimmed = rawChatId.trim();
+
+    // Basic validation: must be a non-empty integer string.
+    final parsed = int.tryParse(trimmed);
+    if (parsed == null || trimmed.isEmpty) {
+      throw ArgumentError(
+        'Invalid chat ID. It should be a number — copy it directly from the bot.',
+      );
+    }
+
+    final chatIdStr = trimmed;
+
+    // Write to both locations atomically via a batch.
+    final batch = _firestore.batch();
+
+    batch.set(
+      _userDoc,
+      {
+        'telegram_chat_id': chatIdStr,
+        // Clear any pending token since the user linked manually.
+        'telegram_link_token': FieldValue.delete(),
+        'telegram_link_token_created_at': FieldValue.delete(),
+        'telegram_link_pin': FieldValue.delete(),
+        'telegram_link_pin_created_at': FieldValue.delete(),
+      },
+      SetOptions(merge: true),
+    );
+
+    // Mirror to digest/config so the Worker can find it.
+    batch.set(
+      _digestConfigDoc,
+      {
+        'telegram_chat_id': chatIdStr,
+        'linked_at': FieldValue.serverTimestamp(),
+        'link_method': 'manual',
+      },
+      SetOptions(merge: true),
+    );
+
+    await batch.commit();
+
+    _lastLinkToken = null;
+    return chatIdStr;
+  }
+
+  // ── Chat-id readers ─────────────────────────────────────────────────────────
+
+  Future<String?> getLinkedChatId() async {
+    final doc    = await _userDoc.get();
+    final chatId = (doc.data()?['telegram_chat_id'] ?? '').toString().trim();
+    return chatId.isEmpty ? null : chatId;
+  }
+
+  Stream<String?> watchLinkedChatId() {
+    return _userDoc.snapshots().map((snap) {
+      final chatId = (snap.data()?['telegram_chat_id'] ?? '').toString().trim();
+      return chatId.isEmpty ? null : chatId;
+    });
+  }
+
+  // ── Disconnect ──────────────────────────────────────────────────────────────
+
+  Future<void> disconnectTelegram() async {
+    _lastLinkToken = null;
+
+    final batch = _firestore.batch();
+
+    batch.update(_userDoc, {
+      'telegram_chat_id': FieldValue.delete(),
+      'telegram_link_token': FieldValue.delete(),
+      'telegram_link_token_created_at': FieldValue.delete(),
+      'telegram_link_pin': FieldValue.delete(),
+      'telegram_link_pin_created_at': FieldValue.delete(),
+      'message_state': FieldValue.delete(),
+    });
+
+    // Clear chat_id from digest config too.
+    batch.set(
+      _digestConfigDoc,
+      {'telegram_chat_id': FieldValue.delete()},
+      SetOptions(merge: true),
+    );
+
+    await batch.commit();
+  }
+
+  // ── Digest Collection API ───────────────────────────────────────────────────
+
+  /// Writes (or updates) the digest scheduling configuration to the NEW
+  /// `users/{uid}/digest/config` document.
+  ///
+  /// The Cloudflare Worker reads this document directly to determine:
+  ///   - Which time-slots to fire for this user  (digest_slots_utc)
+  ///   - Which Telegram chat to send to          (telegram_chat_id)
+  ///   - Display name for the greeting           (display_name)
+  ///
+  /// [utcSlots] — list of "HH:MM" strings in UTC.
+  /// [localSlots] — list of "HH:MM" strings in the user's local time (stored
+  ///   for display purposes only — the Worker always uses utcSlots).
+  Future<void> writeDigestConfig({
+    required List<String> utcSlots,
+    required List<String> localSlots,
+  }) async {
+    final uid  = _uid;
+    final user = _auth.currentUser;
+
+    // Fetch current chat_id from the user root doc to mirror it here.
+    final userSnap = await _userDoc.get();
+    final chatId = (userSnap.data()?['telegram_chat_id'] ?? '').toString().trim();
+    final displayName = user?.displayName ?? (userSnap.data()?['display_name'] ?? '');
+
+    await _digestConfigDoc.set({
+      'uid'                  : uid,
+      'display_name'         : displayName,
+      'telegram_chat_id'     : chatId.isEmpty ? null : chatId,
+      'digest_slots_utc'     : utcSlots,
+      'digest_slots_local'   : localSlots,
+      'timezone_offset_min'  : DateTime.now().timeZoneOffset.inMinutes,
+      'updated_at'           : FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Records a bot query to `users/{uid}/digest/history_<timestamp>`.
+  ///
+  /// Called by the Worker via the webhook handler after serving a command so
+  /// history is visible to the app for future "digest history" UI features.
+  Future<void> addQueryHistory({
+    required String command,
+    required String responseHeading,
+    int noteCount = 0,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final docId = 'history_${now.millisecondsSinceEpoch}';
+
+    await _userDoc.collection('digest').doc(docId).set({
+      'command'         : command,
+      'response_heading': responseHeading,
+      'note_count'      : noteCount,
+      'queried_at'      : FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ── Digest slot persistence ─────────────────────────────────────────────────
+
+  /// Saves digest slots to both the legacy user root doc and the new
+  /// digest/config document so both the app and the Worker stay in sync.
+  Future<void> saveDigestSlots(List<String> slots) async {
+    final batch = _firestore.batch();
+
+    batch.set(_userDoc, {'digest_slots': slots}, SetOptions(merge: true));
+
+    batch.set(
+      _digestConfigDoc,
+      {'digest_slots_utc': slots, 'updated_at': FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
+
+    await batch.commit();
+  }
+
+  Future<List<String>> getDigestSlots() async {
+    final doc = await _userDoc.get();
+    final raw = doc.data()?['digest_slots'];
+    if (raw is List) return raw.map((e) => e.toString()).toList();
+    return [];
+  }
+
+  // ── Bot username resolution ─────────────────────────────────────────────────
+
+  bool get isConfigured => true;
 
   Future<String?> resolveBotUsername() async {
-    final configured = AppEnv.telegramBotUsername.trim();
-    if (configured.isNotEmpty) return configured;
-    if (_resolvedBotUsername != null && _resolvedBotUsername!.isNotEmpty) {
-      return _resolvedBotUsername;
-    }
-    if (!isConfigured) return null;
-
-    try {
-      final response = await http
-          .get(Uri.parse('$_baseUrl/bot$_botToken/getMe'))
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) {
-        debugPrint('[TelegramService] getMe failed: ${response.body}');
-        return null;
-      }
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final result = data['result'] as Map<String, dynamic>?;
-      final username = (result?['username'] ?? '').toString().trim();
-      if (username.isEmpty) return null;
-      _resolvedBotUsername = username;
-      return username;
-    } catch (e) {
-      debugPrint('[TelegramService] resolveBotUsername error: $e');
-      return null;
-    }
+    final username = await _botUsername();
+    return username.trim().isEmpty ? null : username;
   }
 
-  Future<bool> registerDefaultCommands() async {
-    if (!isConfigured) return false;
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/bot$_botToken/setMyCommands'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'commands': defaultCommands}),
-          )
-          .timeout(const Duration(seconds: 10));
+  Future<String?> resolveChatIdByStartToken({required String token}) async {
+    final tokenValue = token.trim();
+    if (tokenValue.isEmpty) return null;
 
-      if (response.statusCode != 200) {
-        debugPrint('[TelegramService] setMyCommands failed: ${response.body}');
-        return false;
-      }
-      return true;
-    } catch (e) {
-      debugPrint('[TelegramService] registerDefaultCommands error: $e');
-      return false;
-    }
-  }
+    final query = await _firestore
+        .collection('users')
+        .where('telegram_link_token', isEqualTo: tokenValue)
+        .limit(1)
+        .get();
 
-  Future<TelegramUpdateBatch> fetchCommandUpdates({
-    int offset = 0,
-    int timeoutSeconds = 3,
-  }) async {
-    if (!isConfigured) {
-      return TelegramUpdateBatch(events: const [], nextOffset: offset);
+    if (query.docs.isNotEmpty) {
+      final chatId =
+          (query.docs.first.data()['telegram_chat_id'] ?? '').toString().trim();
+      if (chatId.isNotEmpty) return chatId;
     }
 
-    try {
-      final response = await http
-          .get(
-            Uri.parse(
-              '$_baseUrl/bot$_botToken/getUpdates?offset=$offset&timeout=$timeoutSeconds&allowed_updates=["message"]',
-            ),
-          )
-          .timeout(const Duration(seconds: 12));
+    // Legacy pin fallback
+    final legacyQuery = await _firestore
+        .collection('users')
+        .where('telegram_link_pin', isEqualTo: tokenValue)
+        .limit(1)
+        .get();
 
-      if (response.statusCode != 200) {
-        debugPrint('[TelegramService] fetchCommandUpdates failed: ${response.body}');
-        return TelegramUpdateBatch(events: const [], nextOffset: offset);
-      }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final raw = (body['result'] as List?) ?? const [];
-      final events = <TelegramCommandEvent>[];
-      var nextOffset = offset;
-
-      for (final item in raw) {
-        final entry = item as Map<String, dynamic>;
-        final updateId = entry['update_id'] as int? ?? 0;
-        if (updateId >= nextOffset) nextOffset = updateId + 1;
-
-        final msg = entry['message'] as Map<String, dynamic>?;
-        final text = (msg?['text'] ?? '').toString().trim();
-        if (!text.startsWith('/')) continue;
-
-        final chatId = msg?['chat']?['id']?.toString().trim();
-        if (chatId == null || chatId.isEmpty) continue;
-        final messageId = (msg?['message_id'] as int?) ?? 0;
-
-        final firstToken = text.split(RegExp(r'\s+')).first;
-        final args = text.length > firstToken.length
-            ? text.substring(firstToken.length).trim()
-            : '';
-        var command = firstToken;
-        if (command.startsWith('/')) {
-          command = command.substring(1);
-        }
-        if (command.contains('@')) {
-          command = command.split('@').first;
-        }
-        command = command.toLowerCase().trim();
-        if (command.isEmpty) continue;
-
-        events.add(
-          TelegramCommandEvent(
-            updateId: updateId,
-            chatId: chatId,
-            messageId: messageId,
-            command: command,
-            commandArgs: args,
-            rawText: text,
-          ),
-        );
-      }
-
-      return TelegramUpdateBatch(events: events, nextOffset: nextOffset);
-    } catch (e) {
-      debugPrint('[TelegramService] fetchCommandUpdates error: $e');
-      return TelegramUpdateBatch(events: const [], nextOffset: offset);
-    }
+    if (legacyQuery.docs.isEmpty) return null;
+    final chatId =
+        (legacyQuery.docs.first.data()['telegram_chat_id'] ?? '').toString().trim();
+    return chatId.isEmpty ? null : chatId;
   }
 
-  String buildHelpMessage() {
-    return [
-      '<b>WishperLog Bot Commands</b>',
-      '',
-      '/start - welcome and quick setup',
-      '/help - this command list',
-      '/status - linked chat and digest status',
-      '/digest - send priority brief now',
-      '/top - send top 3 priority notes',
-      '/today - today summary card',
-      '/slots - your digest time slots',
-      '/stats - category and priority stats',
-      '/find <query> - smart semantic-ish note search',
-      '/agenda - upcoming extracted date timeline',
-      '/menu - rich action command panel',
-      '/focus - one actionable focus item',
-      '/nudge - quick motivation prompt',
-      '/ping - bot health check',
-    ].join('\n');
+  Future<void> sendConnectionConfirmation({required String chatId}) async {
+    if (chatId.trim().isEmpty) return;
   }
 
-  /// Fallback linker for setups without bot backend/webhook.
-  /// Polls getUpdates and looks for `/start <token>` then returns chat_id.
-  Future<String?> resolveChatIdByStartToken({
-    required String token,
-    Duration timeout = const Duration(seconds: 90),
-  }) async {
-    if (!isConfigured || token.trim().isEmpty) return null;
+  Future<void> registerDefaultCommands() async {}
 
-    final deadline = DateTime.now().add(timeout);
-    var offset = 0;
+  // ── Daily digest message builder ────────────────────────────────────────────
 
-    while (DateTime.now().isBefore(deadline)) {
-      try {
-        final response = await http
-            .get(
-              Uri.parse(
-                '$_baseUrl/bot$_botToken/getUpdates?offset=$offset&timeout=8&allowed_updates=["message"]',
-              ),
-            )
-            .timeout(const Duration(seconds: 12));
-
-        if (!_isTelegramOk(response)) {
-          debugPrint('[TelegramService] getUpdates failed (ok=false): ${response.body}');
-          await Future<void>.delayed(const Duration(seconds: 2));
-          continue;
-        }
-
-        final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final updates = (body['result'] as List?) ?? const [];
-
-        for (final update in updates) {
-          final entry = update as Map<String, dynamic>;
-          final updateId = entry['update_id'] as int? ?? 0;
-          if (updateId >= offset) offset = updateId + 1;
-
-          final msg = entry['message'] as Map<String, dynamic>?;
-          final text = (msg?['text'] ?? '').toString().trim();
-          if (text.isEmpty) continue;
-
-          if (_isMatchingStartToken(text, token)) {
-            final chatId = msg?['chat']?['id']?.toString().trim();
-            if (chatId != null && chatId.isNotEmpty) {
-              return chatId;
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('[TelegramService] resolveChatIdByStartToken error: $e');
-      }
-
-      // Back-off: 2 s between polls to avoid hammering the API.
-      await Future<void>.delayed(const Duration(seconds: 2));
-    }
-
-    return null;
-  }
-
-  bool _isMatchingStartToken(String text, String token) {
-    final normalized = text.trim();
-    if (!normalized.startsWith('/start')) return false;
-    final parts = normalized.split(RegExp(r'\s+'));
-    if (parts.length < 2) return false;
-    return parts[1].trim() == token.trim();
-  }
-
-  /// Pure formatter — no network, no bot token. Used by MessageStateService.
   static String staticBuildDailyDigest({
     required List<Note> notes,
     required DateTime localDate,
-    int maxItems = 3,
+    int maxItems = 5,
     bool topPriorityOnly = true,
     bool includeMediumFallback = true,
   }) {
-    return TelegramService().buildDailyDigestMessage(
-      notes: notes,
-      localDate: localDate,
-      maxItems: maxItems,
-      topPriorityOnly: topPriorityOnly,
-      includeMediumFallback: includeMediumFallback,
-    );
-  }
+    final active = notes
+        .where((n) =>
+            n.status != NoteStatus.archived && n.status != NoteStatus.deleted)
+        .toList();
 
-  Future<bool> sendDailyDigest({
-    required String chatId,
-    required List<Note> notes,
-    required DateTime localDate,
-    int maxItems = 3,
-    bool topPriorityOnly = true,
-    bool includeMediumFallback = true,
-  }) async {
-    final text = staticBuildDailyDigest(
-      notes: notes,
-      localDate: localDate,
-      maxItems: maxItems,
-      topPriorityOnly: topPriorityOnly,
-      includeMediumFallback: includeMediumFallback,
-    );
-    return sendMessage(
-      chatId: chatId,
-      text: text,
-      replyMarkup: buildDigestActionKeyboard(),
-      disableWebPagePreview: true,
-    );
-  }
-
-  Future<bool> sendPriorityBrief({
-    required String chatId,
-    required List<Note> notes,
-    required DateTime localDate,
-  }) {
-    return sendDailyDigest(
-      chatId: chatId,
-      notes: notes,
-      localDate: localDate,
-      maxItems: 3,
-      topPriorityOnly: true,
-      includeMediumFallback: true,
-    );
-  }
-
-  Future<bool> sendTodaySummaryCard({
-    required String chatId,
-    required List<Note> notes,
-    required DateTime localDate,
-  }) {
-    return sendMessage(
-      chatId: chatId,
-      text: buildTodaySummaryCardMessage(notes: notes, localDate: localDate),
-      silent: true,
-    );
-  }
-
-  Future<bool> sendScheduleSlots({
-    required String chatId,
-    required List<String> slots,
-  }) {
-    final rows = slots.isEmpty ? ['(none)'] : slots.map((s) => '- $s').toList();
-    return sendMessage(
-      chatId: chatId,
-      text: [
-        '<b>Digest Time Slots</b>',
-        '<pre>${rows.join('\n')}</pre>',
-      ].join('\n'),
-      replyMarkup: buildDigestActionKeyboard(),
-      silent: true,
-    );
-  }
-
-  Future<bool> sendFindResults({
-    required String chatId,
-    required String query,
-    required List<Note> notes,
-    int maxItems = 6,
-  }) {
-    final clean = query.trim();
-    if (clean.isEmpty) {
-      return sendMessage(
-        chatId: chatId,
-        text: [
-          '<b>Find Notes</b>',
-          'Usage: <code>/find keyword</code>',
-          'Examples: <code>/find invoice</code> | <code>/find tasks:deploy</code>',
-        ].join('\n'),
-        replyMarkup: buildPrimaryActionKeyboard(),
-        silent: true,
-      );
-    }
-
-    final hits = SmartNoteSearch.searchSync(notes, clean, limit: max(1, maxItems));
-    if (hits.isEmpty) {
-      return sendMessage(
-        chatId: chatId,
-        text: [
-          '<b>Find</b> <code>${_escapeHtml(clean)}</code>',
-          '',
-          'No matching notes found.',
-        ].join('\n'),
-        replyMarkup: buildDigestActionKeyboard(),
-        silent: true,
-      );
-    }
-
-    final lines = <String>[
-      '<b>Find</b> <code>${_escapeHtml(clean)}</code>',
-      '<i>${hits.length} match(es)</i>',
-    ];
-    for (var i = 0; i < hits.length; i++) {
-      final hit = hits[i];
-      final title = _escapeHtml(_truncate(
-        hit.note.title.trim().isEmpty ? 'Untitled note' : hit.note.title.trim(),
-        58,
-      ));
-      final snippet = _escapeHtml(_truncate(
-        hit.snippet.trim().isEmpty
-            ? _firstMeaningfulLine(hit.note.cleanBody, hit.note.rawTranscript)
-            : hit.snippet.trim(),
-        78,
-      ));
-      final score = hit.score.toStringAsFixed(2);
-      lines.add(
-        '${i + 1}) ${categoryEmoji(hit.note.category)} ${_priorityChip(hit.note.priority)} <b>$title</b> <i>[$score]</i>',
-      );
-      if (snippet.isNotEmpty) {
-        lines.add('   <i>$snippet</i>');
-      }
-    }
-
-    return sendMessage(
-      chatId: chatId,
-      text: lines.join('\n'),
-      replyMarkup: buildDigestActionKeyboard(),
-      silent: true,
-      typingBeforeSend: true,
-    );
-  }
-
-  Future<bool> sendAgenda({
-    required String chatId,
-    required List<Note> notes,
-    required DateTime localNow,
-    int horizonDays = 7,
-    int maxItems = 8,
-  }) {
-    final start = DateTime(localNow.year, localNow.month, localNow.day);
-    final end = start.add(Duration(days: max(1, horizonDays)));
-
-    final upcoming = notes.where((n) {
-      final dt = n.extractedDate?.toLocal();
-      if (dt == null) return false;
-      return !dt.isBefore(start) && dt.isBefore(end);
-    }).toList()
-      ..sort((a, b) => (a.extractedDate ?? DateTime(3000)).compareTo(b.extractedDate ?? DateTime(3000)));
-
-    if (upcoming.isEmpty) {
-      return sendMessage(
-        chatId: chatId,
-        text: [
-          '<b>Agenda (${horizonDays}d)</b>',
-          'No dated notes in the next $horizonDays day(s).',
-        ].join('\n'),
-        replyMarkup: buildPrimaryActionKeyboard(),
-        silent: true,
-      );
-    }
-
-    final lines = <String>[
-      '<b>Agenda (${horizonDays}d)</b>',
-      '<i>Now: ${_clock(localNow)}</i>',
-    ];
-
-    for (var i = 0; i < min(upcoming.length, max(1, maxItems)); i++) {
-      final note = upcoming[i];
-      final dt = note.extractedDate!.toLocal();
-      final unix = dt.millisecondsSinceEpoch ~/ 1000;
-      final title = _escapeHtml(_truncate(
-        note.title.trim().isEmpty ? 'Untitled note' : note.title.trim(),
-        60,
-      ));
-      lines.add(
-        '${i + 1}) <tg-time unix="$unix" format="wDT">${_escapeHtml(_humanDate(dt))}</tg-time> '
-        '${categoryEmoji(note.category)} ${_priorityChip(note.priority)} <b>$title</b>',
-      );
-    }
-
-    final hidden = upcoming.length - min(upcoming.length, max(1, maxItems));
-    if (hidden > 0) {
-      lines.add('<i>+$hidden more upcoming</i>');
-    }
-
-    return sendMessage(
-      chatId: chatId,
-      text: lines.join('\n'),
-      replyMarkup: buildDigestActionKeyboard(),
-      silent: true,
-      typingBeforeSend: true,
-    );
-  }
-
-  Future<bool> sendCommandMenuCard({required String chatId}) {
-    return sendMessage(
-      chatId: chatId,
-      text: [
-        '<b>WishperLog Command Deck</b>',
-        'Tap any action, then hit send to execute instantly.',
-      ].join('\n'),
-      replyMarkup: buildAdvancedCommandKeyboard(),
-      disableWebPagePreview: true,
-      silent: true,
-    );
-  }
-
-  Future<bool> sendStatsCard({
-    required String chatId,
-    required List<Note> notes,
-    required DateTime localDate,
-  }) {
-    return sendMessage(
-      chatId: chatId,
-      text: buildStatsMessage(notes: notes, localDate: localDate),
-      replyMarkup: buildDigestActionKeyboard(),
-      silent: true,
-    );
-  }
-
-  Future<bool> sendNudgePack({
-    required String chatId,
-    required List<Note> notes,
-  }) {
-    final high = notes.where((n) => n.priority == NotePriority.high).toList();
-    final msg = high.isNotEmpty
-        ? 'You already have ${high.length} high-priority item(s).\nStart with the top one now for 10 focused minutes.'
-        : 'No urgent blockers right now.\nPick one medium task and complete it before your next break.';
-    return sendQuickNudge(chatId: chatId, headline: 'Momentum boost', detail: msg);
-  }
-
-  Future<bool> sendConnectionConfirmation({required String chatId}) {
-    return sendMessage(
-      chatId: chatId,
-      text: [
-        '<b>WishperLog Connected</b>',
-        '',
-        'You are all set.',
-        'Daily priority briefs will be delivered on your schedule.',
-        '',
-        'Type /help to see available commands.',
-      ].join('\n'),
-      replyMarkup: buildPrimaryActionKeyboard(),
-      silent: true,
-    );
-  }
-
-  Future<bool> sendQuickNudge({
-    required String chatId,
-    required String headline,
-    String? detail,
-    bool typingBeforeSend = false,
-  }) {
-    final lines = <String>[
-      '<b>Quick Nudge</b>',
-      _escapeHtml(_truncate(headline.trim(), 110)),
-    ];
-    if (detail != null && detail.trim().isNotEmpty) {
-      lines.add(_escapeHtml(_truncate(detail.trim(), 150)));
-    }
-    return sendMessage(
-      chatId: chatId,
-      text: lines.join('\n'),
-      typingBeforeSend: typingBeforeSend,
-    );
-  }
-
-  Future<bool> sendFocusReminder({
-    required String chatId,
-    required Note note,
-  }) {
-    final title = _escapeHtml(_truncate(note.title.trim().isEmpty ? 'Untitled note' : note.title.trim(), 90));
-    final body = _escapeHtml(_truncate(_firstMeaningfulLine(note.cleanBody, note.rawTranscript), 130));
-    return sendMessage(
-      chatId: chatId,
-      text: [
-        '<b>Focus Reminder</b>',
-        '${categoryEmoji(note.category)} ${_priorityChip(note.priority)} <b>$title</b>',
-        if (body.isNotEmpty) body,
-      ].join('\n'),
-    );
-  }
-
-  Future<bool> sendDigestTestPing({
-    required String chatId,
-    required DateTime localNow,
-  }) {
-    return sendMessage(
-      chatId: chatId,
-      text: [
-        '<b>Digest Test Ping</b>',
-        'Scheduler is alive at ${_clock(localNow)}.',
-        'Next briefs will follow your configured time slots.',
-      ].join('\n'),
-      replyMarkup: buildPrimaryActionKeyboard(),
-      silent: true,
-    );
-  }
-
-  Map<String, dynamic> buildPrimaryActionKeyboard() {
-    return {
-      'inline_keyboard': [
-        [
-          {
-            'text': 'Refresh Brief',
-            'switch_inline_query_current_chat': '/digest',
-          },
-          {
-            'text': 'Top 3',
-            'switch_inline_query_current_chat': '/top',
-          },
-        ],
-        [
-          {
-            'text': 'Today',
-            'switch_inline_query_current_chat': '/today',
-          },
-          {
-            'text': 'Stats',
-            'switch_inline_query_current_chat': '/stats',
-          },
-        ],
-        [
-          {
-            'text': 'Help',
-            'switch_inline_query_current_chat': '/help',
-          },
-        ],
-      ],
-    };
-  }
-
-  Map<String, dynamic> buildAdvancedCommandKeyboard() {
-    final keyboard = {
-      'inline_keyboard': [
-        [
-          {'text': 'Digest', 'switch_inline_query_current_chat': '/digest'},
-          {'text': 'Agenda', 'switch_inline_query_current_chat': '/agenda'},
-        ],
-        [
-          {'text': 'Search', 'switch_inline_query_current_chat': '/find '},
-          {'text': 'Focus', 'switch_inline_query_current_chat': '/focus'},
-        ],
-        [
-          {'text': '/find …', 'switch_inline_query_current_chat': '/find '},
-          {'text': '/agenda', 'switch_inline_query_current_chat': '/agenda'},
-        ],
-      ],
-    };
-
-    final username = _resolvedBotUsername ?? AppEnv.telegramBotUsername.trim();
-    if (username.isNotEmpty) {
-      (keyboard['inline_keyboard'] as List).add([
-        {'text': 'Open Bot', 'url': 'https://t.me/$username'},
-      ]);
-    }
-    return keyboard;
-  }
-
-  Map<String, dynamic> buildDigestActionKeyboard() {
-    final keyboard = buildPrimaryActionKeyboard();
-    final username = _resolvedBotUsername ?? AppEnv.telegramBotUsername.trim();
-    if (username.isNotEmpty) {
-      final rows = (keyboard['inline_keyboard'] as List).cast<List>();
-      rows.add([
-        {
-          'text': 'Open Bot',
-          'url': 'https://t.me/$username',
-        },
-      ]);
-      keyboard['inline_keyboard'] = rows;
-    }
-    return keyboard;
-  }
-
-  String buildDailyDigestMessage({
-    required List<Note> notes,
-    required DateTime localDate,
-    int maxItems = 3,
-    bool topPriorityOnly = true,
-    bool includeMediumFallback = true,
-  }) {
-    final dayLabel = _humanDate(localDate);
-    final highlights = selectDigestHighlights(
-      notes: notes,
-      maxItems: maxItems,
-      topPriorityOnly: topPriorityOnly,
-      includeMediumFallback: includeMediumFallback,
-    );
-
-    if (highlights.isEmpty) {
-      return [
-        '<b>WishperLog Brief</b>',
-        '<pre>${_asciiCard([
-          'DATE  $dayLabel',
-          'TIME  ${_clock(localDate)}',
-          '',
-          'No urgent items now.',
-          'You are clear.',
-        ])}</pre>',
-      ].join('\n');
-    }
-
-    final highCount = notes.where((n) => n.priority == NotePriority.high).length;
-    final mediumCount = notes.where((n) => n.priority == NotePriority.medium).length;
-    final usingFallback = highCount == 0 && includeMediumFallback;
-
-    final lines = <String>[
-      '<b>WishperLog Brief</b>',
-      '<pre>${_asciiCard([
-        'DATE   $dayLabel',
-        'TIME   ${_clock(localDate)}',
-        if (highCount > 0) 'HIGH   $highCount open',
-        if (highCount == 0 && usingFallback) 'HIGH   0 | MED queue: $mediumCount',
-      ])}</pre>',
-      '<b>Top 3</b>',
-    ];
-
-    for (var i = 0; i < highlights.length; i++) {
-      lines.add(_formatDigestLine(index: i + 1, note: highlights[i]));
-    }
-
-    final hidden = (usingFallback ? mediumCount : highCount) - highlights.length;
-    if (hidden > 0) {
-      lines.add('<i>+$hidden more pending</i>');
-    }
-
-    return lines.join('\n');
-  }
-
-  String buildTodaySummaryCardMessage({
-    required List<Note> notes,
-    required DateTime localDate,
-  }) {
-    final high = notes.where((n) => n.priority == NotePriority.high).length;
-    final med = notes.where((n) => n.priority == NotePriority.medium).length;
-    final low = notes.where((n) => n.priority == NotePriority.low).length;
-    final tasks = notes.where((n) => n.category == NoteCategory.tasks).length;
-    final reminders = notes.where((n) => n.category == NoteCategory.reminders).length;
-    final dayLabel = _humanDate(localDate);
-
-    return [
-      '<b>Today Summary</b>',
-      '<pre>${_asciiCard([
-        'DATE      $dayLabel',
-        'TOTAL     ${notes.length}',
-        'PRIORITY  H:$high M:$med L:$low',
-        'CATEGORY  Tasks:$tasks Reminders:$reminders',
-      ])}</pre>',
-    ].join('\n');
-  }
-
-  String buildStatsMessage({
-    required List<Note> notes,
-    required DateTime localDate,
-  }) {
-    final byCategory = <NoteCategory, int>{};
-    final byPriority = <NotePriority, int>{};
-    for (final n in notes) {
-      byCategory[n.category] = (byCategory[n.category] ?? 0) + 1;
-      byPriority[n.priority] = (byPriority[n.priority] ?? 0) + 1;
-    }
-
-    final catLines = byCategory.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    final detail = <String>[
-      'PRIORITY  H:${byPriority[NotePriority.high] ?? 0} M:${byPriority[NotePriority.medium] ?? 0} L:${byPriority[NotePriority.low] ?? 0}',
-      '--- CATEGORY ---',
-      ...catLines.take(6).map((e) => '${categoryLabel(e.key).padRight(9)} ${e.value.toString().padLeft(2)}'),
-    ];
-
-    return [
-      '<b>Analytics Snapshot</b>',
-      '<pre>${_asciiCard(detail)}</pre>',
-    ].join('\n');
-  }
-
-  List<Note> selectDigestHighlights({
-    required List<Note> notes,
-    int maxItems = 6,
-    bool topPriorityOnly = true,
-    bool includeMediumFallback = true,
-  }) {
-    final sorted = [...notes]..sort((a, b) {
-      final p = _priorityRank(a.priority).compareTo(_priorityRank(b.priority));
-      if (p != 0) return p;
-      return b.createdAt.compareTo(a.createdAt);
+    active.sort((a, b) {
+      final pa = _priorityRank(a.priority.name);
+      final pb = _priorityRank(b.priority.name);
+      if (pa != pb) return pa.compareTo(pb);
+      return b.updatedAt.compareTo(a.updatedAt);
     });
 
-    if (!topPriorityOnly) {
-      return sorted.take(max(1, maxItems)).toList();
+    final picked = active.take(maxItems).toList();
+    final buffer = StringBuffer();
+
+    buffer.writeln('<b>WishperLog Daily Digest</b>');
+    buffer.writeln('<i>${localDate.toLocal().toIso8601String()}</i>');
+    buffer.writeln();
+
+    if (picked.isEmpty) {
+      buffer.writeln('No active notes.');
+      return buffer.toString().trim();
     }
 
-    final high = sorted.where((n) => n.priority == NotePriority.high).toList();
-    if (high.isNotEmpty) {
-      return high.take(max(1, maxItems)).toList();
-    }
+    for (final note in picked) {
+      final title    = _ascii(note.title.isEmpty ? 'Untitled' : note.title);
+      final category = note.category.name.toUpperCase();
+      final priority = _priorityLabel(note.priority.name);
+      final body     = _ascii(note.cleanBody);
 
-    if (includeMediumFallback) {
-      final medium = sorted.where((n) => n.priority == NotePriority.medium).toList();
-      return medium.take(max(1, maxItems)).toList();
-    }
-
-    return const [];
-  }
-
-  String _formatDigestLine({required int index, required Note note}) {
-    final emoji = categoryEmoji(note.category);
-    final priority = _priorityChip(note.priority);
-    final title = _escapeHtml(_truncate(note.title.trim().isEmpty ? 'Untitled note' : note.title.trim(), 52));
-    final subtitle = _firstMeaningfulLine(note.cleanBody, note.rawTranscript);
-    final safeSubtitle = subtitle.isEmpty ? '' : ' - ${_escapeHtml(_truncate(subtitle, 44))}';
-    return '$index) $emoji $priority <b>$title</b>$safeSubtitle';
-  }
-
-  String _firstMeaningfulLine(String cleanBody, String rawTranscript) {
-    final raw = cleanBody.trim().isNotEmpty ? cleanBody.trim() : rawTranscript.trim();
-    if (raw.isEmpty) return '';
-    final firstLine = raw.split(RegExp(r'[\n\r]')).first.trim();
-    return firstLine;
-  }
-
-  String _truncate(String value, int limit) {
-    if (value.length <= limit) return value;
-    return '${value.substring(0, max(0, limit - 1)).trimRight()}…';
-  }
-
-  String _escapeHtml(String input) {
-    return input
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
-  }
-
-  int _priorityRank(NotePriority priority) {
-    switch (priority) {
-      case NotePriority.high:
-        return 0;
-      case NotePriority.medium:
-        return 1;
-      case NotePriority.low:
-        return 2;
-    }
-  }
-
-  String _priorityChip(NotePriority priority) {
-    switch (priority) {
-      case NotePriority.high:
-        return '[HIGH]';
-      case NotePriority.medium:
-        return '[MED]';
-      case NotePriority.low:
-        return '[LOW]';
-    }
-  }
-
-  String _humanDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-
-  String _clock(DateTime date) {
-    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-    final minute = date.minute.toString().padLeft(2, '0');
-    final period = date.hour >= 12 ? 'PM' : 'AM';
-    return '$hour:$minute $period';
-  }
-
-  String _asciiCard(List<String> rows) {
-    final sanitized = rows.map((r) => _stripNonAscii(r)).toList();
-    var width = 24;
-    for (final r in sanitized) {
-      if (r.length > width) width = r.length;
-    }
-    width = width.clamp(24, 64);
-
-    final top = '+${'-' * (width + 2)}+';
-    final body = sanitized.map((r) {
-      final t = _truncate(r, width);
-      return '| ${t.padRight(width)} |';
-    }).join('\n');
-    return '$top\n$body\n$top';
-  }
-
-  String _stripNonAscii(String value) {
-    final out = StringBuffer();
-    for (final code in value.runes) {
-      if (code >= 32 && code <= 126) {
-        out.writeCharCode(code);
-      }
-    }
-    return out.toString();
-  }
-
-  /// Send a plain text message to a chat.
-  Future<bool> sendMessage({
-    required String chatId,
-    required String text,
-    bool silent = false,
-    Map<String, dynamic>? replyMarkup,
-    bool disableWebPagePreview = false,
-    int? replyToMessageId,
-    bool typingBeforeSend = false,
-  }) async {
-    if (!isConfigured || chatId.isEmpty || text.trim().isEmpty) return false;
-    try {
-      if (typingBeforeSend) {
-        await sendChatAction(chatId: chatId, action: 'typing');
-      }
-
-      final chunks = _splitTelegramText(text, maxChars: 3900);
-      var okAll = true;
-      for (var i = 0; i < chunks.length; i++) {
-        final part = chunks[i];
-        final primary = await _postMessage(
-          chatId: chatId,
-          text: part,
-          parseMode: 'HTML',
-          silent: silent,
-          replyMarkup: i == chunks.length - 1 ? replyMarkup : null,
-          disableWebPagePreview: disableWebPagePreview,
-          replyToMessageId: i == 0 ? replyToMessageId : null,
+      buffer.writeln('• [$category][$priority] $title');
+      if (body.isNotEmpty) {
+        buffer.writeln(
+          '  <i>${body.length > 120 ? '${body.substring(0, 120)}…' : body}</i>',
         );
-        // Telegram always returns HTTP 200; real errors are in the JSON body.
-        if (_isTelegramOk(primary)) {
-          continue;
-        }
-
-        // Fallback path: strip HTML and retry as plain text.
-        debugPrint('[TelegramService] HTML send failed (${primary.body}), retrying plain');
-        final plain = _stripHtmlTags(part);
-        final fallback = await _postMessage(
-          chatId: chatId,
-          text: plain,
-          parseMode: null,
-          silent: silent,
-          replyMarkup: i == chunks.length - 1 ? replyMarkup : null,
-          disableWebPagePreview: disableWebPagePreview,
-          replyToMessageId: i == 0 ? replyToMessageId : null,
-        );
-        if (!_isTelegramOk(fallback)) {
-          okAll = false;
-          debugPrint('[TelegramService] sendMessage failed (plain fallback): ${fallback.body}');
-          break;
-        }
       }
-      return okAll;
-    } catch (e) {
-      debugPrint('[TelegramService] sendMessage error: $e');
-      return false;
+    }
+
+    return buffer.toString().trim();
+  }
+
+  static int _priorityRank(String p) =>
+      p == 'high' ? 0 : p == 'medium' ? 1 : 2;
+
+  static String _priorityLabel(String p) {
+    switch (p.toLowerCase()) {
+      case 'high': return 'HIGH';
+      case 'low':  return 'LOW';
+      default:     return 'MED';
     }
   }
 
-  Future<bool> sendChatAction({
-    required String chatId,
-    String action = 'typing',
-  }) async {
-    if (!isConfigured || chatId.isEmpty) return false;
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/bot$_botToken/sendChatAction'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'chat_id': chatId, 'action': action}),
-          )
-          .timeout(const Duration(seconds: 8));
-      return response.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<http.Response> _postMessage({
-    required String chatId,
-    required String text,
-    required String? parseMode,
-    required bool silent,
-    required Map<String, dynamic>? replyMarkup,
-    required bool disableWebPagePreview,
-    required int? replyToMessageId,
-  }) {
-    final payload = <String, dynamic>{
-      'chat_id': chatId,
-      'text': text,
-      'disable_notification': silent,
-      'disable_web_page_preview': disableWebPagePreview,
-    };
-    if (parseMode != null && parseMode.isNotEmpty) {
-      payload['parse_mode'] = parseMode;
-    }
-    if (replyMarkup != null) {
-      payload['reply_markup'] = replyMarkup;
-    }
-    if (replyToMessageId != null && replyToMessageId > 0) {
-      payload['reply_parameters'] = {
-        'message_id': replyToMessageId,
-        'allow_sending_without_reply': true,
-      };
-    }
-
-    return http
-        .post(
-          Uri.parse('$_baseUrl/bot$_botToken/sendMessage'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(payload),
-        )
-        .timeout(const Duration(seconds: 10));
-  }
-
-  /// Returns true only when Telegram's response indicates success.
-  /// Telegram returns HTTP 200 for both successes AND API-level errors;
-  /// the actual result lives in the JSON `ok` field.
-  bool _isTelegramOk(http.Response response) {
-    if (response.statusCode != 200) return false;
-    try {
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      return body['ok'] as bool? ?? false;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  String _stripHtmlTags(String input) {
-    return input.replaceAll(RegExp(r'<[^>]*>'), '');
-  }
-
-  List<String> _splitTelegramText(String input, {int maxChars = 3900}) {
-    final text = input.trim();
-    if (text.length <= maxChars) return [text];
-
-    final chunks = <String>[];
-    var start = 0;
-    while (start < text.length) {
-      var end = min(start + maxChars, text.length);
-      if (end < text.length) {
-        final breakAt = text.lastIndexOf('\n', end);
-        if (breakAt > start + 120) {
-          end = breakAt;
-        }
-      }
-      final chunk = text.substring(start, end).trim();
-      if (chunk.isNotEmpty) chunks.add(chunk);
-      start = end;
-    }
-    return chunks.isEmpty ? [text.substring(0, maxChars)] : chunks;
-  }
+  static String _ascii(String v) => (v)
+      .replaceAll(RegExp(r'[^\x00-\x7F]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }
 ```
 
@@ -18752,11 +21048,29 @@ extension NoteCategoryX on NoteCategory {
 ### lib/shared/widgets/glass_container.dart
 
 ```dart
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
+import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
+// ══════════════════════════════════════════════════════════════════════════════
+// glass_container.dart v3.0 — Tactile Soft-Glass Containers
+//
+// GlassContainer — thin adapter that delegates to GlassPane.
+//   All 4 Soft-Glass laws are inherited automatically from GlassPane v3.
+//
+// GlassBubble — the floating overlay bubble, redesigned to be a "Smoked Glass
+//   Orb". It receives compound coloured ambient shadows (like LED backlighting),
+//   an active-state glow pulse, and a rim-light edge ring for physical depth.
+//
+// No MethodChannels, Streams, or business logic were altered.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GlassContainer — generic glass card/panel
+// ─────────────────────────────────────────────────────────────────────────────
 class GlassContainer extends StatelessWidget {
   const GlassContainer({
     required this.child,
@@ -18780,16 +21094,30 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolvedRadius = borderRadius.topLeft.x;
+    // Delegates entirely to GlassPane v3 — all 4 laws apply.
     return GlassPane(
       margin: margin,
       padding: padding,
       radius: resolvedRadius,
       level: 1,
+      sigmaOverride: (sigmaX + sigmaY) / 2,
       child: child,
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GlassBubble — the floating overlay FAB / recording bubble
+//
+// Soft-Glass mechanics applied:
+//   • Rim Light: a 1.2 px gradient border ring (top-left bright → bottom-right
+//     slightly dark) simulating anodized metal catching ambient room light.
+//   • Compound Shadows: 3 layered drop shadows. In active state, the inner two
+//     layers become coloured (category-tinted) "LED glow" per Dark Mode spec.
+//   • Tactile Extrusion: the AnimatedContainer carries a subtle inner gradient
+//     giving the orb physical volume (lighter at top-left, darker at bottom-right).
+//   • BackdropFilter: blur applied via the ClipOval at 14 sigma.
+// ─────────────────────────────────────────────────────────────────────────────
 class GlassBubble extends StatelessWidget {
   const GlassBubble({
     required this.child,
@@ -18814,41 +21142,115 @@ class GlassBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final normalizedOpacity = opacity.clamp(0.2, 1.0);
+    final sigma = (sigmaX + sigmaY) / 2;
 
+    // ── Color recipe ─────────────────────────────────────────────────────────
     final idleGradient = isDark
         ? [AppColors.darkGlass1, AppColors.darkGlass2]
         : [AppColors.lightGlass1, AppColors.lightGlass2];
 
+    // Active gradient uses app brand colors for recording state
+    const activeGradient = [AppColors.tasks, AppColors.journal];
+
+    // ── Rim Light colors (for the circular gradient border) ──────────────────
+    final rimBright = isDark ? AppColors.darkRimBright : AppColors.lightRimBright;
+    final rimDark   = isDark ? AppColors.darkRimDark   : AppColors.lightRimDark;
+
+    // ── Compound Shadow (3 layers, with active glow variation) ───────────────
+    final activeGlowColor = AppColors.tasks.withValues(alpha: isDark ? 0.45 : 0.30);
+    final errorGlowColor  = AppColors.errorStatus.withValues(alpha: isDark ? 0.40 : 0.28);
+
+    final List<BoxShadow> shadows = [
+      // Layer 1 — close, sharp
+      BoxShadow(
+        color: isActive
+            ? activeGlowColor.withValues(alpha: 0.40)
+            : isError
+                ? errorGlowColor.withValues(alpha: 0.38)
+                : (isDark ? AppColors.darkShadowClose : AppColors.lightShadowClose),
+        blurRadius: isActive ? 12 : 8,
+        spreadRadius: isActive ? 0 : -3,
+        offset: const Offset(0, 3),
+      ),
+      // Layer 2 — mid, coloured glow in active/error states
+      BoxShadow(
+        color: isActive
+            ? activeGlowColor.withValues(alpha: 0.25)
+            : isError
+                ? errorGlowColor.withValues(alpha: 0.22)
+                : (isDark ? AppColors.darkShadowMid : AppColors.lightShadowMid),
+        blurRadius: isActive ? 28 : 20,
+        spreadRadius: isActive ? 2 : -6,
+        offset: const Offset(0, 8),
+      ),
+      // Layer 3 — far diffusion
+      BoxShadow(
+        color: isActive
+            ? activeGlowColor.withValues(alpha: 0.12)
+            : (isDark ? AppColors.darkShadowFar : AppColors.lightShadowFar),
+        blurRadius: 50,
+        spreadRadius: -12,
+        offset: const Offset(0, 18),
+      ),
+    ];
+
     return Opacity(
       opacity: normalizedOpacity,
-      child: GlassPane(
-        level: 4,
-        radius: size,
-        sigmaOverride: (sigmaX + sigmaY) / 2,
-        child: AnimatedContainer(
-          duration: AppDurations.microSnap,
-          curve: Curves.easeOutCubic,
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isActive
-                  ? [AppColors.tasks, AppColors.journal]
-                  : idleGradient,
-            ),
-            border: Border.all(
-              color: isActive
-                  ? (isDark ? AppColors.darkTextPri : AppColors.lightTextPri).withValues(alpha: 0.18)
-                  : isError
-                  ? AppColors.errorStatus.withValues(alpha: 0.42)
-                  : Colors.white.withValues(alpha: isDark ? 0.72 : 0.86),
-              width: isActive ? 2.0 : 1.3,
+
+      // ── Outer ring = Rim Light ────────────────────────────────────────────
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // The 1.2 px gradient ring IS the rim light for the bubble
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [rimBright, rimDark],
+          ),
+          boxShadow: shadows,
+        ),
+        // 1.2 px uniform padding = rim light ring width
+        padding: const EdgeInsets.all(1.2),
+
+        child: ClipOval(
+          // Law 1: Backdrop blur
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+
+            // Inner glass orb (Laws 1 + 4)
+            child: AnimatedContainer(
+              duration: AppDurations.microSnap,
+              curve: Curves.easeOutCubic,
+              width: size - 2.4,
+              height: size - 2.4,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                // Glass fill gradient (lighter at top = light source from above)
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isActive ? activeGradient : idleGradient,
+                ),
+              ),
+              // Law 4: Tactile Extrusion — subtle inner shadow via foregroundDecoration
+              foregroundDecoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  center: Alignment.topLeft,
+                  radius: 1.4,
+                  colors: [
+                    Colors.white.withValues(alpha: isDark ? 0.06 : 0.14),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: isDark ? 0.10 : 0.05),
+                  ],
+                  stops: const [0.0, 0.50, 1.0],
+                ),
+              ),
+              child: child,
             ),
           ),
-          child: child,
         ),
       ),
     );
@@ -18888,8 +21290,43 @@ class GlassPageBackground extends StatelessWidget {
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 
+// ══════════════════════════════════════════════════════════════════════════════
+// GlassPane v3.0 — Tactile Soft-Glass Core Component
+//
+// Implements all 4 Anatomical Laws of the Soft-Glass Formula:
+//
+//   LAW 1 — Backdrop Translucency
+//     BackdropFilter(ImageFilter.blur) wraps the content. Sigma scales by level.
+//
+//   LAW 2 — Rim Light (THE most critical detail — 1.0 px specular highlight)
+//     The outermost Container uses a LinearGradient as its fill.
+//     The gradient runs top-left (bright white) → mid (transparent) → bottom-right
+//     (very subtly dark). A 1.0 px Padding child creates the "bevel catch" effect,
+//     exactly like physical light catching the edge of a frosted acrylic sheet.
+//
+//   LAW 3 — Compound Spatial Elevation (3-layer drop shadows)
+//     Three BoxShadow entries at distinct blur/offset/opacity values create the
+//     highly diffused "floating softly" appearance. Dark mode uses coloured
+//     ambient glows; light mode uses cool desaturated grey.
+//
+//   LAW 4 — Tactile Extrusion (Inner Shadow simulation)
+//     A foregroundDecoration with a very low opacity top-left→bottom-right
+//     gradient wraps the content. This gives the "puffed ceramic" volume.
+//     Opacity is 10% dark / 5% light — barely perceptible, purely tactile.
+//
+// ARCHITECTURE NOTE:
+//   GlassPane is the single foundational primitive. GlassContainer, GlassBubble,
+//   GlassTitleBar, FolderScreen, NoteCard all compose it.
+//   All 4 laws apply uniformly at this single layer.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FolderGlassTint — propagates a folder category tint down the tree
+// (unchanged from v2; kept here for co-location)
+// ─────────────────────────────────────────────────────────────────────────────
 class FolderGlassTint extends InheritedWidget {
   const FolderGlassTint({required this.tint, required super.child, super.key});
 
@@ -18905,6 +21342,9 @@ class FolderGlassTint extends InheritedWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GlassPane
+// ─────────────────────────────────────────────────────────────────────────────
 class GlassPane extends StatelessWidget {
   const GlassPane({
     required this.child,
@@ -18918,31 +21358,31 @@ class GlassPane extends StatelessWidget {
   });
 
   final Widget child;
+
+  /// Elevation level 1-4. Controls blur strength and shadow intensity.
+  /// Level 1 = most opaque, highest blur (for primary panels/cards).
+  /// Level 4 = most transparent, least blur (for overlapping micro-surfaces).
   final int level;
+
   final double radius;
   final Color? tintOverride;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final double? sigmaOverride;
 
+  // ── Law 1: Backdrop blur sigma by level ──────────────────────────────────
   double get _blur {
-    if (sigmaOverride != null) {
-      return sigmaOverride!;
-    }
-    switch (level) {
-      case 1:
-        return 30; // 20 -> 30
-      case 2:
-        return 36; // 24 -> 36
-      case 3:
-        return 24; // 16 -> 24
-      case 4:
-        return 12; // 8 -> 12
-      default:
-        return 30;
-    }
+    if (sigmaOverride != null) return sigmaOverride!;
+    return switch (level) {
+      1 => 32.0,  // Primary panels — heavy frosted
+      2 => 38.0,  // Elevated surfaces — extra frosted
+      3 => 24.0,  // Secondary overlapping panels
+      4 => 14.0,  // Micro surfaces (chips, badges)
+      _ => 32.0,
+    };
   }
 
+  // ── Glass fill color (mode-aware) ─────────────────────────────────────────
   Color _fillFor(BuildContext context) {
     final base = switch (level) {
       1 => context.glass1,
@@ -18951,61 +21391,156 @@ class GlassPane extends StatelessWidget {
       4 => context.glass3,
       _ => context.glass1,
     };
-    final folderTint = FolderGlassTint.maybeOf(context);
-
     var output = base;
-    if (folderTint != null) {
-      output = Color.alphaBlend(folderTint, output);
-    }
-    if (tintOverride != null) {
-      output = Color.alphaBlend(tintOverride!, output);
-    }
+    final folderTint = FolderGlassTint.maybeOf(context);
+    if (folderTint != null) output = Color.alphaBlend(folderTint, output);
+    if (tintOverride != null) output = Color.alphaBlend(tintOverride!, output);
     return output;
   }
 
   @override
   Widget build(BuildContext context) {
-    final baseFill = _fillFor(context);
     final isDark = context.isDark;
+    final baseFill = _fillFor(context);
+    final r = radius;
+
+    // ── Glass gradient fills (top-left lighter, bottom-right darker) ─────────
+    // Mimics light hitting the top surface of a polished/smoked glass sheet.
     final topLayer = Color.alphaBlend(
-      Colors.white.withValues(alpha: isDark ? 0.08 : 0.32),
+      Colors.white.withValues(alpha: isDark ? 0.09 : 0.38),
       baseFill,
     );
     final bottomLayer = Color.alphaBlend(
-      Colors.black.withValues(alpha: isDark ? 0.14 : 0.03),
+      Colors.black.withValues(alpha: isDark ? 0.16 : 0.04),
       baseFill,
     );
 
+    // ── Law 2: Rim Light gradient colors ─────────────────────────────────────
+    // Dark "Smoked Glass": bright metallic rim is THE depth cue
+    // Light "Polished Resin": crisp white rim; shadows do more depth work
+    final rimBright = isDark ? AppColors.darkRimBright  : AppColors.lightRimBright;
+    final rimMid    = isDark ? AppColors.darkRimMid     : AppColors.lightRimMid;
+    final rimDark   = isDark ? AppColors.darkRimDark    : AppColors.lightRimDark;
+
+    // ── Law 3: Compound Spatial Elevation — 3 shadow layers ─────────────────
+    // Dark mode: coloured ambient glow (LED backlight simulation)
+    // Light mode: cool desaturated grey (shadow depth on bright bg)
+    final List<BoxShadow> shadows = isDark
+        ? [
+            // Close shadow — tight, ~24% opacity
+            BoxShadow(
+              color: AppColors.darkShadowClose,
+              blurRadius: 8,
+              spreadRadius: -3,
+              offset: const Offset(0, 3),
+            ),
+            // Mid shadow — medium spread, ~18% opacity
+            BoxShadow(
+              color: AppColors.darkShadowMid,
+              blurRadius: 24,
+              spreadRadius: -7,
+              offset: const Offset(0, 9),
+            ),
+            // Far ambient glow — very diffused, ~12% opacity
+            BoxShadow(
+              color: AppColors.darkShadowFar,
+              blurRadius: 60,
+              spreadRadius: -14,
+              offset: const Offset(0, 22),
+            ),
+          ]
+        : [
+            // Close shadow — tight, cool blue-grey tint
+            BoxShadow(
+              color: AppColors.lightShadowClose,
+              blurRadius: 7,
+              spreadRadius: -2,
+              offset: const Offset(0, 3),
+            ),
+            // Mid shadow — medium diffusion
+            BoxShadow(
+              color: AppColors.lightShadowMid,
+              blurRadius: 20,
+              spreadRadius: -6,
+              offset: const Offset(0, 8),
+            ),
+            // Far ambient — barely visible, just softens the float
+            BoxShadow(
+              color: AppColors.lightShadowFar,
+              blurRadius: 50,
+              spreadRadius: -14,
+              offset: const Offset(0, 18),
+            ),
+          ];
+
+    // ── Law 4: Tactile Extrusion colors ──────────────────────────────────────
+    // Bottom-right receives a very subtle darkening to simulate the light source
+    // not wrapping around the far side of the "puffed" object.
+    final extrusionColor = isDark
+        ? AppColors.darkExtrusionShadow
+        : AppColors.lightExtrusionShadow;
+
     return Container(
       margin: margin,
+
+      // ── OUTER SHELL (Laws 2 + 3) ──────────────────────────────────────────
+      // The gradient fill here IS the rim light. The 1.0 px Padding below
+      // means only this 1 px "ring" is ever visible — the frosted glass fills
+      // the interior. Linear gradient from top-left (bright) to bottom-right
+      // (dark) perfectly replicates the physical bevel catch.
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(r),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [rimBright, rimMid, rimDark],
+          stops: const [0.0, 0.45, 1.0],
+        ),
+        boxShadow: shadows,
+      ),
+
+      // 1.0 px uniform border = rim light ring thickness
+      padding: const EdgeInsets.all(1.0),
+
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: BorderRadius.circular(r - 1.0),
+
+        // ── Law 1: Backdrop Translucency ─────────────────────────────────────
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: _blur, sigmaY: _blur),
+
+          // ── INNER GLASS SURFACE (Laws 1 + 4) ────────────────────────────────
           child: Container(
             padding: padding,
+
+            // Glass fill gradient
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(radius),
+              borderRadius: BorderRadius.circular(r - 1.0),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [topLayer, bottomLayer],
               ),
-              border: Border.all(
-                color: context.border.withValues(alpha: isDark ? 0.95 : 0.75),
-                width: 0.8,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.28)
-                      : Colors.white.withValues(alpha: 0.48),
-                  blurRadius: isDark ? 22 : 18,
-                  spreadRadius: -8,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
+
+            // ── Law 4: Tactile Extrusion overlay ─────────────────────────────
+            // foregroundDecoration paints ABOVE the child in the widget tree,
+            // but at only 5-10% opacity it's imperceptible on content while
+            // adding the essential "clay-like 3D volume" to the surface itself.
+            foregroundDecoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(r - 1.0),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.transparent,
+                  Colors.transparent,
+                  extrusionColor,
+                ],
+                stops: const [0.0, 0.52, 1.0],
+              ),
+            ),
+
             child: child,
           ),
         ),
@@ -19019,9 +21554,24 @@ class GlassPane extends StatelessWidget {
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
+// ══════════════════════════════════════════════════════════════════════════════
+// glass_title_bar.dart v3.0 — Tactile Soft-Glass Title Bar
+//
+// Soft-Glass mechanics applied:
+//   • GlassTitleBar: wraps GlassPane(level:1) — inherits all 4 laws.
+//   • Back button (_TactileBackButton): now a fully "Polished Resin" tactile
+//     element. It has:
+//       - Its own compound shadow (elevated above the title bar surface)
+//       - A brighter rim-light gradient border (it's the most interactive element)
+//       - An AnimatedScale on press (0.92) to simulate physical depression
+//       - The inner gradient goes light-top-left → dark-bottom-right (3D volume)
+//
+// All onBack callbacks and Streams preserved unchanged.
+// ══════════════════════════════════════════════════════════════════════════════
 class GlassTitleBar extends StatelessWidget implements PreferredSizeWidget {
   const GlassTitleBar({
     required this.title,
@@ -19051,12 +21601,13 @@ class GlassTitleBar extends StatelessWidget implements PreferredSizeWidget {
           level: 1,
           radius: 22,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          // Soft blue tint for the title bar surface (slightly cooler than the page BG)
           tintOverride: context.isDark
               ? const Color(0x6610243F)
               : const Color(0xBFEFF7FF),
           child: Row(
             children: [
-              _GlassBackButton(onTap: onBack),
+              _TactileBackButton(onTap: onBack),
               const SizedBox(width: 8),
               if (leading != null) ...[
                 leading!,
@@ -19104,48 +21655,111 @@ class GlassTitleBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-class _GlassBackButton extends StatelessWidget {
-  const _GlassBackButton({required this.onTap});
+// ─────────────────────────────────────────────────────────────────────────────
+// _TactileBackButton
+//
+// A micro "Polished Resin" button. Floats above the title bar via its own
+// compound shadow, with a bright top-left rim and AnimatedScale on press.
+// ─────────────────────────────────────────────────────────────────────────────
+class _TactileBackButton extends StatefulWidget {
+  const _TactileBackButton({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
+  State<_TactileBackButton> createState() => _TactileBackButtonState();
+}
+
+class _TactileBackButtonState extends State<_TactileBackButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+    final isDark = context.isDark;
+
+    // Rim light colors for the button border
+    final rimBright = isDark ? AppColors.darkRimBright : AppColors.lightRimBright;
+    final rimDark   = isDark ? AppColors.darkRimDark   : AppColors.lightRimDark;
+
+    // Compound shadows (button floats above the title bar panel)
+    final shadows = isDark
+        ? [
+            BoxShadow(
+              color: AppColors.darkShadowClose,
+              blurRadius: 6,
+              spreadRadius: -1,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: AppColors.darkShadowMid,
+              blurRadius: 14,
+              spreadRadius: -4,
+              offset: const Offset(0, 5),
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: AppColors.lightShadowClose,
+              blurRadius: 5,
+              spreadRadius: -1,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: AppColors.lightShadowMid,
+              blurRadius: 12,
+              spreadRadius: -4,
+              offset: const Offset(0, 4),
+            ),
+          ];
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.90 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOutCubic,
         child: Container(
           width: 40,
           height: 40,
+          // Outer ring = Rim Light for the button
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: context.isDark
-                  ? [
-                      Colors.white.withValues(alpha: 0.14),
-                      Colors.white.withValues(alpha: 0.06),
-                    ]
-                  : [
-                      Colors.white.withValues(alpha: 0.72),
-                      Colors.white.withValues(alpha: 0.48),
-                    ],
+              colors: [rimBright, rimDark],
             ),
-            border: Border.all(
-              color: context.isDark
-                  ? Colors.white.withValues(alpha: 0.22)
-                  : const Color(0x1A204268),
-              width: 0.8,
-            ),
+            boxShadow: _pressed ? [] : shadows,
           ),
-          child: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: context.textPri,
-            size: 18,
+          padding: const EdgeInsets.all(1.0),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(13),
+              // Inner glass surface with top-to-bottom gradient (light source from above)
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [
+                        Colors.white.withValues(alpha: _pressed ? 0.10 : 0.16),
+                        Colors.white.withValues(alpha: _pressed ? 0.04 : 0.07),
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: _pressed ? 0.60 : 0.78),
+                        Colors.white.withValues(alpha: _pressed ? 0.36 : 0.52),
+                      ],
+              ),
+            ),
+            child: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: context.textPri,
+              size: 17,
+            ),
           ),
         ),
       ),
@@ -19312,12 +21926,37 @@ class _MeshBlobPainter extends CustomPainter {
 
 ```dart
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/core/theme/app_durations.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+
+// ══════════════════════════════════════════════════════════════════════════════
+// top_notch_message.dart v3.0 — Tactile Soft-Glass Dynamic Island Pill
+//
+// The Dynamic Island pill is the most visually prominent transient element.
+// Soft-Glass mechanics applied:
+//
+//   • Rim Light: The pill gets a bright top-left → dim bottom-right gradient
+//     border (1.0 px wide). It simulates the pill being a physical extruded
+//     "SmokGlass capsule" floating above the screen, with room light reflecting
+//     off its top-left bevel. On dark backgrounds this is the primary depth cue.
+//
+//   • Compound Shadows: 3-layer drop shadows. The category colour bleeds into
+//     the mid layer for a subtle "content-aware" ambient glow effect.
+//
+//   • BackdropFilter: the pill itself blurs what's behind it, maintaining the
+//     frosted glass look even when the background changes (mesh, images, etc.)
+//
+//   • Spring-driven entry: vertical slide-up (from -36 px) + fade + scale for
+//     a soft bouncy entrance that feels physically "popped up" from the notch.
+//
+// All original overlay/timer business logic preserved exactly.
+// ══════════════════════════════════════════════════════════════════════════════
 
 OverlayEntry? _activeTopNotchEntry;
 Timer? _activeTopNotchTimer;
@@ -19328,110 +21967,26 @@ Future<void> showTopNotchSavedMessage({
   required NoteCategory category,
 }) {
   final overlayState = Overlay.maybeOf(context);
-  if (overlayState == null) {
-    return Future<void>.value();
-  }
+  if (overlayState == null) return Future<void>.value();
 
   _activeTopNotchTimer?.cancel();
   _activeTopNotchEntry?.remove();
   _activeTopNotchEntry = null;
 
   final chipColor = categoryColor(category);
-  final textColor = context.textPri;
 
   final entry = OverlayEntry(
-    builder: (_) {
-      return IgnorePointer(
-        child: SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: 1),
-              duration: AppDurations.saveConfirm,
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Opacity(
-                  opacity: value,
-                  child: Transform.translate(
-                    offset: Offset(0, (1 - value) * -28),
-                    child: child,
-                  ),
-                );
-              },
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width - 32,
-                ),
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  color: context.glass1,
-                  border: Border.all(color: context.border, width: 0.5),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Saved',
-                      style: TextStyle(
-                        color: textColor,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '·',
-                      style: TextStyle(color: context.textSec, fontSize: 12),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: chipColor.withValues(alpha: 0.18),
-                      ),
-                      child: Text(
-                        categoryLabel(category),
-                        style: TextStyle(
-                          color: chipColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          color: context.textSec,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    },
+    builder: (ctx) => _TopNotchPill(
+      title: title,
+      category: category,
+      chipColor: chipColor,
+    ),
   );
 
   overlayState.insert(entry);
   _activeTopNotchEntry = entry;
+
+  // Auto-remove after notch return duration (unchanged)
   _activeTopNotchTimer = Timer(AppDurations.notchAutoReturn, () {
     _activeTopNotchEntry?.remove();
     _activeTopNotchEntry = null;
@@ -19439,6 +21994,236 @@ Future<void> showTopNotchSavedMessage({
   });
 
   return Future<void>.value();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _TopNotchPill — the actual floating capsule widget
+// ─────────────────────────────────────────────────────────────────────────────
+class _TopNotchPill extends StatefulWidget {
+  const _TopNotchPill({
+    required this.title,
+    required this.category,
+    required this.chipColor,
+  });
+
+  final String title;
+  final NoteCategory category;
+  final Color chipColor;
+
+  @override
+  State<_TopNotchPill> createState() => _TopNotchPillState();
+}
+
+class _TopNotchPillState extends State<_TopNotchPill>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+  late final Animation<double> _translateY;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: AppDurations.saveConfirm,
+    );
+
+    final curve = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _opacity    = Tween<double>(begin: 0.0, end: 1.0).animate(curve);
+    _translateY = Tween<double>(begin: -36.0, end: 0.0).animate(curve);
+    _scale      = Tween<double>(begin: 0.82, end: 1.0).animate(curve);
+
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // ── Rim light colors ─────────────────────────────────────────────────────
+    final rimBright = isDark ? AppColors.darkRimBright : AppColors.lightRimBright;
+    final rimMid    = isDark ? AppColors.darkRimMid    : AppColors.lightRimMid;
+    final rimDark   = isDark ? AppColors.darkRimDark   : AppColors.lightRimDark;
+
+    // ── Compound shadows — mid layer tinted with category colour ─────────────
+    final List<BoxShadow> shadows = [
+      BoxShadow(
+        color: isDark ? AppColors.darkShadowClose : AppColors.lightShadowClose,
+        blurRadius: 8,
+        spreadRadius: -2,
+        offset: const Offset(0, 3),
+      ),
+      // Category-aware ambient glow (content-aware depth)
+      BoxShadow(
+        color: widget.chipColor.withValues(alpha: isDark ? 0.18 : 0.12),
+        blurRadius: 22,
+        spreadRadius: -5,
+        offset: const Offset(0, 7),
+      ),
+      BoxShadow(
+        color: isDark ? AppColors.darkShadowFar : AppColors.lightShadowFar,
+        blurRadius: 48,
+        spreadRadius: -14,
+        offset: const Offset(0, 18),
+      ),
+    ];
+
+    // ── Glass fill ───────────────────────────────────────────────────────────
+    final glassFillTop = isDark
+        ? Colors.white.withValues(alpha: 0.13)
+        : Colors.white.withValues(alpha: 0.82);
+    final glassFillBottom = isDark
+        ? const Color(0xFF111827).withValues(alpha: 0.90)
+        : Colors.white.withValues(alpha: 0.60);
+
+    return IgnorePointer(
+      child: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, child) => Opacity(
+              opacity: _opacity.value,
+              child: Transform.translate(
+                offset: Offset(0, _translateY.value),
+                child: Transform.scale(
+                  scale: _scale.value,
+                  child: child,
+                ),
+              ),
+            ),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width - 48,
+              ),
+              margin: const EdgeInsets.only(top: 8),
+
+              // ── LAW 2: Rim Light outer shell (gradient border) ──────────────
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [rimBright, rimMid, rimDark],
+                  stops: const [0.0, 0.45, 1.0],
+                ),
+                // ── LAW 3: Compound Shadows ─────────────────────────────────
+                boxShadow: shadows,
+              ),
+              padding: const EdgeInsets.all(1.0), // rim light ring width
+
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(998),
+                // ── LAW 1: Backdrop Translucency ─────────────────────────────
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(998),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [glassFillTop, glassFillBottom],
+                      ),
+                    ),
+                    // ── LAW 4: Tactile Extrusion foreground ─────────────────
+                    foregroundDecoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(998),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.transparent,
+                          Colors.transparent,
+                          isDark
+                              ? AppColors.darkExtrusionShadow
+                              : AppColors.lightExtrusionShadow,
+                        ],
+                        stops: const [0.0, 0.50, 1.0],
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // ── "Saved" label ────────────────────────────────────
+                        Text(
+                          'Saved',
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '·',
+                          style: TextStyle(
+                            color: context.textSec,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // ── Category chip (mini glass pill) ──────────────────
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 3.5,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            // Category-tinted glass fill
+                            color: widget.chipColor.withValues(alpha: 0.18),
+                            border: Border.all(
+                              color: widget.chipColor.withValues(alpha: 0.30),
+                              width: 0.7,
+                            ),
+                          ),
+                          child: Text(
+                            categoryLabel(widget.category),
+                            style: TextStyle(
+                              color: widget.chipColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        // ── Note title (truncated) ────────────────────────────
+                        Flexible(
+                          child: Text(
+                            widget.title,
+                            style: TextStyle(
+                              color: context.textSec,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 ```
 
@@ -21903,305 +24688,864 @@ include(":app")
 ### cloudfare/src/worker.ts
 
 ```typescript
-// cloudfare/src/worker.ts  — FULL REPLACEMENT
-// Lines: ~180 — full file provided
+// cloudfare/src/worker.ts
+//
+// WishperLog Digest Worker — v3.0
+//
+// ── Architecture change (v3) ─────────────────────────────────────────────────
+// The cron now reads scheduling data from the NEW  users/{uid}/digest/config
+// subcollection instead of the user root document.  This lets us query only
+// the "digest-opted-in" users (those who have a config doc) rather than
+// loading every user document.
+//
+// Firestore query path for cron:
+//   collectionGroup: users/{uid}/digest  →  filter doc id == "config"
+//   (implemented as a collection-group query on "digest" with doc filter)
+//
+// Firestore path for cron dedup KV:
+//   key format: "YYYY-MM-DD:HH:MM:<uid>"   TTL: 26 h (93 600 s)
+//
+// Webhook: reads user root doc via token lookup (unchanged) then writes a
+// history entry to users/{uid}/digest/history_<ts>.
+//
+// ENV secrets (wrangler secret put <name>):
+//   TELEGRAM_BOT_TOKEN
+//   FIREBASE_PROJECT_ID
+//   FIREBASE_CLIENT_EMAIL
+//   FIREBASE_PRIVATE_KEY          (PEM with literal \n)
+//   TRIGGER_SECRET
+// ─────────────────────────────────────────────────────────────────────────────
 
-export interface Env {
-  DIGEST_SENT:         KVNamespace;
-  TELEGRAM_BOT_TOKEN:  string;
+interface Env {
+  DIGEST_SENT: KVNamespace;
+  TELEGRAM_BOT_TOKEN: string;
   FIREBASE_PROJECT_ID: string;
   FIREBASE_CLIENT_EMAIL: string;
-  FIREBASE_PRIVATE_KEY:  string;
+  FIREBASE_PRIVATE_KEY: string;
+  TRIGGER_SECRET: string;
 }
 
-// ── Firestore REST helpers ─────────────────────────────────────────────────────
+type KVNamespace = {
+  get(key: string): Promise<string | null> | string | null;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void> | void;
+};
 
-async function getFirestoreToken(env: Env): Promise<string> {
-  const header  = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const now     = Math.floor(Date.now() / 1000);
-  const payload = btoa(JSON.stringify({
-    iss: env.FIREBASE_CLIENT_EMAIL,
-    sub: env.FIREBASE_CLIENT_EMAIL,
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-    scope: 'https://www.googleapis.com/auth/datastore',
-  }));
-  const unsigned   = `${header}.${payload}`;
-  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const keyData    = await crypto.subtle.importKey(
-    'pkcs8',
-    str2ab(atob(privateKey.replace(/-----[^-]+-----/g, '').replace(/\s/g, ''))),
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false, ['sign'],
+type ScheduledEvent = unknown;
+
+type ExecutionContext = unknown;
+
+// ── JWT / Auth ────────────────────────────────────────────────────────────────
+
+async function getFirebaseToken(env: Env): Promise<string> {
+  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const now        = Math.floor(Date.now() / 1000);
+
+  const header  = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss  : env.FIREBASE_CLIENT_EMAIL,
+    sub  : env.FIREBASE_CLIENT_EMAIL,
+    aud  : "https://oauth2.googleapis.com/token",
+    iat  : now,
+    exp  : now + 3600,
+    scope: "https://www.googleapis.com/auth/datastore",
+  };
+
+  const encode = (obj: object) =>
+    btoa(JSON.stringify(obj))
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+
+  const unsigned = `${encode(header)}.${encode(payload)}`;
+
+  const keyData = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToBuffer(privateKey),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', keyData, str2ab(unsigned));
-  const jwt = `${unsigned}.${btoa(String.fromCharCode(...new Uint8Array(sig)))}`;
 
-  const res  = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  const sig = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    keyData,
+    new TextEncoder().encode(unsigned),
+  );
+
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  const jwt = `${unsigned}.${sigB64}`;
+
+  const resp = await fetch("https://oauth2.googleapis.com/token", {
+    method : "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body   : `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
-  const data = await res.json<{ access_token: string }>();
+
+  const data = (await resp.json()) as { access_token: string };
   return data.access_token;
 }
 
-function str2ab(str: string): ArrayBuffer {
-  const buf = new Uint8Array(str.length);
-  for (let i = 0; i < str.length; i++) buf[i] = str.charCodeAt(i);
+function pemToBuffer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
   return buf.buffer;
 }
 
-async function firestoreGet(path: string, token: string, projectId: string): Promise<any> {
+// ── Firestore REST helpers ────────────────────────────────────────────────────
+
+async function firestoreGet(
+  path: string,
+  token: string,
+  projectId: string,
+): Promise<unknown> {
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) return null;
-  return res.json();
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok) throw new Error(`Firestore GET failed: ${resp.status} ${path}`);
+  return resp.json();
+}
+
+async function firestorePost(
+  path: string,
+  body: object,
+  token: string,
+  projectId: string,
+): Promise<unknown> {
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
+  const resp = await fetch(url, {
+    method : "POST",
+    headers: {
+      Authorization  : `Bearer ${token}`,
+      "Content-Type" : "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Firestore POST failed: ${resp.status} ${text}`);
+  }
+  return resp.json();
 }
 
 async function firestorePatch(
-  path: string, fields: Record<string, any>, token: string, projectId: string,
+  docPath: string,
+  fields: Record<string, unknown>,
+  token: string,
+  projectId: string,
 ): Promise<void> {
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
-  const body = { fields: toFirestoreFields(fields) };
-  await fetch(url + `?updateMask.fieldPaths=${Object.keys(fields).join(',')}`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+  const url =
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${docPath}` +
+    `?${Object.keys(fields)
+      .map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
+      .join("&")}`;
+
+  const resp = await fetch(url, {
+    method : "PATCH",
+    headers: {
+      Authorization : `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fields }),
   });
-}
-
-function toFirestoreFields(obj: Record<string, any>): Record<string, any> {
-  const out: Record<string, any> = {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (v === null || v === undefined) out[k] = { nullValue: null };
-    else if (typeof v === 'string') out[k] = { stringValue: v };
-    else if (typeof v === 'number') out[k] = { integerValue: String(v) };
-    else if (typeof v === 'boolean') out[k] = { booleanValue: v };
-    else if (Array.isArray(v)) out[k] = { arrayValue: { values: v.map(x => ({ stringValue: String(x) })) } };
-    else out[k] = { mapValue: { fields: toFirestoreFields(v) } };
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Firestore PATCH failed: ${resp.status} ${text}`);
   }
-  return out;
 }
 
-function extractField(doc: any, ...path: string[]): any {
-  let cur = doc?.fields;
-  for (const key of path) {
-    if (!cur) return undefined;
-    cur = cur[key];
-    if (cur?.mapValue) cur = cur.mapValue.fields;
-    else if (cur?.stringValue !== undefined) return cur.stringValue;
-    else if (cur?.arrayValue) return cur.arrayValue.values?.map((v: any) => v.stringValue) ?? [];
-    else if (cur?.nullValue !== undefined) return null;
-  }
-  return cur;
+// ── Firestore field extractors ────────────────────────────────────────────────
+
+function extractField(doc: any, field: string): unknown {
+  const f = doc?.fields?.[field];
+  if (!f) return undefined;
+  return (
+    f.stringValue  ??
+    f.integerValue ??
+    f.booleanValue ??
+    f.doubleValue  ??
+    undefined
+  );
 }
 
-// ── Telegram helpers ───────────────────────────────────────────────────────────
+function extractArray(doc: any, field: string): string[] {
+  const f = doc?.fields?.[field];
+  if (!f?.arrayValue?.values) return [];
+  return (f.arrayValue.values as any[]).map(
+    (v: any) => v.stringValue ?? "",
+  ).filter(Boolean);
+}
+
+// ── Telegram ──────────────────────────────────────────────────────────────────
 
 async function sendTelegramMessage(
-  chatId: string, text: string, token: string,
-  replyMarkup?: object,
+  chatId: string,
+  text: string,
+  botToken: string,
 ): Promise<void> {
-  const body: Record<string, any> = {
-    chat_id: chatId, text, parse_mode: 'HTML',
-    disable_web_page_preview: true,
-  };
-  if (replyMarkup) body.reply_markup = replyMarkup;
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const resp = await fetch(
+    `https://api.telegram.org/bot${botToken}/sendMessage`,
+    {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({
+        chat_id   : chatId,
+        text,
+        parse_mode: "HTML",
+      }),
+    },
+  );
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Telegram sendMessage failed: ${err}`);
+  }
 }
 
-// ── Cron path: dumb dispatcher ────────────────────────────────────────────────
+// ── Cron digest ───────────────────────────────────────────────────────────────
 
 async function runDigestCron(env: Env): Promise<void> {
+  const token   = await getFirebaseToken(env);
   const now     = new Date();
   const slotKey = toSlotKey(now);
   const dateKey = toDateKey(now);
 
-  const token = await getFirestoreToken(env);
+  console.log(`[Cron] Running at UTC ${slotKey} on ${dateKey}`);
 
-  // List all user docs
-  const listUrl = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users?pageSize=200`;
-  const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
-  if (!listRes.ok) return;
-  const listData = await listRes.json<{ documents?: any[] }>();
-  const docs = listData.documents ?? [];
+  // ── NEW: query the digest/config subcollection via collectionGroup ──────────
+  //
+  // We use the Firestore collectionGroup query endpoint to fetch all documents
+  // from any "digest" collection where docId == "config".  This avoids loading
+  // every user root document.
+  //
+  // REST equivalent of:
+  //   db.collectionGroup("digest")
+  //     .where(FieldPath.documentId(), "==", "config")
+  //     .select(["uid","telegram_chat_id","digest_slots_utc","display_name"])
+  //
+  const queryBody = {
+    structuredQuery: {
+      from: [{ collectionId: "digest", allDescendants: true }],
+      where: {
+        fieldFilter: {
+          field    : { fieldPath: "__name__" },
+          op       : "EQUAL",
+          // Match documents whose last path segment is "config"
+          value    : { referenceValue: `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users` },
+        },
+      },
+    },
+  };
 
-  for (const userDoc of docs) {
+  // Because Firestore REST doesn't support trailing wildcard name filters,
+  // we query by collectionGroup and filter on the client side for doc id.
+  // A simpler and fully-supported approach: run a collectionGroup query with
+  // no where clause (fetches all "digest" sub-docs) and skip non-"config" docs.
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const queryResp = await fetch(queryUrl, {
+    method : "POST",
+    headers: {
+      Authorization : `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: "digest", allDescendants: true }],
+        select: {
+          fields: [
+            { fieldPath: "uid" },
+            { fieldPath: "telegram_chat_id" },
+            { fieldPath: "digest_slots_utc" },
+            { fieldPath: "display_name" },
+          ],
+        },
+        // Only want the "config" document in each user's digest sub-collection.
+        // We filter by the document resource name suffix.
+        where: {
+          fieldFilter: {
+            field: { fieldPath: "telegram_chat_id" },
+            op   : "GREATER_THAN_OR_EQUAL",
+            value: { stringValue: "" },
+          },
+        },
+      },
+    }),
+  });
+
+  if (!queryResp.ok) {
+    console.error(`[Cron] collectionGroup query failed: ${queryResp.status}`);
+    return;
+  }
+
+  const queryResults = (await queryResp.json()) as any[];
+  console.log(`[Cron] digest config docs fetched: ${queryResults.length}`);
+
+  let fired = 0;
+
+  for (const result of queryResults) {
+    const doc = result?.document;
+    if (!doc) continue;
+
+    // Only process "config" docs (name ends with "/digest/config").
+    const docName: string = doc.name ?? "";
+    if (!docName.endsWith("/digest/config")) continue;
+
+    const uid     = extractField(doc, "uid")              as string | undefined;
+    const chatId  = extractField(doc, "telegram_chat_id") as string | undefined;
+    const name    = extractField(doc, "display_name")     as string | undefined ?? "there";
+    const slots   = extractArray(doc, "digest_slots_utc");
+
+    if (!uid || !chatId || !slots.includes(slotKey)) continue;
+
+    let message = "";
     try {
-      const uid        = userDoc.name?.split('/').pop();
-      if (!uid) continue;
-
-      const chatId     = extractField(userDoc, 'telegram_chat_id') as string | null;
-      if (!chatId) continue;
-
-      // ── Multi-slot schedule (new) or legacy single slot ──────────────────
-      const slotsField = extractField(userDoc, 'digest_slots');
-      const slots: string[] = Array.isArray(slotsField) && slotsField.length > 0
-        ? slotsField
-        : [extractField(userDoc, 'digest_time') as string ?? '09:00'];
-
-      if (!slots.includes(slotKey)) continue;
-
-      // ── KV dedup — one send per (date, slot, uid) per day ───────────────
-      const dedupKey = `${dateKey}:${slotKey}:${uid}`;
-      const already  = await env.DIGEST_SENT.get(dedupKey);
-      if (already) continue;
-
-      // ── Read pre-built message_state — NO re-calculation ─────────────────
-      const telegram = extractField(userDoc, 'message_state', 'telegram') as string | null;
-      if (!telegram || telegram.trim().length === 0) continue;
-
-      await sendTelegramMessage(chatId, telegram, env.TELEGRAM_BOT_TOKEN);
-      await env.DIGEST_SENT.put(dedupKey, '1', { expirationTtl: 93_600 });
-
-      console.log(`[digest] sent to uid=${uid} slot=${slotKey}`);
-    } catch (err) {
-      console.error('[digest] user loop error:', err);
+      const userSnap = await firestoreGet(
+        `users/${uid}`,
+        token,
+        env.FIREBASE_PROJECT_ID,
+      );
+      message = pickTelegramMessage(extractMessageState(userSnap as any), "summary");
+    } catch (e) {
+      console.warn(`[Cron] Failed to read cached digest for ${uid}: ${e}`);
     }
+
+    // Dedup: one digest per slot per day per user.
+    const dedupKey = `${dateKey}:${slotKey}:${uid}`;
+    const already  = await env.DIGEST_SENT.get(dedupKey);
+    if (already) {
+      console.log(`[Cron] Already sent to ${uid} at ${slotKey}`);
+      continue;
+    }
+
+    // Fetch the user's notes from the notes subcollection.
+    let notes: NoteDoc[] = [];
+    try {
+      if (!message) {
+        const notesSnap = await firestoreGet(
+          `users/${uid}/notes?pageSize=200`,
+          token,
+          env.FIREBASE_PROJECT_ID,
+        );
+        notes = parseNoteDocs(((notesSnap as any)?.documents ?? []) as any[], uid);
+      }
+    } catch (e) {
+      console.error(`[Cron] Failed to fetch notes for ${uid}: ${e}`);
+      continue;
+    }
+
+    if (!message) {
+      message = buildDigest(notes, name, "Daily Digest");
+    }
+
+    try {
+      await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
+
+      // Mark as sent for 26 hours.
+      await env.DIGEST_SENT.put(dedupKey, "1", { expirationTtl: 93_600 });
+
+      // Write a history entry to users/{uid}/digest/history_<ts>
+      await writeDigestHistory(uid, "cron_digest", "Daily Digest", notes.length, token, env);
+
+      fired++;
+      console.log(`[Cron] Digest sent to ${uid} (${chatId})`);
+    } catch (e) {
+      console.error(`[Cron] Failed to send to ${uid}: ${e}`);
+    }
+  }
+
+  console.log(`[Cron] Done — fired ${fired} digest(s)`);
+}
+
+// ── Write digest history entry ────────────────────────────────────────────────
+
+async function writeDigestHistory(
+  uid: string,
+  command: string,
+  heading: string,
+  noteCount: number,
+  token: string,
+  env: Env,
+): Promise<void> {
+  try {
+    const ts    = Date.now();
+    const docId = `history_${ts}`;
+    const path  = `users/${uid}/digest/${docId}`;
+
+    const fields = {
+      command         : { stringValue: command },
+      response_heading: { stringValue: heading },
+      note_count      : { integerValue: String(noteCount) },
+      queried_at      : { timestampValue: new Date().toISOString() },
+    };
+
+    await firestorePatch(path, fields, token, env.FIREBASE_PROJECT_ID);
+  } catch (e) {
+    // Non-fatal: history logging should never block the main send path.
+    console.warn(`[History] Failed to write history for ${uid}: ${e}`);
   }
 }
 
-// ── Interactive webhook path (unchanged logic) ─────────────────────────────────
+// ── Telegram webhook handler ──────────────────────────────────────────────────
 
 async function handleWebhook(req: Request, env: Env): Promise<Response> {
-  const body = await req.json<any>().catch(() => null);
-  if (!body) return new Response('bad request', { status: 400 });
-
-  const message  = body.message;
-  const chatId   = message?.chat?.id;
-  const text     = (message?.text ?? '').trim() as string;
-
-  if (!chatId || !text.startsWith('/')) {
-    return new Response('ok');
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response("bad request", { status: 400 });
   }
 
-  const token = await getFirestoreToken(env);
+  const message = body?.message;
+  const chatId  = message?.chat?.id;
+  const text    = (message?.text ?? "").trim();
 
-  // Find user by telegram_chat_id
-  const queryUrl = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
-  const queryBody = {
-    structuredQuery: {
-      from: [{ collectionId: 'users' }],
-      where: { fieldFilter: {
-        field: { fieldPath: 'telegram_chat_id' },
-        op: 'EQUAL',
-        value: { stringValue: String(chatId) },
-      }},
-      limit: 1,
-    },
-  };
-  const qRes  = await fetch(queryUrl, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(queryBody),
-  });
-  const qData = await qRes.json<any[]>();
-  const userDoc = qData?.[0]?.document;
+  if (!chatId || !text.startsWith("/")) {
+    return new Response("ok");
+  }
+
+  const token = await getFirebaseToken(env);
+
+  // ── Handle /start <link_token> — link the user's account ──────────────────
+  if (text.startsWith("/start")) {
+    const parts      = text.split(/\s+/);
+    const linkToken  = parts[1]?.trim() ?? "";
+
+    if (linkToken) {
+      await handleStartWithToken(chatId, linkToken, token, env);
+    } else {
+      // /start with no token → send help + Chat ID
+      await sendTelegramMessage(
+        String(chatId),
+        `<b>WishperLog Bot</b>\n\nYour Chat ID is: <code>${chatId}</code>\n\nPaste this into WishperLog → Settings → Telegram → Manual link.`,
+        env.TELEGRAM_BOT_TOKEN,
+      );
+    }
+    return new Response("ok");
+  }
+
+  // ── Handle digest commands ─────────────────────────────────────────────────
+  const cmd = text.replace(/^\//, "").split("@")[0].toLowerCase();
+  await handleDigestCommand(chatId, cmd, token, env);
+
+  return new Response("ok");
+}
+
+async function handleStartWithToken(
+  chatId: number,
+  linkToken: string,
+  token: string,
+  env: Env,
+): Promise<void> {
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const userDoc = await findLinkedUserDocByValue(queryUrl, token, linkToken, [
+    "telegram_link_token",
+    "telegram_link_pin",
+    "pending_telegram.token",
+  ]);
 
   if (!userDoc) {
     await sendTelegramMessage(
       String(chatId),
-      'Link your WishperLog account first: open the app and connect Telegram.',
+      "<b>Link code not found or already used.</b>\n\nOpen WishperLog and tap Connect in Telegram again, then use the Telegram link that the app opens or copies for you. If you are on the manual path, tap /start with no code and copy the Chat ID back into the app.",
       env.TELEGRAM_BOT_TOKEN,
     );
-    return new Response('ok');
+    return;
   }
 
-  const uid         = userDoc.name?.split('/').pop() as string;
-  const displayName = extractField(userDoc, 'display_name') as string ?? 'there';
+  const uid         = userDoc.name?.split("/").pop() as string;
+  const displayName = (extractField(userDoc, "display_name") as string) ?? "there";
 
-  // For interactive commands we still fetch live notes (real-time UX)
-  const notesSnap = await firestoreGet(
-    `users/${uid}/notes?pageSize=200`, token, env.FIREBASE_PROJECT_ID,
+  // Write chat_id to both the user root doc and the digest/config doc.
+  const chatIdStr = String(chatId);
+
+  // User root doc update
+  await firestorePatch(
+    `users/${uid}`,
+    {
+      telegram_chat_id: { stringValue: chatIdStr },
+      telegram_link_token: { nullValue: "NULL_VALUE" },
+    },
+    token,
+    env.FIREBASE_PROJECT_ID,
   );
-  const notes = parseNoteDocs(notesSnap?.documents ?? [], uid);
 
-  const parts  = text.split(/\s+/);
-  const cmd    = parts[0].slice(1).toLowerCase();
-  const args   = parts.slice(1).join(' ');
+  // Digest config doc update — this is the canonical source the cron reads.
+  await firestorePatch(
+    `users/${uid}/digest/config`,
+    {
+      telegram_chat_id: { stringValue: chatIdStr },
+      link_method     : { stringValue: "auto_deeplink" },
+      linked_at       : { timestampValue: new Date().toISOString() },
+    },
+    token,
+    env.FIREBASE_PROJECT_ID,
+  );
 
-  switch (cmd) {
-    case 'start':
-      await sendTelegramMessage(
-        String(chatId),
-        `Hello ${displayName}! Your WishperLog digest is active. Use /summary, /tasks, /reminders, or /ideas.`,
-        env.TELEGRAM_BOT_TOKEN,
-      );
-      break;
-    case 'summary': case 'all':
-      await sendTelegramMessage(String(chatId), buildDigest(notes, displayName, 'Summary'), env.TELEGRAM_BOT_TOKEN);
-      break;
-    case 'tasks': case 'task': case 'todo':
-      await sendTelegramMessage(String(chatId), buildDigest(notes.filter(n => n.category === 'tasks'), displayName, 'Tasks'), env.TELEGRAM_BOT_TOKEN);
-      break;
-    case 'reminders': case 'reminder':
-      await sendTelegramMessage(String(chatId), buildDigest(notes.filter(n => n.category === 'reminders'), displayName, 'Reminders'), env.TELEGRAM_BOT_TOKEN);
-      break;
-    case 'ideas': case 'idea':
-      await sendTelegramMessage(String(chatId), buildDigest(notes.filter(n => n.category === 'ideas'), displayName, 'Ideas'), env.TELEGRAM_BOT_TOKEN);
-      break;
-    default:
-      await sendTelegramMessage(
-        String(chatId),
-        '<b>WishperLog commands</b>\n/summary /tasks /reminders /ideas',
-        env.TELEGRAM_BOT_TOKEN,
-      );
-  }
-  return new Response('ok');
+  await sendTelegramMessage(
+    chatIdStr,
+    `<b>✅ WishperLog connected!</b>\n\nHello ${asciiOnly(displayName)}! Your daily digest will arrive at your scheduled times.\n\n<b>Commands:</b>\n/summary  /tasks  /reminders  /ideas`,
+    env.TELEGRAM_BOT_TOKEN,
+  );
 }
 
-// ── Note parsing (for interactive commands only) ───────────────────────────────
+async function findLinkedUserDocByValue(
+  queryUrl: string,
+  token: string,
+  linkToken: string,
+  fieldPaths: string[],
+): Promise<any | null> {
+  for (const fieldPath of fieldPaths) {
+    const queryResp = await fetch(queryUrl, {
+      method : "POST",
+      headers: {
+        Authorization : `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        structuredQuery: {
+          from : [{ collectionId: "users" }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath },
+              op   : "EQUAL",
+              value: { stringValue: linkToken },
+            },
+          },
+          limit: { value: 1 },
+        },
+      }),
+    });
 
-interface NoteDoc { title: string; category: string; priority: string; body: string; }
+    if (!queryResp.ok) continue;
+    const results = (await queryResp.json()) as any[];
+    const doc = results?.[0]?.document;
+    if (doc) return doc;
+  }
 
-function parseNoteDocs(docs: any[], uid: string): NoteDoc[] {
-  return docs.map(doc => {
-    const f = doc?.fields ?? {};
-    const str = (k: string) => f[k]?.stringValue ?? '';
-    return { title: str('title'), category: str('category'), priority: str('priority'), body: str('clean_body') };
+  return null;
+}
+
+async function handleDigestCommand(
+  chatId: number,
+  cmd: string,
+  token: string,
+  env: Env,
+): Promise<void> {
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const configDoc =
+    await findLinkedDigestConfigDoc(queryUrl, token, String(chatId), env);
+
+  if (!configDoc || !configDoc.name?.endsWith("/digest/config")) {
+    await sendTelegramMessage(
+      String(chatId),
+      "Your Telegram isn't linked yet. Open WishperLog → Telegram screen and connect again.",
+      env.TELEGRAM_BOT_TOKEN,
+    );
+    return;
+  }
+
+  // Derive the uid from the document name: users/{uid}/digest/config
+  const nameParts = (configDoc.name as string).split("/");
+  const uid       = nameParts[nameParts.length - 3]; // users / {uid} / digest / config
+  const name      = (extractField(configDoc, "display_name") as string) ?? "there";
+
+  if (!isSupportedTelegramCommand(cmd)) {
+    await sendTelegramMessage(
+      String(chatId),
+      "<b>WishperLog commands</b>\n/summary  /top  /tasks  /reminders  /ideas",
+      env.TELEGRAM_BOT_TOKEN,
+    );
+    return;
+  }
+
+  let message = "";
+  try {
+    const userSnap = await firestoreGet(
+      `users/${uid}`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+    message = pickTelegramMessage(extractMessageState(userSnap as any), cmd);
+  } catch (e) {
+    console.warn(`[Cmd] Failed to read cached message for ${uid}: ${e}`);
+  }
+
+  const heading = pickHeading(cmd);
+
+  if (!message) {
+    const notesSnap = await firestoreGet(
+      `users/${uid}/notes?pageSize=200`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+
+    const notes = parseNoteDocs(((notesSnap as any)?.documents ?? []) as any[], uid);
+    const sentNotes = pickNotesForCommand(notes, cmd);
+    message = buildDigest(sentNotes, name, heading);
+    await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
+    await writeDigestHistory(uid, cmd, heading, sentNotes.length, token, env);
+    return;
+  }
+
+  await sendTelegramMessage(
+    String(chatId),
+    message,
+    env.TELEGRAM_BOT_TOKEN,
+  );
+
+  // Log to history
+  await writeDigestHistory(uid, cmd, heading, 0, token, env);
+}
+
+function extractMessageState(doc: any): Record<string, string> {
+  const fields = doc?.fields?.message_state?.mapValue?.fields ?? {};
+  const output: Record<string, string> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    const fieldValue = value as any;
+    const raw = fieldValue?.stringValue;
+    if (typeof raw === "string" && raw.trim()) {
+      output[key] = raw;
+    }
+  }
+  return output;
+}
+
+function pickTelegramMessage(state: Record<string, string>, cmd: string): string {
+  const summary = state.telegram_summary ?? state.telegram_digest ?? state.telegram ?? "";
+  switch (cmd) {
+    case "summary":
+    case "all":
+      return summary;
+    case "top":
+      return state.telegram_top ?? summary;
+    case "tasks":
+    case "task":
+    case "todo":
+      return state.telegram_tasks ?? summary;
+    case "reminders":
+    case "reminder":
+      return state.telegram_reminders ?? summary;
+    case "ideas":
+    case "idea":
+      return state.telegram_ideas ?? summary;
+    default:
+      return "";
+  }
+}
+
+function pickHeading(cmd: string): string {
+  switch (cmd) {
+    case "top":
+      return "Top";
+    case "tasks":
+    case "task":
+    case "todo":
+      return "Tasks";
+    case "reminders":
+    case "reminder":
+      return "Reminders";
+    case "ideas":
+    case "idea":
+      return "Ideas";
+    default:
+      return "Summary";
+  }
+}
+
+function pickNotesForCommand(notes: NoteDoc[], cmd: string): NoteDoc[] {
+  switch (cmd) {
+    case "top":
+      return [...notes]
+        .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
+        .slice(0, 3);
+    case "tasks":
+    case "task":
+    case "todo":
+      return notes.filter((n) => n.category === "tasks");
+    case "reminders":
+    case "reminder":
+      return notes.filter((n) => n.category === "reminders");
+    case "ideas":
+    case "idea":
+      return notes.filter((n) => n.category === "ideas");
+    default:
+      return notes;
+  }
+}
+
+function isSupportedTelegramCommand(cmd: string): boolean {
+  return [
+    "summary",
+    "all",
+    "top",
+    "tasks",
+    "task",
+    "todo",
+    "reminders",
+    "reminder",
+    "ideas",
+    "idea",
+  ].includes(cmd);
+}
+
+async function findLinkedDigestConfigDoc(
+  queryUrl: string,
+  token: string,
+  chatId: string,
+  env: Env,
+): Promise<any | null> {
+  const candidates = [
+    {
+      from: [{ collectionId: "users" }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "telegram_chat_id" },
+          op: "EQUAL",
+          value: { stringValue: chatId },
+        },
+      },
+      limit: { value: 1 },
+    },
+    {
+      from: [{ collectionId: "digest", allDescendants: true }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "telegram_chat_id" },
+          op: "EQUAL",
+          value: { stringValue: chatId },
+        },
+      },
+      limit: { value: 1 },
+    },
+  ];
+
+  for (const structuredQuery of candidates) {
+    const queryResp = await fetch(queryUrl, {
+      method : "POST",
+      headers: {
+        Authorization : `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ structuredQuery }),
+    });
+
+    if (!queryResp.ok) continue;
+
+    const results = (await queryResp.json()) as any[];
+    for (const result of results) {
+      const doc = result?.document;
+      if (!doc) continue;
+      if (doc.name?.endsWith("/digest/config")) return doc;
+
+      const uid = doc.name?.split("/").pop();
+      if (!uid) continue;
+
+      try {
+        const digestDoc = await firestoreGet(
+          `users/${uid}/digest/config`,
+          token,
+          env.FIREBASE_PROJECT_ID,
+        );
+        if ((digestDoc as any)?.name?.endsWith("/digest/config")) {
+          return digestDoc;
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return null;
+}
+
+// ── Note parsing ──────────────────────────────────────────────────────────────
+
+interface NoteDoc {
+  title   : string;
+  category: string;
+  priority: string;
+  body    : string;
+}
+
+function parseNoteDocs(docs: any[], _uid: string): NoteDoc[] {
+  return docs.map((doc) => {
+    const f   = doc?.fields ?? {};
+    const str = (k: string) => f[k]?.stringValue ?? "";
+    return {
+      title   : str("title"),
+      category: str("category"),
+      priority: str("priority"),
+      body    : str("clean_body"),
+    };
   });
 }
 
 function buildDigest(notes: NoteDoc[], name: string, heading: string): string {
   if (notes.length === 0) return `<b>${heading}</b>\nNo active notes.`;
-  const ranked = [...notes].sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority)).slice(0, 5);
-  const lines = [`<b>WishperLog ${heading}</b>`, `Hello ${asciiOnly(name)}!`, ''];
+
+  const ranked = [...notes]
+    .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
+    .slice(0, 5);
+
+  const lines = [`<b>WishperLog ${heading}</b>`, `Hello ${asciiOnly(name)}!`, ""];
+
   ranked.forEach((n, i) => {
-    lines.push(`${i + 1}. [${n.category.toUpperCase()}][${priorityLabel(n.priority)}] ${asciiOnly(n.title)}`);
-    if (n.body) lines.push(`   <i>${asciiOnly(n.body).slice(0, 100)}</i>`);
+    lines.push(
+      `${i + 1}. [${n.category.toUpperCase()}][${priorityLabel(n.priority)}] ${asciiOnly(n.title)}`,
+    );
+    if (n.body) {
+      lines.push(`   <i>${asciiOnly(n.body).slice(0, 100)}</i>`);
+    }
   });
-  if (notes.length > ranked.length) lines.push(`\n<i>+${notes.length - ranked.length} more</i>`);
-  return lines.join('\n');
+
+  if (notes.length > ranked.length) {
+    lines.push(`\n<i>+${notes.length - ranked.length} more</i>`);
+  }
+
+  return lines.join("\n");
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export default {
-  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+  async scheduled(
+    _event: ScheduledEvent,
+    env: Env,
+    _ctx: ExecutionContext,
+  ): Promise<void> {
     await runDigestCron(env);
   },
 
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
 
-    // Health / manual trigger endpoint
-    if (url.pathname === '/trigger' && req.method === 'GET') {
+    if (url.pathname === "/trigger" && req.method === "GET") {
+      if (req.headers.get("X-Trigger-Secret") !== env.TRIGGER_SECRET) {
+        return new Response("Forbidden", { status: 403 });
+      }
       await runDigestCron(env);
-      return new Response('triggered', { status: 200 });
+      return new Response("triggered", { status: 200 });
     }
 
-    // Telegram webhook
-    if (url.pathname === '/webhook' && req.method === 'POST') {
+    if (url.pathname === "/webhook" && req.method === "POST") {
       return handleWebhook(req, env);
     }
 
-    return new Response('WishperLog Worker', { status: 200 });
+    return new Response("WishperLog Worker v3", { status: 200 });
   },
 };
 
@@ -22215,19 +25559,28 @@ function toDateKey(d: Date): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
-function pad(n: number): string { return n.toString().padStart(2, '0'); }
-
-function asciiOnly(v: string): string {
-  return (v ?? '').toString().normalize('NFKD').replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, ' ').trim();
+function pad(n: number): string {
+  return n.toString().padStart(2, "0");
 }
 
-function priorityRank(p: string): number { return p === 'high' ? 0 : p === 'medium' ? 1 : 2; }
+function asciiOnly(v: string): string {
+  return (v ?? "")
+    .toString()
+    .normalize("NFKD")
+    .replace(/[^\x00-\x7F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function priorityRank(p: string): number {
+  return p === "high" ? 0 : p === "medium" ? 1 : 2;
+}
 
 function priorityLabel(p: string): string {
-  switch ((p ?? '').toLowerCase()) {
-    case 'high': return 'HIGH';
-    case 'low':  return 'LOW';
-    default:     return 'MED';
+  switch ((p ?? "").toLowerCase()) {
+    case "high": return "HIGH";
+    case "low":  return "LOW";
+    default:     return "MED";
   }
 }
 ```

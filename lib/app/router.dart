@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wishperlog/app/route_observer.dart';
 import 'package:wishperlog/features/home/presentation/home_screen_layout.dart';
 import 'package:wishperlog/features/notes/presentation/screens/folder_screen.dart';
 import 'package:wishperlog/features/notes/presentation/screens/note_detail_screen.dart';
@@ -48,9 +49,18 @@ CustomTransitionPage<T> _buildPage<T>({
 }
 
 final GoRouter router = GoRouter(
+  observers: [routeObserver],
   routes: [
     GoRoute(
       path: '/',
+      pageBuilder: (context, state) => _buildPage(
+        key: state.pageKey,
+        child: const SignInScreen(),
+        beginOffset: const Offset(0, 0.04),
+      ),
+    ),
+    GoRoute(
+      path: '/signin',
       pageBuilder: (context, state) => _buildPage(
         key: state.pageKey,
         child: const SignInScreen(),

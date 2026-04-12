@@ -34,5 +34,7 @@ enum AiProvider {
   auto,
   gemini,
   groq,
+  mistral,
   huggingface,
+  cerebras,
 }

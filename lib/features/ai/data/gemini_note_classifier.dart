@@ -34,6 +34,12 @@ class GeminiNoteClassifier {
   final String _apiKey;
   final GenerativeModel? _providedModel;
 
+  static const List<String> supportedModels = [
+    'gemini-3-flash',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+  ];
+
   bool get isConfigured => _apiKey.isNotEmpty;
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -153,7 +159,10 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
   // Classify
   // ──────────────────────────────────────────────────────────────────────────
 
-  Future<GeminiClassificationResult> classify(String rawTranscript) async {
+  Future<GeminiClassificationResult> classify(
+    String rawTranscript, {
+    String? modelName,
+  }) async {
     if (!isConfigured) {
       return _localFallback(rawTranscript, 'gemini-local');
     }
@@ -162,9 +171,10 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
     }
 
     try {
+      final selectedModel = modelName ?? 'gemini-1.5-flash';
       final model = _providedModel ??
           GenerativeModel(
-            model: 'gemini-1.5-flash-latest',
+            model: selectedModel,
             apiKey: _apiKey,
             generationConfig: GenerationConfig(
               temperature: 0.2,
@@ -187,7 +197,7 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
         throw Exception('Gemini returned empty response');
       }
 
-      return _parseJson(rawTranscript, raw.trim(), model: 'gemini-1.5-flash');
+      return _parseJson(rawTranscript, raw.trim(), model: selectedModel);
     } on TimeoutException catch (e) {
       throw Exception('[GeminiClassifier] Timeout: $e');
     } catch (e) {

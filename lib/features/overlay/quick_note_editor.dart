@@ -8,6 +8,7 @@ import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class QuickNoteEditor extends StatefulWidget {
   const QuickNoteEditor({super.key});
@@ -96,81 +97,164 @@ class _QuickNoteEditorState extends State<QuickNoteEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: context.surface1,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+      child: GlassPane(
+        level: 1,
+        radius: 28,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                const Icon(Icons.edit_note, color: AppColors.tasks),
-                const SizedBox(width: 8),
-                Text(
-                  'Quick Note',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: context.textPri,
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.tasks.withValues(alpha: isDark ? 0.26 : 0.18),
+                        AppColors.tasks.withValues(alpha: isDark ? 0.10 : 0.08),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: AppColors.tasks.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: const Icon(Icons.edit_note, color: AppColors.tasks, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Quick Note',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: context.textPri,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Capture an idea in a neumorphic glass sheet.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.textSec,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
                 IconButton(
                   onPressed: () => context.pop(),
-                  icon: const Icon(Icons.close),
+                  icon: Icon(Icons.close, color: context.textSec),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              maxLines: null,
-              minLines: 3,
-              style: TextStyle(color: context.textPri, fontSize: 16),
-              decoration: InputDecoration(
-                hintText: 'What\'s on your mind?',
-                hintStyle: TextStyle(color: context.textSec),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+            const SizedBox(height: 14),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    context.surface1.withValues(alpha: isDark ? 0.76 : 0.88),
+                    context.surface2.withValues(alpha: isDark ? 0.68 : 0.96),
+                  ],
                 ),
-                filled: true,
-                fillColor: context.textPri.withValues(alpha: 0.05),
-                contentPadding: const EdgeInsets.all(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.40),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.26 : 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(5, 7),
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.68),
+                    blurRadius: 12,
+                    offset: const Offset(-4, -4),
+                  ),
+                ],
               ),
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _save(),
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                maxLines: null,
+                minLines: 4,
+                style: TextStyle(color: context.textPri, fontSize: 16, height: 1.5),
+                decoration: InputDecoration(
+                  hintText: 'What\'s on your mind?',
+                  hintStyle: TextStyle(color: context.textSec),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(18),
+                ),
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _save(),
+              ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.tasks,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            GestureDetector(
+              onTap: _isSaving ? null : _save,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.tasks.withValues(alpha: isDark ? 0.96 : 0.92),
+                      const Color(0xFF58D0C7),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.14),
+                      blurRadius: 16,
+                      offset: const Offset(5, 8),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.70),
+                      blurRadius: 12,
+                      offset: const Offset(-4, -4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: _isSaving
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          'Save Note',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
                 ),
               ),
-              child: _isSaving 
-                ? SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text('Save Note', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             ),
           ],
         ),

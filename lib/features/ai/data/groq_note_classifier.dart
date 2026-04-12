@@ -17,6 +17,12 @@ class GroqNoteClassifier {
   static const _baseUrl      = 'https://api.groq.com/openai/v1/chat/completions';
   static const _primaryModel = 'llama-3.3-70b-versatile';
   static const _fallbackModel = 'llama-3.1-8b-instant';
+  static const List<String> supportedModels = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'qwen3-32b',
+    'llama-4-scout-17b-16e-instruct',
+  ];
 
   final String _apiKey;
 
@@ -24,15 +30,27 @@ class GroqNoteClassifier {
 
   bool get isConfigured => _apiKey.isNotEmpty;
 
-  Future<GeminiClassificationResult?> classify(String rawTranscript) async {
+  Future<GeminiClassificationResult?> classify(
+    String rawTranscript, {
+    String? modelName,
+  }) async {
     if (!isConfigured || rawTranscript.trim().isEmpty) return null;
 
-    // Try primary model, fallback to smaller model on 429 rate-limit.
-    final result = await _callApi(rawTranscript, _primaryModel);
-    if (result != null) return result;
+    final candidates = <String>{
+      if (modelName != null && modelName.trim().isNotEmpty) modelName.trim(),
+      _primaryModel,
+      _fallbackModel,
+      ...supportedModels,
+    }.toList();
 
-    debugPrint('[GroqClassifier] Primary model failed, trying fallback model');
-    return _callApi(rawTranscript, _fallbackModel);
+    for (final model in candidates) {
+      final result = await _callApi(rawTranscript, model);
+      if (result != null) return result;
+      if (model == _primaryModel) {
+        debugPrint('[GroqClassifier] Primary model failed, trying fallback model');
+      }
+    }
+    return null;
   }
 
   Future<GeminiClassificationResult?> _callApi(String rawTranscript, String model) async {

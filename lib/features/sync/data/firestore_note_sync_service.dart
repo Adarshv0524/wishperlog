@@ -31,7 +31,7 @@ class FirestoreNoteSyncService {
     }
     _started = true;
 
-    _authSub = _auth.authStateChanges().listen(
+    _authSub = _auth.idTokenChanges().listen(
       (user) {
         _attachUserListener(user);
       },
@@ -94,6 +94,13 @@ class FirestoreNoteSyncService {
               '[FirestoreNoteSyncService] Snapshot listener error: $error',
             );
             debugPrintStack(stackTrace: st);
+            final message = error.toString().toLowerCase();
+            if (message.contains('permission-denied') ||
+                message.contains('permission denied')) {
+              await _noteSub?.cancel();
+              _noteSub = null;
+              return;
+            }
             await _restartAfterDelay();
           },
         );

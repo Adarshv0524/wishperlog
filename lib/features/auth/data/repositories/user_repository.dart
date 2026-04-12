@@ -1,3 +1,12 @@
+// lib/features/auth/data/repositories/user_repository.dart
+//
+// v2.0 — Digest Collection Architecture
+//
+// Change: digest schedule writes now stay on the root user doc only.
+// The Cloudflare Worker reads the root digest fields directly.
+//
+// All other methods are preserved exactly.
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/foundation.dart';
@@ -15,13 +24,16 @@ class SignInFriendlyException implements Exception {
 }
 
 class UserRepository {
-  final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn;
+  final auth.FirebaseAuth  _firebaseAuth = auth.FirebaseAuth.instance;
+  final FirebaseFirestore   _firestore   = FirebaseFirestore.instance;
+  final GoogleSignIn        _googleSignIn;
 
-  UserRepository({required GoogleSignIn googleSignIn}) : _googleSignIn = googleSignIn;
+  UserRepository({required GoogleSignIn googleSignIn})
+      : _googleSignIn = googleSignIn;
 
   Stream<auth.User?> get authStateChanges => _firebaseAuth.authStateChanges();
+
+  // ── Sign in / out ──────────────────────────────────────────────────────────
 
   Future<auth.UserCredential> signInWithGoogle() async {
     try {
@@ -29,19 +41,13 @@ class UserRepository {
         final provider = auth.GoogleAuthProvider();
         final userCredential = await _firebaseAuth.signInWithPopup(provider);
         final user = userCredential.user;
-        if (user == null) {
-          throw Exception('Google sign in aborted');
-        }
-
+        if (user == null) throw Exception('Google sign in aborted');
         await _upsertUserDocument(firebaseUser: user, googleAuth: null);
-
         return userCredential;
       }
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        throw Exception('Google sign in aborted');
-      }
+      if (googleUser == null) throw Exception('Google sign in aborted');
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -50,10 +56,13 @@ class UserRepository {
         idToken: googleAuth.idToken,
       );
 
-      final auth.UserCredential userCredential = await _firebaseAuth
-          .signInWithCredential(credential);
+      final auth.UserCredential userCredential =
+          await _firebaseAuth.signInWithCredential(credential);
 
-      await _upsertUserDocument(firebaseUser: userCredential.user!, googleAuth: googleAuth);
+      await _upsertUserDocument(
+        firebaseUser: userCredential.user!,
+        googleAuth: googleAuth,
+      );
 
       return userCredential;
     } catch (e) {
@@ -66,42 +75,44 @@ class UserRepository {
     required auth.User firebaseUser,
     required GoogleSignInAuthentication? googleAuth,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs    = await SharedPreferences.getInstance();
     final overlayX = prefs.getDouble('overlay.pos.x') ?? 0.0;
     final overlayY = prefs.getDouble('overlay.pos.y') ?? 0.0;
 
     final userDoc = _firestore.collection('users').doc(firebaseUser.uid);
     final docSnapshot = await userDoc.get();
     final existingData = docSnapshot.data() ?? const <String, dynamic>{};
-    final digestTime = (existingData['digest_time'] as String?) ?? '09:00';
+
+    final digestTime  = (existingData['digest_time'] as String?) ?? '09:00';
     final digestTimes = (existingData['digest_times'] as List<dynamic>?)
-        ?.map((value) => value.toString())
-        .where((value) => value.trim().isNotEmpty)
+        ?.map((v) => v.toString())
+        .where((v) => v.trim().isNotEmpty)
         .toList();
+
     final data = {
-      'uid': firebaseUser.uid,
-      'email': firebaseUser.email ?? '',
-      'display_name': firebaseUser.displayName ?? '',
+      'uid'          : firebaseUser.uid,
+      'email'        : firebaseUser.email ?? '',
+      'display_name' : firebaseUser.displayName ?? '',
       'google_tokens': {
-        'access_token': googleAuth?.accessToken,
+        'access_token' : googleAuth?.accessToken,
         'refresh_token': null,
-        'expiry': null,
+        'expiry'       : null,
       },
       'telegram_chat_id': existingData['telegram_chat_id'] as String?,
-      'digest_time': digestTime,
-      'digest_times': digestTimes ?? [digestTime],
+      'digest_time'     : digestTime,
+      'digest_times'    : digestTimes ?? [digestTime],
       'digest_times_utc':
           (existingData['digest_times_utc'] as List<dynamic>?)
-              ?.map((value) => value.toString())
-              .where((value) => value.trim().isNotEmpty)
+              ?.map((v) => v.toString())
+              .where((v) => v.trim().isNotEmpty)
               .toList() ??
           const <String>[],
       'timezone_offset_minutes':
           (existingData['timezone_offset_minutes'] as num?)?.toInt() ??
           DateTime.now().timeZoneOffset.inMinutes,
       'overlay_position': {'x': overlayX, 'y': overlayY},
-      'overlay_visible': (existingData['overlay_visible'] as bool?) ?? true,
-      'fcm_token': (existingData['fcm_token'] as String?) ?? '',
+      'overlay_visible' : (existingData['overlay_visible'] as bool?) ?? true,
+      'fcm_token'       : (existingData['fcm_token'] as String?) ?? '',
     };
 
     if (!docSnapshot.exists) {
@@ -120,11 +131,11 @@ class UserRepository {
     await _firebaseAuth.signOut();
   }
 
+  // ── Document streams ────────────────────────────────────────────────────────
+
   Stream<Map<String, dynamic>?> watchCurrentUserDocument() {
     return _firebaseAuth.authStateChanges().asyncExpand((user) {
-      if (user == null) {
-        return Stream.value(null);
-      }
+      if (user == null) return Stream.value(null);
       return _firestore
           .collection('users')
           .doc(user.uid)
@@ -133,90 +144,66 @@ class UserRepository {
     });
   }
 
+  // ── Digest time persistence ─────────────────────────────────────────────────
+
   Future<void> updateDigestTime(String digestTime) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
+    if (user == null) return;
     final utcSlot = _toUtcSlotFromHm(digestTime);
     await _firestore.collection('users').doc(user.uid).set({
-      'digest_time': digestTime,
-      'digest_times': [digestTime],
-      'digest_times_utc': [utcSlot],
+      'digest_time'            : digestTime,
+      'digest_times'           : [digestTime],
+      'digest_times_utc'       : [utcSlot],
       'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
+      'updated_at'             : FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
+  /// Persists digest times to the legacy user root doc, which is now the
+  /// canonical schedule source for the Cloudflare Worker.
   Future<void> updateDigestTimes(
     List<TimeOfDay> times, {
     List<String> utcSlots = const [],
   }) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) return;
-    final localSlots = times.map((t) => _formatTimeOfDay(t)).toList();
+
+    final localSlots       = times.map(_formatTimeOfDay).toList();
     final normalizedUtcSlots = utcSlots.isNotEmpty
         ? utcSlots
         : times.map(_toUtcSlot).toList();
-    final data = <String, dynamic>{
-      'digest_time': localSlots.first,
-      'digest_times': localSlots,
-      'digest_times_utc': normalizedUtcSlots,
+
+    final legacyData = <String, dynamic>{
+      'digest_time'            : localSlots.first,
+      'digest_times'           : localSlots,
+      'digest_times_utc'       : normalizedUtcSlots,
       'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
-      'updated_at': FieldValue.serverTimestamp(),
+      'updated_at'             : FieldValue.serverTimestamp(),
     };
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .set(data, SetOptions(merge: true));
+
+    await _firestore.collection('users').doc(user.uid).set(
+      legacyData,
+      SetOptions(merge: true),
+    );
   }
 
-  String _formatTimeOfDay(TimeOfDay time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _toUtcSlot(TimeOfDay time) {
-    final offsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
-    final totalMinutes = time.hour * 60 + time.minute;
-    final shiftedMinutes = (totalMinutes - offsetMinutes) % (24 * 60);
-    final normalized = shiftedMinutes < 0
-        ? shiftedMinutes + (24 * 60)
-        : shiftedMinutes;
-    final hour = normalized ~/ 60;
-    final minute = normalized % 60;
-    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
-  }
-
-  String _toUtcSlotFromHm(String digestTime) {
-    final parts = digestTime.trim().split(':');
-    if (parts.length != 2) {
-      return digestTime.trim();
-    }
-
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) {
-      return digestTime.trim();
-    }
-
-    return _toUtcSlot(TimeOfDay(hour: hour, minute: minute));
-  }
+  // ── Overlay ────────────────────────────────────────────────────────────────
 
   Future<void> updateOverlayVisibility(bool visible) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
+    if (user == null) return;
     await _firestore.collection('users').doc(user.uid).set({
       'overlay_visible': visible,
     }, SetOptions(merge: true));
   }
 
+  // ── Telegram ───────────────────────────────────────────────────────────────
+
   Future<void> updateTelegramChatId(String chatId) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
+    if (user == null) return;
     final normalized = chatId.trim();
+
     await _firestore.collection('users').doc(user.uid).set({
       'telegram_chat_id': normalized.isEmpty
           ? FieldValue.delete()
@@ -236,13 +223,11 @@ class UserRepository {
     required DateTime expiresAt,
   }) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null || token.trim().isEmpty) {
-      return;
-    }
+    if (user == null || token.trim().isEmpty) return;
 
     await _firestore.collection('users').doc(user.uid).set({
       'pending_telegram': {
-        'token': token.trim(),
+        'token'     : token.trim(),
         'expires_at': Timestamp.fromDate(expiresAt.toUtc()),
       },
     }, SetOptions(merge: true));
@@ -250,20 +235,17 @@ class UserRepository {
 
   Future<void> clearPendingTelegramToken() async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
-
+    if (user == null) return;
     await _firestore.collection('users').doc(user.uid).set({
       'pending_telegram': FieldValue.delete(),
     }, SetOptions(merge: true));
   }
 
+  // ── FCM / overlay position ─────────────────────────────────────────────────
+
   Future<void> updateFcmToken(String token) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null || token.trim().isEmpty) {
-      return;
-    }
+    if (user == null || token.trim().isEmpty) return;
     await _firestore.collection('users').doc(user.uid).set({
       'fcm_token': token.trim(),
     }, SetOptions(merge: true));
@@ -274,12 +256,34 @@ class UserRepository {
     required double y,
   }) async {
     final user = _firebaseAuth.currentUser;
-    if (user == null) {
-      return;
-    }
-
+    if (user == null) return;
     await _firestore.collection('users').doc(user.uid).set({
       'overlay_position': {'x': x, 'y': y},
     }, SetOptions(merge: true));
   }
+
+  String _formatTimeOfDay(TimeOfDay time) =>
+      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
+  String _toUtcSlot(TimeOfDay time) {
+    final offsetMinutes = DateTime.now().timeZoneOffset.inMinutes;
+    final totalMinutes  = time.hour * 60 + time.minute;
+    final shiftedMinutes = (totalMinutes - offsetMinutes) % (24 * 60);
+    final normalized    = shiftedMinutes < 0
+        ? shiftedMinutes + 24 * 60
+        : shiftedMinutes;
+    final hour   = normalized ~/ 60;
+    final minute = normalized % 60;
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  String _toUtcSlotFromHm(String digestTime) {
+    final parts = digestTime.trim().split(':');
+    if (parts.length != 2) return digestTime.trim();
+    final hour   = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return digestTime.trim();
+    return _toUtcSlot(TimeOfDay(hour: hour, minute: minute));
+  }
+
 }

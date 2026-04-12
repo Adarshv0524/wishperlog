@@ -1,7 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
+// ══════════════════════════════════════════════════════════════════════════════
+// glass_title_bar.dart v3.0 — Tactile Soft-Glass Title Bar
+//
+// Soft-Glass mechanics applied:
+//   • GlassTitleBar: wraps GlassPane(level:1) — inherits all 4 laws.
+//   • Back button (_TactileBackButton): now a fully "Polished Resin" tactile
+//     element. It has:
+//       - Its own compound shadow (elevated above the title bar surface)
+//       - A brighter rim-light gradient border (it's the most interactive element)
+//       - An AnimatedScale on press (0.92) to simulate physical depression
+//       - The inner gradient goes light-top-left → dark-bottom-right (3D volume)
+//
+// All onBack callbacks and Streams preserved unchanged.
+// ══════════════════════════════════════════════════════════════════════════════
 class GlassTitleBar extends StatelessWidget implements PreferredSizeWidget {
   const GlassTitleBar({
     required this.title,
@@ -31,12 +46,13 @@ class GlassTitleBar extends StatelessWidget implements PreferredSizeWidget {
           level: 1,
           radius: 22,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          // Soft blue tint for the title bar surface (slightly cooler than the page BG)
           tintOverride: context.isDark
               ? const Color(0x6610243F)
               : const Color(0xBFEFF7FF),
           child: Row(
             children: [
-              _GlassBackButton(onTap: onBack),
+              _TactileBackButton(onTap: onBack),
               const SizedBox(width: 8),
               if (leading != null) ...[
                 leading!,
@@ -84,48 +100,111 @@ class GlassTitleBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-class _GlassBackButton extends StatelessWidget {
-  const _GlassBackButton({required this.onTap});
+// ─────────────────────────────────────────────────────────────────────────────
+// _TactileBackButton
+//
+// A micro "Polished Resin" button. Floats above the title bar via its own
+// compound shadow, with a bright top-left rim and AnimatedScale on press.
+// ─────────────────────────────────────────────────────────────────────────────
+class _TactileBackButton extends StatefulWidget {
+  const _TactileBackButton({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
+  State<_TactileBackButton> createState() => _TactileBackButtonState();
+}
+
+class _TactileBackButtonState extends State<_TactileBackButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+    final isDark = context.isDark;
+
+    // Rim light colors for the button border
+    final rimBright = isDark ? AppColors.darkRimBright : AppColors.lightRimBright;
+    final rimDark   = isDark ? AppColors.darkRimDark   : AppColors.lightRimDark;
+
+    // Compound shadows (button floats above the title bar panel)
+    final shadows = isDark
+        ? [
+            BoxShadow(
+              color: AppColors.darkShadowClose,
+              blurRadius: 6,
+              spreadRadius: -1,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: AppColors.darkShadowMid,
+              blurRadius: 14,
+              spreadRadius: -4,
+              offset: const Offset(0, 5),
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: AppColors.lightShadowClose,
+              blurRadius: 5,
+              spreadRadius: -1,
+              offset: const Offset(0, 2),
+            ),
+            BoxShadow(
+              color: AppColors.lightShadowMid,
+              blurRadius: 12,
+              spreadRadius: -4,
+              offset: const Offset(0, 4),
+            ),
+          ];
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.90 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOutCubic,
         child: Container(
           width: 40,
           height: 40,
+          // Outer ring = Rim Light for the button
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: context.isDark
-                  ? [
-                      Colors.white.withValues(alpha: 0.14),
-                      Colors.white.withValues(alpha: 0.06),
-                    ]
-                  : [
-                      Colors.white.withValues(alpha: 0.72),
-                      Colors.white.withValues(alpha: 0.48),
-                    ],
+              colors: [rimBright, rimDark],
             ),
-            border: Border.all(
-              color: context.isDark
-                  ? Colors.white.withValues(alpha: 0.22)
-                  : const Color(0x1A204268),
-              width: 0.8,
-            ),
+            boxShadow: _pressed ? [] : shadows,
           ),
-          child: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: context.textPri,
-            size: 18,
+          padding: const EdgeInsets.all(1.0),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(13),
+              // Inner glass surface with top-to-bottom gradient (light source from above)
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [
+                        Colors.white.withValues(alpha: _pressed ? 0.10 : 0.16),
+                        Colors.white.withValues(alpha: _pressed ? 0.04 : 0.07),
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: _pressed ? 0.60 : 0.78),
+                        Colors.white.withValues(alpha: _pressed ? 0.36 : 0.52),
+                      ],
+              ),
+            ),
+            child: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: context.textPri,
+              size: 17,
+            ),
           ),
         ),
       ),

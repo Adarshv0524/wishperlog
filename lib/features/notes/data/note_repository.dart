@@ -6,7 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
-import 'package:wishperlog/features/sync/data/message_state_service.dart';import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';
+import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
@@ -263,7 +264,7 @@ class NoteRepository {
 
       // Rebuild message_state so the Cloudflare Worker sees fresh content.
       // Fire-and-forget — never blocks the write path.
-      unawaited(MessageStateService().recompute());
+      unawaited(MessageStateService.instance.recompute());
     } catch (e, st) {
       debugPrint(
         '[NoteRepository] ERROR syncing to Firestore: ${note.noteId}: $e',

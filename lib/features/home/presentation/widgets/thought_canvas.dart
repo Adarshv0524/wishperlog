@@ -44,55 +44,85 @@ class ThoughtCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark
-      ? const Color(0x44D4E5FF)
-      : const Color(0x26204268);
-    final topLayer = isDark
-      ? const Color(0x24E8F2FF)
-      : const Color(0xEEF9FCFF);
-    final bottomLayer = isDark
-      ? const Color(0x144E6FA0)
-      : const Color(0xB8EAF2FF);
+    final surface = isDark ? const Color(0xFF102538) : const Color(0xFFF4F7FB);
+    final surfaceTop = isDark ? const Color(0xFF17364C) : const Color(0xFFFFFFFF);
+    final surfaceBottom = isDark ? const Color(0xFF0A1825) : const Color(0xFFDDE7F0);
+    final highlight = isDark ? const Color(0x26FFFFFF) : const Color(0xCCFFFFFF);
+    final shadowDark = isDark ? const Color(0xC4121B27) : const Color(0x2B7890A8);
+    final shadowSoft = isDark ? const Color(0x73131D29) : const Color(0x22A8BDD2);
+    final rim = isDark ? const Color(0x3C8BB5DA) : const Color(0x92D7E5F1);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                topLayer,
-                bottomLayer,
-              ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 8, 2, 6),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(36),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? shadowDark : const Color(0x44FFFFFF),
+              blurRadius: 26,
+              spreadRadius: 0,
+              offset: const Offset(0, 10),
             ),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: borderColor, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: isDark
-                    ? Colors.black.withValues(alpha: 0.30)
-                    : const Color(0x563D6A97),
-                blurRadius: 28,
-                spreadRadius: -10,
-                offset: const Offset(0, 9),
+            BoxShadow(
+              color: isDark ? const Color(0x55000000) : shadowSoft,
+              blurRadius: 30,
+              spreadRadius: -2,
+              offset: const Offset(12, 14),
+            ),
+            BoxShadow(
+              color: isDark ? const Color(0x4415222F) : const Color(0xB7FFFFFF),
+              blurRadius: 20,
+              spreadRadius: -4,
+              offset: const Offset(-8, -8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(36),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    surfaceTop,
+                    surface,
+                    surfaceBottom,
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+                borderRadius: BorderRadius.circular(36),
+                border: Border.all(color: rim, width: 0.8),
               ),
-            ],
-          ),
-          child: Column(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(36),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      highlight.withValues(alpha: isDark ? 0.10 : 0.35),
+                      Colors.transparent,
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: Column(
             children: [
               Container(
-                height: 1,
+                height: 1.2,
+                margin: const EdgeInsets.fromLTRB(18, 16, 18, 0),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
-                      Colors.white.withValues(alpha: isDark ? 0.03 : 0.18),
-                      Colors.white.withValues(alpha: isDark ? 0.28 : 0.46),
-                      Colors.white.withValues(alpha: isDark ? 0.03 : 0.18),
+                      Colors.transparent,
+                      highlight.withValues(alpha: isDark ? 0.28 : 0.78),
+                      Colors.transparent,
                     ],
                   ),
                 ),
@@ -129,19 +159,27 @@ class ThoughtCanvas extends StatelessWidget {
                       fontSize: 15.2,
                     ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                    contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
                   ),
                 ),
               ),
               // ── Action bar ──────────────────────────────────────────────
               Container(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: borderColor,
-                      width: 0.6,
+                      color: isDark ? const Color(0x2A8FB2D2) : const Color(0x6AB9CBE0),
+                      width: 0.8,
                     ),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      isDark ? const Color(0x0F16232E) : const Color(0x74FFFFFF),
+                    ],
                   ),
                 ),
                 child: Column(
@@ -176,15 +214,41 @@ class ThoughtCanvas extends StatelessWidget {
                             height: isRecording ? 46 : 42,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isRecording
-                                  ? AppColors.tasks.withValues(alpha: 0.85)
-                                  : (isDark
-                                        ? const Color(0x30FFFFFF)
-                                        : const Color(0x22DDEAFF)),
-                              border: Border.all(
-                                color: isRecording ? AppColors.tasks : borderColor,
-                                width: isRecording ? 1.5 : 0.8,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: isRecording
+                                    ? [
+                                        AppColors.tasks.withValues(alpha: 0.98),
+                                        AppColors.tasks.withValues(alpha: 0.78),
+                                      ]
+                                    : [
+                                        isDark ? const Color(0xFF20384D) : const Color(0xFFF9FCFF),
+                                        isDark ? const Color(0xFF112132) : const Color(0xFFD9E6F1),
+                                      ],
                               ),
+                              border: Border.all(
+                                color: isRecording
+                                    ? AppColors.tasks.withValues(alpha: 0.9)
+                                    : (isDark ? const Color(0x448FB1D5) : const Color(0x8CC2D5E7)),
+                                width: isRecording ? 1.2 : 0.8,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.30)
+                                      : const Color(0x3391A8BB),
+                                  blurRadius: 10,
+                                  offset: const Offset(3, 4),
+                                ),
+                                BoxShadow(
+                                  color: isDark
+                                      ? const Color(0x24FFFFFF)
+                                      : Colors.white.withValues(alpha: 0.84),
+                                  blurRadius: 10,
+                                  offset: const Offset(-3, -3),
+                                ),
+                              ],
                             ),
                             child: Icon(
                               isRecording
@@ -208,9 +272,30 @@ class ThoughtCanvas extends StatelessWidget {
                                     duration: AppDurations.microSnap,
                                     width: 42,
                                     height: 42,
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: AppColors.tasks,
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Color(0xFF58D0C7),
+                                          AppColors.tasks,
+                                        ],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: isDark
+                                              ? Colors.black.withValues(alpha: 0.35)
+                                              : const Color(0x4A89AFC7),
+                                          blurRadius: 12,
+                                          offset: const Offset(4, 6),
+                                        ),
+                                        BoxShadow(
+                                          color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.68),
+                                          blurRadius: 8,
+                                          offset: const Offset(-3, -3),
+                                        ),
+                                      ],
                                     ),
                                     child: isSaving
                                         ? const Padding(
@@ -247,6 +332,9 @@ class ThoughtCanvas extends StatelessWidget {
                 ),
               ),
             ],
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -274,18 +362,46 @@ class _BarBtn extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(7),
-        child: AnimatedContainer(
-          duration: AppDurations.microSnap,
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: active ? AppColors.tasks.withValues(alpha: 0.10) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: AppDurations.microSnap,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: active
+                ? [
+                    AppColors.tasks.withValues(alpha: 0.20),
+                    AppColors.tasks.withValues(alpha: 0.08),
+                  ]
+                : [
+                    Colors.white.withValues(alpha: 0.72),
+                    Colors.white.withValues(alpha: 0.24),
+                  ],
           ),
-          child: Icon(icon, size: 19, color: color),
+          border: Border.all(
+            color: active
+                ? AppColors.tasks.withValues(alpha: 0.24)
+                : Colors.white.withValues(alpha: 0.34),
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: active ? 0.10 : 0.08),
+              blurRadius: 8,
+              offset: const Offset(2, 3),
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: active ? 0.16 : 0.70),
+              blurRadius: 8,
+              offset: const Offset(-2, -2),
+            ),
+          ],
         ),
+        child: Icon(icon, size: 19, color: color),
       ),
     );
   }
@@ -302,9 +418,28 @@ class _MetaChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.14),
+            accent.withValues(alpha: 0.06),
+          ],
+        ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.16)),
+        border: Border.all(color: accent.withValues(alpha: 0.18), width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 7,
+            offset: const Offset(2, 3),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.68),
+            blurRadius: 7,
+            offset: const Offset(-2, -2),
+          ),
+        ],
       ),
       child: Text(
         label,

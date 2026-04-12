@@ -1,15 +1,9 @@
 // lib/features/search/presentation/search_screen.dart
 //
-// God-Level Search 2.0
-//  • Full-screen immersive entry with hero animation
-//  • Fuzzy matching via SmartNoteSearch
-//  • Filter chips: All | Tasks | Reminders | Ideas | Follow-up | Journal
-//  • Empty-state illustrations
-//  • Highlighted match snippets
-//  • Priority badges
+// Search screen refreshed with a clearer glass hierarchy:
+// header, search field, filter rail, result cards, and empty states.
 
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +16,7 @@ import 'package:wishperlog/features/search/data/smart_note_search.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
+import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -33,42 +28,52 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen>
     with SingleTickerProviderStateMixin {
-  final _controller = TextEditingController();
-  final _focusNode  = FocusNode();
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   Timer? _debounce;
 
   String _query = '';
-  NoteCategory? _filterCategory; // null = All
+  NoteCategory? _filterCategory;
 
   late final AnimationController _entryCtrl;
-  late final Animation<double>    _entryFade;
-  late final Animation<Offset>    _entrySlide;
+  late final Animation<double> _entryFade;
+  late final Animation<Offset> _entrySlide;
 
-  static const _filterAll = 'All';
+  static const String _filterAll = 'All';
+  static const List<(String, NoteCategory?)> _filterItems = <(String, NoteCategory?)>[
+    (_filterAll, null),
+    ('Tasks', NoteCategory.tasks),
+    ('Reminders', NoteCategory.reminders),
+    ('Ideas', NoteCategory.ideas),
+    ('Follow-up', NoteCategory.followUp),
+    ('Journal', NoteCategory.journal),
+    ('General', NoteCategory.general),
+  ];
 
   @override
   void initState() {
     super.initState();
     _entryCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 380),
     );
     _entryFade = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _entrySlide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+      begin: const Offset(0, 0.05),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
 
     _entryCtrl.forward();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
+      if (mounted) _focusNode.requestFocus();
     });
 
     _controller.addListener(() {
       _debounce?.cancel();
       _debounce = Timer(const Duration(milliseconds: 180), () {
-        if (mounted) setState(() => _query = _controller.text.trim());
+        if (mounted) {
+          setState(() => _query = _controller.text.trim());
+        }
       });
     });
   }
@@ -84,201 +89,173 @@ class _SearchScreenState extends State<SearchScreen>
 
   List<SearchHit> _applyFilter(List<SearchHit> hits) {
     if (_filterCategory == null) return hits;
-    return hits.where((h) => h.note.category == _filterCategory).toList();
+    return hits.where((hit) => hit.note.category == _filterCategory).toList();
   }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          // ── Frosted backdrop ─────────────────────────────────────────────
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-            child: Container(
-              color: context.isDark
-                  ? const Color(0xE8090E1A)
-                  : const Color(0xE8F0F4FF),
-            ),
-          ),
-
-          // ── Main content ─────────────────────────────────────────────────
-          FadeTransition(
-            opacity: _entryFade,
-            child: SlideTransition(
-              position: _entrySlide,
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    _buildSearchBar(),
-                    _buildFilterChips(),
-                    const Divider(height: 1, thickness: 0.5),
-                    Expanded(child: _buildResults()),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Search bar ────────────────────────────────────────────────────────────
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          // Back
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              context.pop();
-            },
-            child: Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: context.surface1.withValues(alpha: 0.7),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 18,
-                color: context.textPri,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Text field
-          Expanded(
-            child: Container(
-              height: 46,
-              decoration: BoxDecoration(
-                color: context.surface1.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _focusNode.hasFocus
-                      ? AppColors.tasks.withValues(alpha: 0.6)
-                      : context.textSec.withValues(alpha: 0.1),
-                ),
-              ),
-              child: Row(
+      body: GlassPageBackground(
+        child: FadeTransition(
+          opacity: _entryFade,
+          child: SlideTransition(
+            position: _entrySlide,
+            child: SafeArea(
+              child: Column(
                 children: [
-                  const SizedBox(width: 12),
-                  Icon(Icons.search_rounded, size: 20, color: context.textSec),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      style: TextStyle(
-                        color: context.textPri,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search notes, tasks, ideas…',
-                        hintStyle: TextStyle(
-                          color: context.textSec.withValues(alpha: 0.5),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15,
-                        ),
-                        border: InputBorder.none,
-                        isDense: true,
-                      ),
-                      onChanged: (_) {},
-                      textInputAction: TextInputAction.search,
-                    ),
-                  ),
-                  if (_controller.text.isNotEmpty)
-                    GestureDetector(
-                      onTap: () {
-                        _controller.clear();
-                        setState(() => _query = '');
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: context.textSec,
-                        ),
-                      ),
-                    ),
+                  _buildHeader(),
+                  _buildSearchBar(),
+                  _buildFilterRail(),
+                  const SizedBox(height: 6),
+                  Expanded(child: _buildResults()),
                 ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  // ── Filter chips ──────────────────────────────────────────────────────────
-
-  static const _filterItems = <(String, NoteCategory?)>[
-    (_filterAll, null),
-    ('Tasks', NoteCategory.tasks),
-    ('Reminders', NoteCategory.reminders),
-    ('Ideas', NoteCategory.ideas),
-    ('Follow-up', NoteCategory.followUp),
-    ('Journal', NoteCategory.journal),
-    ('General', NoteCategory.general),
-  ];
-
-  Widget _buildFilterChips() {
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _filterItems.length,
-        separatorBuilder: (context, separatorIndex) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final (label, cat) = _filterItems[i];
-          final selected = _filterCategory == cat;
-          final chipColor = cat != null ? categoryColor(cat) : AppColors.tasks;
-          return GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() => _filterCategory = cat);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: selected
-                    ? chipColor.withValues(alpha: 0.18)
-                    : context.surface1.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: selected
-                      ? chipColor.withValues(alpha: 0.8)
-                      : context.textSec.withValues(alpha: 0.12),
-                ),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: selected ? chipColor : context.textSec,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+      child: GlassPane(
+        level: 1,
+        radius: 28,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(
+          children: [
+            _RoundActionButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              tint: AppColors.tasks,
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.pop();
+              },
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Search',
+              style: TextStyle(
+                color: context.textPri,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
 
-  // ── Results ───────────────────────────────────────────────────────────────
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: GlassPane(
+        level: 2,
+        radius: 26,
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            _RoundActionButton(
+              icon: Icons.search_rounded,
+              tint: AppColors.tasks,
+              onTap: () => _focusNode.requestFocus(),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                style: TextStyle(
+                  color: context.textPri,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search notes, tasks, reminders...',
+                  hintStyle: TextStyle(
+                    color: context.textSec.withValues(alpha: 0.55),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                  ),
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+                textInputAction: TextInputAction.search,
+              ),
+            ),
+            if (_controller.text.isNotEmpty)
+              _RoundActionButton(
+                icon: Icons.close_rounded,
+                tint: context.textSec,
+                onTap: () {
+                  _controller.clear();
+                  setState(() => _query = '');
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterRail() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GlassPane(
+        level: 4,
+        radius: 22,
+        padding: const EdgeInsets.all(10),
+        child: SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _filterItems.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final (label, category) = _filterItems[index];
+              final selected = _filterCategory == category;
+              final chipColor = category != null ? categoryColor(category) : AppColors.tasks;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _filterCategory = category);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? chipColor.withValues(alpha: context.isDark ? 0.22 : 0.18)
+                        : context.surface1.withValues(alpha: 0.56),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: selected
+                          ? chipColor.withValues(alpha: 0.72)
+                          : context.textSec.withValues(alpha: 0.10),
+                    ),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: selected ? chipColor : context.textSec,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildResults() {
     return StreamBuilder<List<Note>>(
@@ -286,66 +263,95 @@ class _SearchScreenState extends State<SearchScreen>
       builder: (context, snapshot) {
         final all = snapshot.data ?? const <Note>[];
 
-        // Empty state — no query yet
         if (_query.isEmpty) {
           return _EmptyState(
-            icon: Icons.auto_awesome_rounded,
-            title: 'Search everything',
-            subtitle: 'Find notes, tasks, reminders, and ideas instantly.',
-            tint: AppColors.tasks.withValues(alpha: 0.7),
+            icon: Icons.manage_search_rounded,
+            title: 'Start typing',
+            subtitle: 'Search across notes, priorities, reminders, and AI-tagged captures.',
+            tint: AppColors.tasks.withValues(alpha: 0.72),
+            actions: [
+              if (_filterCategory != null)
+                _MiniActionPill(
+                  label: 'Reset filter',
+                  tint: categoryColor(_filterCategory!),
+                  onTap: () => setState(() => _filterCategory = null),
+                ),
+            ],
           );
         }
 
-        final rawHits = SmartNoteSearch.searchSync(all, _query, limit: 60);
-        final hits = _applyFilter(rawHits);
+        final hits = _applyFilter(SmartNoteSearch.searchSync(all, _query, limit: 60));
 
-        // No results
         if (hits.isEmpty) {
           return _EmptyState(
             icon: Icons.search_off_rounded,
-            title: 'No results',
-            subtitle: 'Try a different keyword or remove filters.',
-            tint: context.textSec.withValues(alpha: 0.4),
+            title: 'No matching notes',
+            subtitle: 'Try a broader term or remove the active filter.',
+            tint: context.textSec.withValues(alpha: 0.42),
+            actions: [
+              _MiniActionPill(
+                label: 'Clear search',
+                tint: AppColors.tasks,
+                onTap: () {
+                  _controller.clear();
+                  setState(() => _query = '');
+                },
+              ),
+              if (_filterCategory != null)
+                _MiniActionPill(
+                  label: 'Reset filter',
+                  tint: categoryColor(_filterCategory!),
+                  onTap: () => setState(() => _filterCategory = null),
+                ),
+            ],
           );
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-          itemCount: hits.length,
-          separatorBuilder: (context, separatorIndex) => const SizedBox(height: 10),
-          itemBuilder: (context, i) => _SearchResultCard(
-            hit: hits[i],
-            query: _query,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              context.pop();
-              context.push('/notes/${hits[i].note.noteId}');
-            },
-          ),
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                '${hits.length} result${hits.length == 1 ? '' : 's'} found',
+                style: TextStyle(
+                  color: context.textSec,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ...hits.asMap().entries.map(
+              (entry) => Padding(
+                padding: EdgeInsets.only(bottom: entry.key == hits.length - 1 ? 0 : 10),
+                child: _SearchResultCard(
+                  hit: entry.value,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    context.pop();
+                    context.push('/notes/${entry.value.note.noteId}');
+                  },
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
-// ── Result card ───────────────────────────────────────────────────────────────
-
 class _SearchResultCard extends StatelessWidget {
-  const _SearchResultCard({
-    required this.hit,
-    required this.query,
-    required this.onTap,
-  });
+  const _SearchResultCard({required this.hit, required this.onTap});
 
   final SearchHit hit;
-  final String query;
   final VoidCallback onTap;
 
   Color _priorityColor(NotePriority p) => switch (p) {
-    NotePriority.high   => const Color(0xFFEF4444),
-    NotePriority.medium => const Color(0xFFF59E0B),
-    NotePriority.low    => const Color(0xFF10B981),
-  };
+        NotePriority.high => const Color(0xFFEF4444),
+        NotePriority.medium => const Color(0xFFF59E0B),
+        NotePriority.low => const Color(0xFF10B981),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -356,43 +362,60 @@ class _SearchResultCard extends StatelessWidget {
       onTap: onTap,
       child: GlassPane(
         level: 2,
-        radius: 18,
-        padding: const EdgeInsets.all(16),
+        radius: 22,
+        padding: const EdgeInsets.all(15),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category icon
             Container(
-              width: 36, height: 36,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accent.withValues(alpha: context.isDark ? 0.28 : 0.18),
+                    accent.withValues(alpha: context.isDark ? 0.10 : 0.08),
+                  ],
+                ),
               ),
-              child: Icon(
-                categoryIcon(note.category),
-                size: 18,
-                color: accent,
-              ),
+              child: Icon(categoryIcon(note.category), size: 20, color: accent),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
-                  Text(
-                    note.title.isEmpty ? 'Untitled' : note.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.textPri,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          note.title.isEmpty ? 'Untitled' : note.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.25,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        hit.score.toStringAsFixed(1),
+                        style: TextStyle(
+                          color: context.textSec.withValues(alpha: 0.45),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                   if (hit.snippet.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       hit.snippet,
                       maxLines: 2,
@@ -404,15 +427,12 @@ class _SearchResultCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  // Chips row
+                  const SizedBox(height: 10),
                   Wrap(
                     spacing: 6,
+                    runSpacing: 6,
                     children: [
-                      _Chip(
-                        label: categoryLabel(note.category),
-                        color: accent,
-                      ),
+                      _Chip(label: categoryLabel(note.category), color: accent),
                       _Chip(
                         label: note.priority.name.toUpperCase(),
                         color: _priorityColor(note.priority),
@@ -420,23 +440,11 @@ class _SearchResultCard extends StatelessWidget {
                       if (hit.matchedField.isNotEmpty && hit.matchedField != 'title')
                         _Chip(
                           label: hit.matchedField,
-                          color: context.textSec.withValues(alpha: 0.6),
+                          color: context.textSec.withValues(alpha: 0.62),
                         ),
                     ],
                   ),
                 ],
-              ),
-            ),
-            // Score
-            Padding(
-              padding: const EdgeInsets.only(left: 8, top: 2),
-              child: Text(
-                hit.score.toStringAsFixed(1),
-                style: TextStyle(
-                  color: context.textSec.withValues(alpha: 0.4),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ),
           ],
@@ -448,30 +456,29 @@ class _SearchResultCard extends StatelessWidget {
 
 class _Chip extends StatelessWidget {
   const _Chip({required this.label, required this.color});
+
   final String label;
   final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: color.withValues(alpha: 0.3)),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        color: color,
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.3,
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: context.isDark ? 0.14 : 0.10),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.28)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+          ),
+        ),
+      );
 }
-
-// ── Empty state ───────────────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({
@@ -479,50 +486,145 @@ class _EmptyState extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.tint,
+    this.actions = const [],
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final Color tint;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: GlassPane(
+            level: 1,
+            radius: 26,
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        tint.withValues(alpha: context.isDark ? 0.24 : 0.16),
+                        tint.withValues(alpha: context.isDark ? 0.10 : 0.08),
+                      ],
+                    ),
+                  ),
+                  child: Icon(icon, size: 30, color: tint),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.textPri,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.textSec,
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: actions,
+                  ),
+                ],
+              ],
             ),
-            child: Icon(icon, size: 36, color: tint),
           ),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            style: TextStyle(
-              color: context.textPri,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
+        ),
+      );
+}
+
+class _RoundActionButton extends StatelessWidget {
+  const _RoundActionButton({
+    required this.icon,
+    required this.tint,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color tint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              tint.withValues(alpha: context.isDark ? 0.22 : 0.14),
+              tint.withValues(alpha: context.isDark ? 0.10 : 0.08),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: context.textSec,
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
-        ],
+        ),
+        child: Icon(icon, color: tint, size: 18),
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _MiniActionPill extends StatelessWidget {
+  const _MiniActionPill({
+    required this.label,
+    required this.tint,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color tint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: tint.withValues(alpha: context.isDark ? 0.14 : 0.10),
+          border: Border.all(color: tint.withValues(alpha: 0.25)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: tint,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
 }

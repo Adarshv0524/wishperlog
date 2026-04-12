@@ -7,6 +7,7 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
@@ -172,6 +173,8 @@ class AiProcessingService {
 
     // ── STEP 6: Notify UI ──────────────────────────────────────────────────────
     _noteEventBus.emitNoteUpdated(enriched.noteId);
+
+    unawaited(MessageStateService.instance.recompute(uid: enriched.uid));
   }
 
   Future<void> _markFallback(String noteId) async {
@@ -186,6 +189,7 @@ class AiProcessingService {
       await _isarNoteStore.put(fallback);
       unawaited(_pushToFirestore(fallback));
       _noteEventBus.emitNoteUpdated(noteId);
+      unawaited(MessageStateService.instance.recompute(uid: fallback.uid));
     } catch (e) {
       debugPrint('[AiProcessingService] _markFallback error for $noteId: $e');
     }

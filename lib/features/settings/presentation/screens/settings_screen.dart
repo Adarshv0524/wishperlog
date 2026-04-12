@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/settings/app_preferences_repository.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
@@ -19,9 +18,11 @@ import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/features/sync/data/telegram_service.dart';
 import 'package:wishperlog/features/settings/presentation/widgets/digest_schedule_section.dart';
+import 'package:wishperlog/features/settings/presentation/widgets/telegram_connection_section.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/widgets/glass_container.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 import 'package:wishperlog/shared/widgets/glass_title_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -39,7 +40,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final UserRepository _users = sl<UserRepository>();
   final AppPreferencesRepository _prefs = sl<AppPreferencesRepository>();
   final ExternalSyncService _sync = sl<ExternalSyncService>();
-  final TelegramService _telegram = sl<TelegramService>();
   final AiClassifierRouter _aiRouter = sl<AiClassifierRouter>();
   final OverlayNotifier _overlayNotifier = sl<OverlayNotifier>();
 
@@ -56,6 +56,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Overlay customisation sheet is driven entirely by OverlayNotifier.
 
   String? _telegramChatId;
+  String? _pendingTelegramLinkToken;
+  StreamSubscription<String?>? _telegramChatIdSub;
+  Timer? _telegramConnectTimeout;
+  bool _connectingTelegram = false;
 
   Timer? _speechApplyDebounce;
 
@@ -89,6 +93,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _speechApplyDebounce?.cancel();
+    _telegramConnectTimeout?.cancel();
+    _telegramChatIdSub?.cancel();
     super.dispose();
   }
 
@@ -195,6 +201,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  ButtonStyle _glassButtonStyle(
+    BuildContext context, {
+    required Color tint,
+    bool filled = false,
+    bool danger = false,
+    Color? foreground,
+  }) {
+    final textColor = foreground ?? (filled ? Colors.white : tint);
+    final fillColor = danger
+        ? AppColors.reminders.withValues(alpha: context.isDark ? 0.24 : 0.16)
+        : filled
+            ? tint.withValues(alpha: context.isDark ? 0.24 : 0.14)
+            : context.surface1.withValues(alpha: 0.82);
+
+    return ButtonStyle(
+      padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
+        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+      shape: WidgetStatePropertyAll<RoundedRectangleBorder>(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      foregroundColor: WidgetStatePropertyAll<Color>(textColor),
+      backgroundColor: WidgetStatePropertyAll<Color>(fillColor),
+      side: WidgetStatePropertyAll<BorderSide>(
+        BorderSide(color: tint.withValues(alpha: filled ? 0.0 : 0.26)),
+      ),
+      overlayColor: WidgetStatePropertyAll<Color>(
+        tint.withValues(alpha: context.isDark ? 0.16 : 0.10),
+      ),
+      elevation: const WidgetStatePropertyAll<double>(0),
+      textStyle: const WidgetStatePropertyAll<TextStyle>(
+        TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  TextStyle _dropdownTextStyle(BuildContext context) {
+    return TextStyle(
+      color: context.textPri,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+    );
+  }
+
+  Color _dropdownMenuColor(BuildContext context) {
+    return context.isDark ? const Color(0xFF16263A) : const Color(0xFFF9FBFF);
+  }
+
   Future<void> _openSpeechPackSettings() async {
     try {
       await _overlayChannel.invokeMethod<bool>('downloadSpeechLanguagePack', {
@@ -211,7 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // ── 15-minute slot picker ─────────────────────────────────────────────────
+  // ── Minute-wise digest scheduler ──────────────────────────────────────────
 
   Future<void> _addDigestTime() async {
     final slot = await showMinuteWiseTimePicker(context, _digestTimes);
@@ -311,11 +365,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _disconnectTelegram() async {
     if (_telegramChatId == null) return;
     try {
-      await _users.updateTelegramChatId('');
+      await TelegramService.instance.disconnectTelegram();
       if (!mounted) return;
+      _telegramConnectTimeout?.cancel();
+      _telegramChatIdSub?.cancel();
+      _telegramChatIdSub = null;
       setState(() => _telegramChatId = null);
+      _pendingTelegramLinkToken = null;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Telegram connection cleared')),
+        const SnackBar(content: Text('Telegram disconnected')),
       );
     } catch (e) {
       if (mounted) {
@@ -326,40 +384,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _openTelegramBot() async {
-    final botUsername = await _telegram.resolveBotUsername();
-    if (botUsername == null || botUsername.isEmpty) return;
-    final uri = Uri.parse('https://t.me/$botUsername');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _cancelTelegramWaiting() async {
+    if (!_connectingTelegram) return;
+    _telegramConnectTimeout?.cancel();
+    _telegramConnectTimeout = null;
+    _telegramChatIdSub?.cancel();
+    _telegramChatIdSub = null;
+
+    try {
+      await TelegramService.instance.clearTelegramConnectionToken();
+    } catch (e) {
+      debugPrint('[Settings] Failed to clear Telegram token on cancel: $e');
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _connectingTelegram = false;
+      _pendingTelegramLinkToken = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Telegram waiting cancelled')),
+    );
+  }
+
+  Future<void> _startTelegramConnect(BuildContext context) async {
+    if (_connectingTelegram) return;
+    _telegramConnectTimeout?.cancel();
+    _telegramChatIdSub?.cancel();
+    setState(() => _connectingTelegram = true);
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final token = await _ensureTelegramLinkToken();
+      await TelegramService.instance.connectTelegramAuto(existingToken: token);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _connectingTelegram = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not open Telegram: $e')),
+      );
+      return;
+    }
+
+    _telegramConnectTimeout = Timer(const Duration(seconds: 90), () {
+      if (!mounted || !_connectingTelegram) return;
+      _telegramChatIdSub?.cancel();
+      _telegramChatIdSub = null;
+      _telegramConnectTimeout = null;
+      unawaited(TelegramService.instance.clearTelegramConnectionToken());
+      setState(() => _connectingTelegram = false);
+      _pendingTelegramLinkToken = null;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Telegram did not confirm within 90 seconds. Tap Connect again or cancel sooner next time.'),
+        ),
+      );
+    });
+
+    _telegramChatIdSub?.cancel();
+    _telegramChatIdSub = TelegramService.instance.watchLinkedChatId().listen(
+      (chatId) {
+        final trimmed = (chatId ?? '').trim();
+        if (trimmed.isEmpty) return;
+        if (!mounted) return;
+
+        _telegramChatIdSub?.cancel();
+        _telegramChatIdSub = null;
+        _telegramConnectTimeout?.cancel();
+        _telegramConnectTimeout = null;
+
+        setState(() {
+          _telegramChatId = trimmed;
+          _connectingTelegram = false;
+        });
+        _pendingTelegramLinkToken = null;
+
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Telegram connected!')),
+        );
+      },
+    );
+  }
+
+  Future<void> _copyTelegramLink(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final token = await _ensureTelegramLinkToken();
+      final link = await TelegramService.instance.buildTelegramStartUri(token);
+      await Clipboard.setData(ClipboardData(text: link.toString()));
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Telegram link copied')),
+      );
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not copy Telegram link: $e')),
+        );
+      }
     }
   }
 
-  Future<void> _connectTelegramAuto() async {
-    if (FirebaseAuth.instance.currentUser == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign in required to connect Telegram')),
-        );
-      }
-      return;
+  Future<String> _ensureTelegramLinkToken() async {
+    final existing = _pendingTelegramLinkToken?.trim();
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
     }
-    final botUsername = await _telegram.resolveBotUsername();
-    if (botUsername == null || botUsername.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Telegram bot is not configured (missing token or unreachable bot)',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-    if (!mounted) return;
-    await context.push('/telegram');
-    await _hydrateTelegramId();
+
+    final token = await TelegramService.instance.createTelegramConnectionToken();
+    _pendingTelegramLinkToken = token;
+    return token;
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -380,8 +515,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-        child: GlassContainer(
-          borderRadius: BorderRadius.circular(24),
+        child: GlassPane(
+          level: 1,
+          radius: 24,
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -429,6 +565,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      style: _glassButtonStyle(
+                        context,
+                        tint: AppColors.general,
+                      ),
                       onPressed: () => Navigator.of(ctx).pop(false),
                       child: const Text('Cancel'),
                     ),
@@ -436,11 +576,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton.tonal(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.reminders.withValues(
-                          alpha: 0.15,
-                        ),
-                        foregroundColor: AppColors.reminders,
+                      style: _glassButtonStyle(
+                        context,
+                        tint: AppColors.reminders,
+                        filled: true,
+                        danger: true,
+                        foreground: Colors.white,
                       ),
                       onPressed: () => Navigator.of(ctx).pop(true),
                       child: const Text('Sign out'),
@@ -563,39 +704,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (isCompact) {
                       return SizedBox(
                         width: 124,
-                        child: DropdownButton<ThemeMode>(
-                          value: mode,
-                          isExpanded: true,
-                          icon: Icon(
-                            Icons.expand_more_rounded,
-                            color: context.textSec,
+                        child: GlassPane(
+                          level: 4,
+                          radius: 16,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<ThemeMode>(
+                              value: mode,
+                              isExpanded: true,
+                              icon: Icon(
+                                Icons.expand_more_rounded,
+                                color: context.textSec,
+                              ),
+                              style: _dropdownTextStyle(context),
+                              dropdownColor: _dropdownMenuColor(context),
+                              borderRadius: BorderRadius.circular(16),
+                              items: [
+                                DropdownMenuItem(
+                                  value: ThemeMode.light,
+                                  child: Text('Light', style: _dropdownTextStyle(context)),
+                                ),
+                                DropdownMenuItem(
+                                  value: ThemeMode.dark,
+                                  child: Text('Dark', style: _dropdownTextStyle(context)),
+                                ),
+                                DropdownMenuItem(
+                                  value: ThemeMode.system,
+                                  child: Text('System', style: _dropdownTextStyle(context)),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value == null) return;
+                                sl<ThemeCubit>().setThemeMode(value);
+                              },
+                            ),
                           ),
-                          underline: const SizedBox.shrink(),
-                          style: TextStyle(
-                            color: context.textPri,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          dropdownColor: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(14),
-                          items: const [
-                            DropdownMenuItem(
-                              value: ThemeMode.light,
-                              child: Text('Light'),
-                            ),
-                            DropdownMenuItem(
-                              value: ThemeMode.dark,
-                              child: Text('Dark'),
-                            ),
-                            DropdownMenuItem(
-                              value: ThemeMode.system,
-                              child: Text('System'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) return;
-                            sl<ThemeCubit>().setThemeMode(value);
-                          },
                         ),
                       );
                     }
@@ -770,59 +913,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          DropdownButtonFormField<String>(
-                            initialValue:
-                                _speechLanguageOptions.any(
-                                  (e) => e['code'] == _speechLanguage,
-                                )
-                                ? _speechLanguage
-                                : _speechLanguageOptions.first['code'],
-                            menuMaxHeight: 360,
-                            isExpanded: true,
-                            items: _speechLanguageOptions
-                                .map(
-                                  (entry) => DropdownMenuItem<String>(
-                                    value: entry['code'],
-                                    child: Text(
-                                      entry['label'] ?? entry['code'] ?? '',
+                          GlassPane(
+                            level: 4,
+                            radius: 18,
+                            padding: const EdgeInsets.all(1.0),
+                            child: DropdownButtonFormField<String>(
+                              initialValue:
+                                  _speechLanguageOptions.any(
+                                    (e) => e['code'] == _speechLanguage,
+                                  )
+                                  ? _speechLanguage
+                                  : _speechLanguageOptions.first['code'],
+                              menuMaxHeight: 360,
+                              isExpanded: true,
+                              items: _speechLanguageOptions
+                                  .map(
+                                    (entry) => DropdownMenuItem<String>(
+                                      value: entry['code'],
+                                      child: Text(
+                                        entry['label'] ?? entry['code'] ?? '',
+                                        style: _dropdownTextStyle(context),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setState(() => _speechLanguage = value);
+                                _scheduleSpeechSettingsApply();
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              dropdownColor: _dropdownMenuColor(context),
+                              style: _dropdownTextStyle(context),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                labelText: 'Recognition language',
+                                filled: true,
+                                fillColor: context.surface2.withValues(
+                                  alpha: 0.55,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: context.textSec.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: context.textSec.withValues(
+                                      alpha: 0.14,
                                     ),
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _speechLanguage = value);
-                              _scheduleSpeechSettingsApply();
-                            },
-                            decoration: InputDecoration(
-                              isDense: true,
-                              labelText: 'Recognition language',
-                              filled: true,
-                              fillColor: context.surface2.withValues(
-                                alpha: 0.7,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: context.textSec.withValues(alpha: 0.2),
                                 ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: context.textSec.withValues(
-                                    alpha: 0.16,
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.tasks,
                                   ),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: AppColors.tasks,
                                 ),
                               ),
                             ),
@@ -843,6 +995,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: OutlinedButton.icon(
+                              style: _glassButtonStyle(
+                                context,
+                                tint: AppColors.tasks,
+                              ),
                               onPressed: _openSpeechPackSettings,
                               icon: const Icon(
                                 Icons.download_for_offline_outlined,
@@ -871,6 +1027,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: AppColors.followUp,
                       )
                     : TextButton(
+                        style: _glassButtonStyle(
+                          context,
+                          tint: AppColors.followUp,
+                        ),
                         onPressed: _requestNotificationPermission,
                         child: const Text('Enable'),
                       ),
@@ -897,147 +1057,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SegmentedButton<AiProvider>(
-                      segments: const [
-                        ButtonSegment(
-                          value: AiProvider.auto,
-                          label: Text('Auto'),
-                        ),
-                        ButtonSegment(
-                          value: AiProvider.gemini,
-                          label: Text('Gemini'),
-                        ),
-                        ButtonSegment(
-                          value: AiProvider.groq,
-                          label: Text('Groq'),
-                        ),
-                      ],
-                      selected: {_aiRouter.activeProvider},
-                      onSelectionChanged: (Set<AiProvider> newSelection) async {
-                        if (newSelection.isNotEmpty) {
-                          await _aiRouter.setProvider(newSelection.first);
-                          setState(() {});
-                        }
-                      },
-                      style: SegmentedButton.styleFrom(
-                        backgroundColor: context.surface1,
-                        selectedBackgroundColor: AppColors.ideas,
-                        selectedForegroundColor: Colors.white,
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: AiProvider.values.map((provider) {
+                        final selected = _aiRouter.activeProvider == provider;
+                        return ChoiceChip(
+                          label: Text(_aiRouter.providerLabel(provider)),
+                          selected: selected,
+                          onSelected: (_) async {
+                            await _aiRouter.setProvider(provider);
+                            if (mounted) setState(() {});
+                          },
+                          selectedColor: AppColors.ideas,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.white : context.textPri,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          side: BorderSide(
+                            color: selected
+                                ? AppColors.ideas.withValues(alpha: 0.24)
+                                : context.border,
+                          ),
+                          backgroundColor: context.surface1,
+                        );
+                      }).toList(),
                     ),
                     const SizedBox(height: 12),
-                    if (_aiRouter.activeProvider == AiProvider.auto)
-                      _buildAiStatusBadge(
-                        'Auto-fallback (Gemini -> Groq)',
-                        true,
-                        AppColors.ideas,
-                      )
-                    else if (_aiRouter.activeProvider == AiProvider.gemini)
-                      _buildAiStatusBadge(
-                        _aiRouter.geminiConfigured
-                            ? 'Gemini API configured'
-                            : 'Missing Gemini API Key in .env',
-                        _aiRouter.geminiConfigured,
-                        AppColors.tasks,
-                      )
-                    else if (_aiRouter.activeProvider == AiProvider.groq)
-                      _buildAiStatusBadge(
-                        _aiRouter.groqConfigured
-                            ? 'Groq API configured'
-                            : 'Missing Groq API Key in .env',
-                        _aiRouter.groqConfigured,
-                        const Color(0xFFF97316),
+                    _buildAiStatusBadge(
+                      _aiRouter.providerDescription(_aiRouter.activeProvider),
+                      _aiRouter.isConfigured(_aiRouter.activeProvider),
+                      _aiRouter.activeProvider == AiProvider.gemini
+                          ? AppColors.tasks
+                          : _aiRouter.activeProvider == AiProvider.groq
+                              ? const Color(0xFFF97316)
+                              : AppColors.ideas,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAiSelectionSummary(context),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Model',
+                      style: TextStyle(
+                        color: context.textSec,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.7,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._buildAiModelOptions(context),
                   ],
                 ),
               ),
 
               const SizedBox(height: 8),
               _SectionHeader(label: 'Telegram'),
-              GlassContainer(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                borderRadius: BorderRadius.circular(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.telegram, color: AppColors.tasks, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Telegram Chat ID (Override)',
-                          style: TextStyle(
-                            color: context.textPri,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: isCompact
-                          ? [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: _connectTelegramAuto,
-                                  icon: const Icon(Icons.link_rounded),
-                                  label: const Text('Connect in Telegram'),
-                                ),
-                              ),
-                            ]
-                          : [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: _connectTelegramAuto,
-                                  icon: const Icon(Icons.link_rounded),
-                                  label: const Text('Connect in Telegram'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              TextButton(
-                                onPressed: _openTelegramBot,
-                                child: const Text('Open bot'),
-                              ),
-                            ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Connect in Telegram is the supported path. The app now links your verified chat automatically.',
-                      style: TextStyle(color: context.textSec, fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_telegramChatId != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Connected: $_telegramChatId',
-                              style: TextStyle(
-                                color: AppColors.followUp,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _disconnectTelegram,
-                            child: const Text('Disconnect'),
-                          ),
-                        ],
-                      ),
-                    ] else ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Not connected yet.',
-                        style: TextStyle(
-                          color: context.textSec,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+              TelegramConnectionSection(
+                chatId: _telegramChatId,
+                connecting: _connectingTelegram,
+                onAutoConnect: () => _startTelegramConnect(context),
+                onDisconnect: _disconnectTelegram,
+                onCopyLink: () => _copyTelegramLink(context),
+                onCancelWaiting: _cancelTelegramWaiting,
               ),
 
               const SizedBox(height: 8),
@@ -1055,6 +1137,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : TextButton(
+                        style: _glassButtonStyle(
+                          context,
+                          tint: AppColors.tasks,
+                        ),
                         onPressed: _syncNow,
                         child: const Text('Sync now'),
                       ),
@@ -1070,6 +1156,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : TextButton(
+                        style: _glassButtonStyle(
+                          context,
+                          tint: AppColors.tasks,
+                        ),
                         onPressed: _reconnectGoogle,
                         child: const Text('Reconnect'),
                       ),
@@ -1173,6 +1263,160 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return '${diff.inDays}d ago';
   }
 
+  List<Widget> _buildAiModelOptions(BuildContext context) {
+    final provider = _aiRouter.activeProvider;
+    if (provider == AiProvider.auto) {
+      return [
+        _buildAiStatusBadge(
+          'Auto will try Gemini, Groq, Mistral, Cerebras, then Hugging Face.',
+          true,
+          AppColors.ideas,
+        ),
+      ];
+    }
+
+    final models = _aiRouter.modelsFor(provider);
+    if (models.isEmpty) {
+      return [
+        _buildAiStatusBadge(
+          'No models are registered for ${_aiRouter.providerLabel(provider)}.',
+          false,
+          AppColors.errorStatus,
+        ),
+      ];
+    }
+
+    return models
+        .map((option) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _buildAiModelCard(context, option),
+            ))
+        .toList();
+  }
+
+  Widget _buildAiModelCard(BuildContext context, AiModelOption option) {
+    final provider = _aiRouter.activeProvider;
+    final selected = _aiRouter.selectedModelIdFor(provider) == option.id;
+    final configured = _aiRouter.isConfigured(provider);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: configured
+          ? () async {
+              await _aiRouter.setModel(provider, option.id);
+              if (mounted) setState(() {});
+            }
+          : null,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.ideas.withValues(alpha: 0.08)
+              : context.surface1.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? AppColors.ideas.withValues(alpha: 0.34)
+                : context.border.withValues(alpha: 0.65),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              color: selected ? AppColors.ideas : context.textSec,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          option.label,
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (option.recommended)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.ideas.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Recommended',
+                            style: TextStyle(
+                              color: AppColors.ideas,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    option.description,
+                    style: TextStyle(
+                      color: context.textSec,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildSmallStatusPill(
+                        context,
+                        selected ? 'Selected' : option.id,
+                        selected ? AppColors.ideas : context.textSec,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildSmallStatusPill(
+                        context,
+                        configured ? 'Ready' : 'Missing key',
+                        configured ? AppColors.tasks : AppColors.errorStatus,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSmallStatusPill(BuildContext context, String text, Color tint) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: context.isDark ? 0.14 : 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: tint,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   Widget _buildAiStatusBadge(String text, bool ok, Color tint) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1205,6 +1449,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiSelectionSummary(BuildContext context) {
+    final provider = _aiRouter.activeProvider;
+    final selectedModel = _aiRouter.selectedModelFor(provider);
+    final configured = _aiRouter.isConfigured(provider);
+    final keyLabel = switch (provider) {
+      AiProvider.gemini => 'GEMINI_API_KEY',
+      AiProvider.groq => 'GROQ_API_KEY',
+      AiProvider.mistral => 'MISTRAL_API_KEY',
+      AiProvider.huggingface => 'HUGGINGFACE_API_KEY',
+      AiProvider.cerebras => 'CEREBRAS_API_KEY',
+      AiProvider.auto => 'Multiple keys',
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: context.surface1.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.border.withValues(alpha: 0.65)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Current selection',
+            style: TextStyle(
+              color: context.textSec,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${_aiRouter.providerLabel(provider)} • ${selectedModel?.label ?? selectedModel?.id ?? 'Auto'}',
+            style: TextStyle(
+              color: context.textPri,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            configured
+                ? 'Ready to classify with $keyLabel.'
+                : 'Add $keyLabel in .env to enable this provider.',
+            style: TextStyle(
+              color: configured ? AppColors.tasks : AppColors.errorStatus,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          if (selectedModel != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              selectedModel.description,
+              style: TextStyle(
+                color: context.textSec,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
         ],
       ),
     );
