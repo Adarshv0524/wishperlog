@@ -89,6 +89,16 @@ class IsarNoteStore {
 
   /// Put a single note - uses Firestore if in fallback mode
   Future<void> put(Note note) async {
+    // ── Idempotency guard: never write a note whose content is identical ────
+    final existing = await getByNoteId(note.noteId);
+    if (existing != null &&
+        existing.rawTranscript == note.rawTranscript &&
+        existing.title          == note.title &&
+        existing.status         == note.status &&
+        existing.updatedAt      == note.updatedAt) {
+      debugPrint('[IsarNoteStore] put skipped — identical note: ${note.noteId}');
+      return;
+    }
     if (_useFirestoreOnly) {
       final uid = _getCurrentUserId();
       if (uid == null) {
@@ -184,6 +194,85 @@ class IsarNoteStore {
       return isar.notes.filter().noteIdEqualTo(noteId).findFirst();
     }
     return null;
+  }
+
+  /// Finds a very recent note with the same transcript and source.
+  ///
+  /// This is used to guard against duplicate delivery from multiple capture
+  /// listeners that can emit the same transcript more than once.
+  Future<Note?> findRecentByTranscript({
+    required String uid,
+    required String rawTranscript,
+    required CaptureSource source,
+    Duration within = const Duration(seconds: 5),
+  }) async {
+    final normalizedTranscript = rawTranscript.trim();
+    if (normalizedTranscript.isEmpty) return null;
+
+    final cutoff = DateTime.now().subtract(within);
+
+    if (_useFirestoreOnly) {
+      final notes = await getAllNotes();
+      final matches = notes.where((note) {
+        return note.uid == uid &&
+            note.source == source &&
+            note.rawTranscript.trim() == normalizedTranscript &&
+            note.createdAt.isAfter(cutoff);
+      }).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return matches.isEmpty ? null : matches.first;
+    }
+
+    await init();
+    if (_isar == null || !_isar!.isOpen) return null;
+
+    return _isar!.notes
+        .filter()
+        .uidEqualTo(uid)
+        .and()
+        .sourceEqualTo(source)
+        .and()
+        .rawTranscriptEqualTo(normalizedTranscript)
+        .and()
+        .createdAtGreaterThan(cutoff, include: true)
+        .sortByCreatedAtDesc()
+        .findFirst();
+  }
+
+  /// Finds a very recent note with the same transcript, regardless of source.
+  Future<Note?> findRecentByTranscriptAnySource({
+    required String uid,
+    required String rawTranscript,
+    Duration within = const Duration(seconds: 5),
+  }) async {
+    final normalizedTranscript = rawTranscript.trim();
+    if (normalizedTranscript.isEmpty) return null;
+
+    final cutoff = DateTime.now().subtract(within);
+
+    if (_useFirestoreOnly) {
+      final notes = await getAllNotes();
+      final matches = notes.where((note) {
+        return note.uid == uid &&
+            note.rawTranscript.trim() == normalizedTranscript &&
+            note.createdAt.isAfter(cutoff);
+      }).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return matches.isEmpty ? null : matches.first;
+    }
+
+    await init();
+    if (_isar == null || !_isar!.isOpen) return null;
+
+    return _isar!.notes
+        .filter()
+        .uidEqualTo(uid)
+        .and()
+        .rawTranscriptEqualTo(normalizedTranscript)
+        .and()
+        .createdAtGreaterThan(cutoff, include: true)
+        .sortByCreatedAtDesc()
+        .findFirst();
   }
 
   Future<Note?> getById(String noteId) => getByNoteId(noteId);

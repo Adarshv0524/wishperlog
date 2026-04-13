@@ -6,18 +6,154 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
-class NoteViewScreen extends StatelessWidget {
-  const NoteViewScreen({super.key, required this.note});
+class NoteViewScreen extends StatefulWidget {
+  const NoteViewScreen({required this.note, super.key});
 
   final Note note;
+
+  @override
+  State<NoteViewScreen> createState() => _NoteViewScreenState();
+}
+
+class _NoteViewScreenState extends State<NoteViewScreen> {
+  final NoteRepository _notes = sl<NoteRepository>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _bodyController = TextEditingController();
+
+  late Note _note;
+  bool _showTranslation = false;
+  bool _isEditing = false;
+  bool _saving = false;
+  NoteCategory _category = NoteCategory.general;
+  NotePriority _priority = NotePriority.medium;
+  DateTime? _extractedDate;
+
+  bool get _hasTranslation => (_note.translatedContent ?? '').trim().isNotEmpty;
+
+  String get _displayBody =>
+      (_showTranslation && _hasTranslation)
+          ? _note.translatedContent!.trim()
+          : (_note.cleanBody.isNotEmpty ? _note.cleanBody : _note.rawTranscript);
+
+  String get _displayTitle =>
+      (_showTranslation && _hasTranslation && (_note.translatedTitle ?? '').trim().isNotEmpty)
+          ? _note.translatedTitle!.trim()
+          : (_note.title.isNotEmpty ? _note.title : 'Untitled Note');
+
+  @override
+  void initState() {
+    super.initState();
+    _note = widget.note;
+    _seedEditors();
+  }
+
+  @override
+  void didUpdateWidget(covariant NoteViewScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.note.noteId != widget.note.noteId) {
+      _note = widget.note;
+      _seedEditors();
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  void _seedEditors() {
+    _titleController.text = _note.title == 'Quick note' ? '' : _note.title;
+    _bodyController.text = _note.cleanBody.isNotEmpty ? _note.cleanBody : _note.rawTranscript;
+    _category = _note.category;
+    _priority = _note.priority;
+    _extractedDate = _note.extractedDate;
+  }
+
+  void _toggleEditor() {
+    setState(() {
+      _isEditing = !_isEditing;
+      if (_isEditing) {
+        _seedEditors();
+      }
+    });
+  }
+
+  Future<void> _saveEdits() async {
+    if (_saving) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _saving = true);
+    try {
+      await _notes.updateEditedNote(
+        noteId: _note.noteId,
+        title: _titleController.text,
+        cleanBody: _bodyController.text,
+        category: _category,
+        priority: _priority,
+        extractedDate: _extractedDate,
+      );
+
+      final updated = _note.copyWith(
+        title: _titleController.text.trim().isEmpty ? _note.title : _titleController.text.trim(),
+        cleanBody: _bodyController.text.trim().isEmpty ? _note.cleanBody : _bodyController.text.trim(),
+        category: _category,
+        priority: _priority,
+        extractedDate: _extractedDate,
+        clearExtractedDate: _extractedDate == null,
+        updatedAt: DateTime.now(),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _note = updated;
+        _isEditing = false;
+      });
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Note updated')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save note: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  Future<void> _pickExtractedDate() async {
+    final initialDate = _extractedDate ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null && mounted) {
+      setState(() => _extractedDate = picked);
+    }
+  }
+
+  void _clearExtractedDate() {
+    setState(() => _extractedDate = null);
+  }
 
   Color _priorityColor(NotePriority p) => switch (p) {
     NotePriority.high   => const Color(0xFFEF4444),
@@ -27,12 +163,13 @@ class NoteViewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final note = _note;
     final accent = categoryColor(note.category);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
-      floatingActionButton: _EditFab(noteId: note.noteId),
+      floatingActionButton: _EditFab(onPressed: _toggleEditor),
       body: GlassPageBackground(
         child: Stack(
           children: [
@@ -98,7 +235,7 @@ class NoteViewScreen extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          final body = '${note.title}\n\n${note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript}';
+                          final body = '$_displayTitle\n\n$_displayBody';
                           Clipboard.setData(ClipboardData(text: body));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Copied to clipboard')),
@@ -190,7 +327,7 @@ class NoteViewScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  note.title.isEmpty ? 'Untitled Note' : note.title,
+                                  _displayTitle,
                                   style: TextStyle(
                                     color: context.textPri,
                                     fontSize: 30,
@@ -199,6 +336,43 @@ class NoteViewScreen extends StatelessWidget {
                                     height: 1.2,
                                   ),
                                 ),
+                                if (_hasTranslation) ...[
+                                  const SizedBox(height: 8),
+                                  GestureDetector(
+                                    onTap: () => setState(() => _showTranslation = !_showTranslation),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 220),
+                                      curve: Curves.easeOut,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(999),
+                                        color: AppColors.ideas.withValues(alpha: _showTranslation ? 0.22 : 0.10),
+                                        border: Border.all(
+                                          color: AppColors.ideas.withValues(alpha: 0.30),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.translate_rounded,
+                                            size: 14,
+                                            color: AppColors.ideas,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            _showTranslation ? 'Show original' : 'Show in English',
+                                            style: TextStyle(
+                                              color: AppColors.ideas,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: 16),
                                 Text(
                                   'Captured ${_formatDate(note.createdAt)}',
@@ -209,18 +383,38 @@ class NoteViewScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 18),
-                                SelectableText(
-                                  note.cleanBody.isNotEmpty
-                                      ? note.cleanBody
-                                      : note.rawTranscript,
-                                  style: TextStyle(
-                                    color: context.textPri,
-                                    fontSize: 16,
-                                    height: 1.75,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: 0.1,
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 260),
+                                  child: SelectableText(
+                                    _displayBody,
+                                    key: ValueKey<bool>(_showTranslation),
+                                    style: TextStyle(
+                                      color: context.textPri,
+                                      fontSize: 16,
+                                      height: 1.75,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0.1,
+                                    ),
                                   ),
                                 ),
+                                if (_isEditing) ...[
+                                  const SizedBox(height: 20),
+                                  _InlineEditPanel(
+                                    formKey: _formKey,
+                                    titleController: _titleController,
+                                    bodyController: _bodyController,
+                                    category: _category,
+                                    priority: _priority,
+                                    extractedDate: _extractedDate,
+                                    saving: _saving,
+                                    onCategoryChanged: (value) => setState(() => _category = value),
+                                    onPriorityChanged: (value) => setState(() => _priority = value),
+                                    onPickDate: _pickExtractedDate,
+                                    onClearDate: _clearExtractedDate,
+                                    onCancel: _toggleEditor,
+                                    onSave: _saveEdits,
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -292,13 +486,18 @@ class _SurfacePill extends StatelessWidget {
         children: [
           Icon(icon, size: 13, color: tint),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: tint,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.3,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+              style: TextStyle(
+                color: tint,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         ],
@@ -308,18 +507,18 @@ class _SurfacePill extends StatelessWidget {
 }
 
 class _EditFab extends StatelessWidget {
-  const _EditFab({required this.noteId});
-  final String noteId;
+  const _EditFab({required this.onPressed});
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return FloatingActionButton.extended(
-      heroTag: 'edit_fab_$noteId',
+      heroTag: 'edit_fab_note_view',
       onPressed: () {
         HapticFeedback.mediumImpact();
-        context.push('/notes/$noteId');
+        onPressed();
       },
       backgroundColor: Colors.transparent,
       foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -364,6 +563,192 @@ class _EditFab extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineEditPanel extends StatelessWidget {
+  const _InlineEditPanel({
+    required this.formKey,
+    required this.titleController,
+    required this.bodyController,
+    required this.category,
+    required this.priority,
+    required this.extractedDate,
+    required this.saving,
+    required this.onCategoryChanged,
+    required this.onPriorityChanged,
+    required this.onPickDate,
+    required this.onClearDate,
+    required this.onCancel,
+    required this.onSave,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController titleController;
+  final TextEditingController bodyController;
+  final NoteCategory category;
+  final NotePriority priority;
+  final DateTime? extractedDate;
+  final bool saving;
+  final ValueChanged<NoteCategory> onCategoryChanged;
+  final ValueChanged<NotePriority> onPriorityChanged;
+  final VoidCallback onPickDate;
+  final VoidCallback onClearDate;
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+
+  InputDecoration _inputDecoration(BuildContext context, {required String label, required String hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: context.surface1.withValues(alpha: context.isDark ? 0.82 : 0.72),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: context.border.withValues(alpha: 0.7)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: context.border.withValues(alpha: 0.55)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: AppColors.ideas.withValues(alpha: 0.75), width: 1.4),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 2,
+      radius: 24,
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Inline edit',
+              style: TextStyle(
+                color: context.textPri,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: titleController,
+              textInputAction: TextInputAction.next,
+              decoration: _inputDecoration(context, label: 'Title', hint: 'Note title'),
+              validator: (value) {
+                if ((value ?? '').trim().isEmpty && bodyController.text.trim().isEmpty) {
+                  return 'Add a title or body';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: bodyController,
+              minLines: 4,
+              maxLines: 8,
+              decoration: _inputDecoration(context, label: 'Body', hint: 'Note details'),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                SizedBox(
+                  width: 170,
+                  child: DropdownButtonFormField<NoteCategory>(
+                    initialValue: category,
+                    decoration: _inputDecoration(context, label: 'Category', hint: 'Choose category'),
+                    items: NoteCategory.values
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(categoryLabel(value)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) onCategoryChanged(value);
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 170,
+                  child: DropdownButtonFormField<NotePriority>(
+                    initialValue: priority,
+                    decoration: _inputDecoration(context, label: 'Priority', hint: 'Choose priority'),
+                    items: NotePriority.values
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value.name.toUpperCase()),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) onPriorityChanged(value);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onPickDate,
+                    icon: const Icon(Icons.event_rounded, size: 18),
+                    label: Text(extractedDate == null ? 'Pick date' : _formatDate(extractedDate!)),
+                  ),
+                ),
+                if (extractedDate != null) ...[
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: onClearDate,
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: saving ? null : onCancel,
+                  child: const Text('Cancel'),
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: saving ? null : onSave,
+                  icon: saving
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_rounded, size: 18),
+                  label: Text(saving ? 'Saving' : 'Save'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

@@ -218,14 +218,16 @@ class SmartNoteSearch {
   static Map<String, (double, String)> _noteFields(Note note) {
     return {
       'title': (3.5, note.title),
+      'translated_title': (3.2, note.translatedTitle ?? ''),
       'body': (2.5, note.cleanBody),
-      'transcript': (1.5, note.rawTranscript),
+      'translated_body': (2.4, note.translatedContent ?? ''),
+      'transcript': (1.8, note.rawTranscript),
       'category': (1.0, categoryLabel(note.category)),
     };
   }
 
   static String _noteAllText(Note note) {
-    return '${note.title} ${note.cleanBody} ${note.rawTranscript} ${categoryLabel(note.category)}'
+    return '${note.title} ${note.translatedTitle ?? ''} ${note.cleanBody} ${note.translatedContent ?? ''} ${note.rawTranscript} ${categoryLabel(note.category)}'
         .toLowerCase();
   }
 
@@ -240,12 +242,18 @@ class SmartNoteSearch {
   };
 
   static List<String> _tokenise(String text) {
-    return text
+    final normalized = text
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ')
         .split(RegExp(r'\s+'))
         .where((t) => t.length >= 2 && !_stopWords.contains(t))
         .toList();
+
+    if (normalized.isNotEmpty) return normalized;
+
+    // Fallback for short non-Latin inputs that survive poorly through token filters.
+    final raw = text.trim().toLowerCase();
+    return raw.isEmpty ? const <String>[] : <String>[raw];
   }
 
   // ── Utility ───────────────────────────────────────────────────────────────

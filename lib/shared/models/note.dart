@@ -27,6 +27,11 @@ class Note {
   String noteId;
   String uid;
   String rawTranscript;
+  /// English translation of the original content when the input was non-English.
+  /// Null if the note content is already in English.
+  String? translatedContent;
+  /// English translation of the title when the input was non-English.
+  String? translatedTitle;
   String title;
   String cleanBody;
 
@@ -57,6 +62,8 @@ class Note {
     required this.noteId,
     required this.uid,
     required this.rawTranscript,
+    this.translatedContent,
+    this.translatedTitle,
     required this.title,
     required this.cleanBody,
     required this.category,
@@ -76,6 +83,10 @@ class Note {
     String? noteId,
     String? uid,
     String? rawTranscript,
+    String? translatedContent,
+    String? translatedTitle,
+    bool clearTranslatedContent = false,
+    bool clearTranslatedTitle = false,
     String? title,
     String? cleanBody,
     NoteCategory? category,
@@ -98,6 +109,12 @@ class Note {
       noteId: noteId ?? this.noteId,
       uid: uid ?? this.uid,
       rawTranscript: rawTranscript ?? this.rawTranscript,
+      translatedContent: clearTranslatedContent
+        ? null
+        : (translatedContent ?? this.translatedContent),
+      translatedTitle: clearTranslatedTitle
+        ? null
+        : (translatedTitle ?? this.translatedTitle),
       title: title ?? this.title,
       cleanBody: cleanBody ?? this.cleanBody,
       category: category ?? this.category,
@@ -122,6 +139,8 @@ class Note {
       'note_id': noteId,
       'uid': uid,
       'raw_transcript': rawTranscript,
+      'translated_content': translatedContent,
+      'translated_title': translatedTitle,
       'title': title,
       'clean_body': cleanBody,
       'category': category.name,
@@ -148,6 +167,8 @@ class Note {
       'note_id': noteId,
       'uid': uid,
       'raw_transcript': rawTranscript,
+      'translated_content': translatedContent,
+      'translated_title': translatedTitle,
       'title': title,
       'clean_body': cleanBody,
       'category': category.name,
@@ -169,6 +190,8 @@ class Note {
       noteId: _readString(row, 'note_id'),
       uid: _readString(row, 'uid'),
       rawTranscript: _readString(row, 'raw_transcript'),
+      translatedContent: row['translated_content']?.toString(),
+      translatedTitle: row['translated_title']?.toString(),
       title: _readString(row, 'title'),
       cleanBody: _readString(row, 'clean_body'),
       category: parseCategory(_readString(row, 'category')),
@@ -194,6 +217,8 @@ class Note {
       noteId: noteId,
       uid: uid,
       rawTranscript: (json['raw_transcript'] as String?)?.trim() ?? '',
+      translatedContent: json['translated_content'] as String?,
+      translatedTitle: json['translated_title'] as String?,
       title: (json['title'] as String?)?.trim().isNotEmpty == true
           ? (json['title'] as String).trim()
           : 'Quick note',

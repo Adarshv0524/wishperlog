@@ -91,7 +91,10 @@ async function getFirebaseToken(env: Env): Promise<string> {
     body   : `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
 
-  const data = (await resp.json()) as { access_token: string };
+  const data = (await resp.json()) as { access_token?: string; error?: string };
+  if (!data.access_token) {
+    throw new Error(`Firebase token exchange failed: ${data.error ?? "unknown"}`);
+  }
   return data.access_token;
 }
 
@@ -218,124 +221,139 @@ async function sendTelegramMessage(
 
 // ── Cron digest ───────────────────────────────────────────────────────────────
 
-async function runDigestCron(env: Env): Promise<void> {
-  const token   = await getFirebaseToken(env);
-  const now     = new Date();
-  const slotKey = toSlotKey(now);
-  const dateKey = toDateKey(now);
+// ── v3 schema helpers ─────────────────────────────────────────────────────
 
-  console.log(`[Cron] Running at UTC ${slotKey} on ${dateKey}`);
-
-  const queryUrl =
-    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
-
-  const queryResp = await fetch(queryUrl, {
-    method : "POST",
-    headers: {
-      Authorization : `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId: "users" }],
-        select: {
-          fields: [
-            { fieldPath: "telegram_chat_id" },
-            { fieldPath: "digest_times_utc" },
-            { fieldPath: "digest_slots" },
-            { fieldPath: "digest_time" },
-            { fieldPath: "display_name" },
-            { fieldPath: "message_state" },
-          ],
-        },
-        where: {
-          fieldFilter: {
-            field: { fieldPath: "telegram_chat_id" },
-            op   : "GREATER_THAN_OR_EQUAL",
-            value: { stringValue: "" },
-          },
-        },
-      },
-    }),
-  });
-
-  if (!queryResp.ok) {
-    console.error(`[Cron] collectionGroup query failed: ${queryResp.status}`);
-    return;
+async function readDigestLatest(
+  uid: string,
+  token: string,
+  env: Env,
+): Promise<any | null> {
+  try {
+    return await firestoreGet(
+      `users/${uid}/digest/latest`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+  } catch {
+    return null; // Subcollection may not exist yet (v2 user)
   }
+}
 
-  const queryResults = (await queryResp.json()) as any[];
-  console.log(`[Cron] digest config docs fetched: ${queryResults.length}`);
+// Try digest/config first (v3), fallback to user root doc (v2)
+function resolveChatId(userDoc: any, digestConfig: any): string | null {
+  const f   = userDoc?.fields ?? {};
+  const df  = digestConfig?.fields ?? {};
+  const raw = df['telegram_chat_id']?.stringValue
+           ?? f['telegram_chat_id']?.stringValue
+           ?? f['chat_id']?.stringValue
+           ?? null;
+  return raw ? String(raw).trim() : null;
+}
+
+// Read digest times from user doc (canonical field)
+function resolveDigestTimes(userDoc: any): string[] {
+  const f = userDoc?.fields ?? {};
+  const digestTimesField = f['digest_times']?.arrayValue?.values ?? [];
+  return digestTimesField
+    .map((v: any) => v?.stringValue ?? v?.integerValue ?? '')
+    .filter(Boolean)
+    .map((v: string | number) => String(v).trim())
+    .filter((v: string) => v.length > 0);
+}
+
+async function runDigestCron(env: Env): Promise<void> {
+  const nowUtc    = new Date();
+  const slotKey   = toSlotKey(nowUtc);
+  const dateKey   = toDateKey(nowUtc);
+  const token     = await getFirebaseToken(env);
+
+  console.log(`[Cron] Slot ${slotKey} (${dateKey}) — scanning users`);
+
+  const users = await listAllUsers(token, env.FIREBASE_PROJECT_ID);
+  console.log(`[Cron] ${users.length} user(s) found`);
 
   let fired = 0;
 
-  for (const result of queryResults) {
-    const doc = result?.document;
-    if (!doc) continue;
-
-    const docName: string = doc.name ?? "";
-    const uid = docName.split("/").pop();
+  for (const doc of users) {
+    const uid  = extractUidFromDocName(doc?.name ?? '');
     if (!uid) continue;
 
-    const chatId = extractField(doc, "telegram_chat_id") as string | undefined;
-    const name   = (extractField(doc, "display_name") as string | undefined) ?? "there";
-    const slots  = [
-      ...extractArray(doc, "digest_times_utc"),
-      ...extractArray(doc, "digest_slots"),
-      ...(extractField(doc, "digest_time") ? [String(extractField(doc, "digest_time"))] : []),
-    ].filter((slot) => Boolean(slot.trim()));
+    const f    = doc?.fields ?? {};
+    const name = (f['display_name']?.stringValue ?? '').trim();
 
-    if (!uid || !chatId || !slots.includes(slotKey)) continue;
+    // Resolve digest times and chat_id ─────────────────────────────────────
+    const digestTimes = resolveDigestTimes(doc);
+    if (digestTimes.length === 0) continue;
 
-    let message = "";
-    try {
-      message = pickTelegramMessage(extractMessageState(doc), "summary");
-    } catch (e) {
-      console.warn(`[Cron] Failed to read cached digest for ${uid}: ${e}`);
-    }
+    // Compute user-local slot using timezone_offset_minutes
+    const tzOffsetMin = Number(f['timezone_offset_minutes']?.integerValue ?? 0);
+    const localMs  = nowUtc.getTime() + tzOffsetMin * 60_000;
+    const localDt  = new Date(localMs);
+    const localSlot = toSlotKey(localDt);
+    const localDate = toDateKey(localDt);
 
-    // Dedup: one digest per slot per day per user.
-    const dedupKey = `${dateKey}:${slotKey}:${uid}`;
+    if (!digestTimes.includes(localSlot)) continue;
+
+    // Dedup: already sent today? ───────────────────────────────────────────
+    const dedupKey = `${localDate}:${localSlot}:${uid}`;
     const already  = await env.DIGEST_SENT.get(dedupKey);
     if (already) {
-      console.log(`[Cron] Already sent to ${uid} at ${slotKey}`);
+      console.log(`[Cron] Already sent for ${uid} at ${localSlot} — skip`);
       continue;
     }
 
-    // Fetch the user's notes from the notes subcollection.
-    let notes: NoteDoc[] = [];
+    // Resolve chat_id: check digest/config (v3) then root doc (v2) ─────────
+    let chatId: string | null = null;
+    let digestConfigDoc: any = null;
     try {
-      if (!message) {
-        notes = extractDigestNotes(doc);
+      digestConfigDoc = await firestoreGet(
+        `users/${uid}/digest/config`,
+        token,
+        env.FIREBASE_PROJECT_ID,
+      );
+      chatId = resolveChatId(doc, digestConfigDoc);
+    } catch {
+      chatId = resolveChatId(doc, null);
+    }
+    if (!chatId) continue;
+
+    // Build message ─────────────────────────────────────────────────────────
+    // v3: try pre-rendered message from digest/latest first.
+    let message: string | null = null;
+    const digestLatestDoc = await readDigestLatest(uid, token, env);
+    if (digestLatestDoc) {
+      const lf = digestLatestDoc?.fields ?? {};
+      const preRendered = lf['telegram']?.stringValue
+                       ?? lf['telegram_digest']?.stringValue
+                       ?? '';
+      if (preRendered.trim().length > 0) {
+        message = preRendered;
+        console.log(`[Cron] Using pre-rendered digest/latest for ${uid}`);
       }
-      if (!message && notes.length === 0) {
-        const notesSnap = await firestoreGet(
-          `users/${uid}/notes?pageSize=200`,
-          token,
-          env.FIREBASE_PROJECT_ID,
-        );
-        notes = parseNoteDocs(((notesSnap as any)?.documents ?? []) as any[], uid);
-      }
-    } catch (e) {
-      console.error(`[Cron] Failed to fetch notes for ${uid}: ${e}`);
-      continue;
     }
 
+    // Fallback: fetch live notes and build on the fly.
     if (!message) {
-      message = buildDigest(notes, name, "Daily Digest");
+      console.log(`[Cron] Building live digest for ${uid}`);
+      const notesSnap = await firestoreGet(
+        `users/${uid}/notes?pageSize=200`,
+        token,
+        env.FIREBASE_PROJECT_ID,
+      );
+      const notes = parseNoteDocs(
+        ((notesSnap as any)?.documents ?? []) as any[],
+        uid,
+      );
+      message = buildDigest(notes, name, 'Daily Digest');
     }
 
+    // Send ─────────────────────────────────────────────────────────────────
     try {
       await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
-
-      // Mark as sent for 26 hours.
-      await env.DIGEST_SENT.put(dedupKey, "1", { expirationTtl: 93_600 });
-
-      // Write a history entry to users/{uid}/digest/history_<ts>
-      await writeDigestHistory(uid, "cron_digest", "Daily Digest", notes.length, token, env);
-
+      await env.DIGEST_SENT.put(dedupKey, '1', { expirationTtl: 93_600 });
+      await writeDigestHistory(uid, 'cron_digest', 'Daily Digest', 0, token, env);
       fired++;
-      console.log(`[Cron] Digest sent to ${uid} (${chatId})`);
+      console.log(`[Cron] Digest sent to ${uid} (${chatId}) slot=${localSlot}`);
     } catch (e) {
       console.error(`[Cron] Failed to send to ${uid}: ${e}`);
     }
@@ -374,6 +392,42 @@ async function writeDigestHistory(
 }
 
 // ── Telegram webhook handler ──────────────────────────────────────────────────
+
+// ── Live-digest builder (used by webhook to avoid stale cached state) ─────────
+async function buildLiveTelegramMessage(
+  uid: string,
+  token: string,
+  env: Env,
+): Promise<string> {
+  const notes = await fetchUserNotes(uid, token, env);
+  const userDoc = await fetchUserDoc(uid, token, env);
+  const f = userDoc?.fields ?? {};
+  const displayName = (f['display_name']?.stringValue ?? '').trim();
+  const noteDocs = parseNoteDocs(notes, uid);
+  return buildDigest(noteDocs, displayName, '📋 Your Notes Summary');
+}
+
+async function fetchUserNotes(uid: string, token: string, env: Env): Promise<any[]> {
+  const notesSnap = await firestoreGet(
+    `users/${uid}/notes?pageSize=200`,
+    token,
+    env.FIREBASE_PROJECT_ID,
+  );
+
+  return ((notesSnap as any)?.documents ?? []) as any[];
+}
+
+async function fetchUserDoc(uid: string, token: string, env: Env): Promise<any | null> {
+  try {
+    return await firestoreGet(
+      `users/${uid}`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+  } catch {
+    return null;
+  }
+}
 
 async function handleWebhook(req: Request, env: Env): Promise<Response> {
   let body: any;
@@ -423,9 +477,43 @@ async function handleWebhook(req: Request, env: Env): Promise<Response> {
 
   // ── Handle digest commands ─────────────────────────────────────────────────
   const cmd = text.replace(/^\//, "").split("@")[0].toLowerCase();
+  if (cmd === "summary" || cmd === "top") {
+    // Always fetch live notes from Firestore for freshest data.
+    try {
+      const uid = await resolveTelegramUserId(String(chatId), token, env);
+      const liveMessage = await buildLiveTelegramMessage(uid, token, env);
+      await sendTelegramMessage(String(chatId), liveMessage, env.TELEGRAM_BOT_TOKEN);
+    } catch (e) {
+      console.error(`[Webhook] Failed to build live digest for ${chatId}:`, e);
+      await sendTelegramMessage(
+        String(chatId),
+        '⚠️ Could not fetch your notes right now. Try again shortly.',
+        env.TELEGRAM_BOT_TOKEN,
+      );
+    }
+    return new Response("ok");
+  }
+
   await handleDigestCommand(chatId, cmd, token, env);
 
   return new Response("ok");
+}
+
+async function resolveTelegramUserId(
+  chatId: string,
+  token: string,
+  env: Env,
+): Promise<string> {
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const configDoc =
+    await findLinkedDigestConfigDoc(queryUrl, token, chatId, env);
+
+  const uid = extractUidFromDocName(configDoc?.name ?? "");
+  if (uid) return uid;
+
+  throw new Error(`Telegram chat ${chatId} is not linked to a user`);
 }
 
 async function handleStartWithToken(
@@ -871,9 +959,9 @@ async function findLinkedDigestConfigDoc(
 
 function extractUidFromDocName(name: string): string | null {
   const parts = name.split("/").filter(Boolean);
-  if (parts.length < 2) return null;
-  if (parts[0] !== "users") return null;
-  return parts[1] ?? null;
+  const usersIndex = parts.lastIndexOf("users");
+  if (usersIndex < 0 || usersIndex + 1 >= parts.length) return null;
+  return parts[usersIndex + 1] ?? null;
 }
 
 // ── Note parsing ──────────────────────────────────────────────────────────────
@@ -958,9 +1046,13 @@ export default {
   async scheduled(
     _event: ScheduledEvent,
     env: Env,
-    _ctx: ExecutionContext,
+    ctx: ExecutionContext,
   ): Promise<void> {
-    await runDigestCron(env);
+    (ctx as any).waitUntil?.(
+      runDigestCron(env).catch((e) =>
+        console.error('[Cron] runDigestCron failed:', e),
+      ),
+    );
   },
 
   async fetch(req: Request, env: Env): Promise<Response> {

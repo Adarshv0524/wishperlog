@@ -17,6 +17,7 @@ import android.graphics.drawable.GradientDrawable
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -28,6 +29,7 @@ import android.os.VibratorManager
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.provider.Settings
 import android.text.InputType
 import android.text.TextUtils
 import android.util.Log
@@ -345,10 +347,15 @@ class OverlayForegroundService : Service() {
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
                         longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                        longPressRunnable = null; longPressTriggered = false; isUserHolding = false
+                        longPressRunnable = null; longPressTriggered = false
                         restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
                         restartListenRunnable = null
-                        if (isRecording) stopVoiceCapture()
+                        if (isRecording) {
+                            isUserHolding = false   // clear AFTER stop so onEndOfSpeech sees correct state
+                            stopVoiceCapture()
+                        } else {
+                            isUserHolding = false
+                        }
                         if (isDragging) {
                             val cx = bubbleParams.x + v.width / 2
                             val snapX = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
@@ -394,6 +401,7 @@ class OverlayForegroundService : Service() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
             FlutterEngineHolder.channel?.invokeMethod("promptMicrophonePermission", null)
+            openMicrophonePermissionSettings()
             showIsland("Microphone permission required", Color.parseColor("#EF4444"), android.R.drawable.ic_lock_idle_lock)
             scheduleIslandDismiss(2500L)
             return
@@ -506,6 +514,20 @@ class OverlayForegroundService : Service() {
                 matches?.firstOrNull()?.trim().orEmpty()
             }.ifEmpty { lastPartialTranscript.trim() }
 
+            // Keep recording active while the user is still holding the bubble.
+            if (isUserHolding && isRecording && !stopListeningCalled) {
+                if (bestText.isNotEmpty()) {
+                    lastPartialTranscript = mergeTranscript(lastPartialTranscript, bestText).take(500)
+                    showIsland(lastPartialTranscript.takeLast(90), Color.parseColor("#6366F1"), android.R.drawable.ic_btn_speak_now)
+                    FlutterEngineHolder.channel?.invokeMethod(
+                        "notifyRecordingTranscript",
+                        hashMapOf("text" to lastPartialTranscript)
+                    )
+                }
+                restartRecognizer(this)
+                return
+            }
+
             finaliseCapture(bestText)
         }
 
@@ -580,6 +602,20 @@ class OverlayForegroundService : Service() {
             val fallback = lastPartialTranscript.trim()
             if (fallback.isNotEmpty()) finaliseCapture(fallback)
             else dismissIslandAndReset()
+        }
+    }
+
+    private fun openMicrophonePermissionSettings() {
+        try {
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:$packageName")
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "openMicrophonePermissionSettings failed", e)
         }
     }
 

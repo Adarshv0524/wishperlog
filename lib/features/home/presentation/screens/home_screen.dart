@@ -38,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   final FocusNode _canvasFocusNode = FocusNode();
 
   bool _saving = false;
+  bool _saveInProgress = false;
   bool _speechReady = false;
   bool _isDictating = false;
   String _dictationPrefix = '';
@@ -180,20 +181,21 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   }
 
   Future<void> _saveWritingBox() async {
-    if (_saving) {
+    if (_saveInProgress) {
       return;
     }
 
-    final textToSave = _writingController.text.trim();
-    if (textToSave.isEmpty) {
-      return;
-    }
-
-    setState(() {
-      _saving = true;
-    });
-
+    _saveInProgress = true;
     try {
+      final textToSave = _writingController.text.trim();
+      if (textToSave.isEmpty || _saving) {
+        return;
+      }
+
+      setState(() {
+        _saving = true;
+      });
+
       final savedNote = await _captureService.ingestRawCapture(
         rawTranscript: textToSave,
         source: CaptureSource.homeWritingBox,
@@ -214,6 +216,17 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
           model: savedNote.aiModel,
           noteId: savedNote.noteId,
         );
+        // Also trigger the native dynamic island pill for Thought Canvas saves.
+        try {
+          await _overlayChannel.invokeMethod<void>('notifySaved', {
+            'title':      savedNote.title,
+            'category':   savedNote.category.name,
+            'prefix':     saveOriginPrefix(savedNote.aiModel),
+            'collection': 'notes',
+          });
+        } catch (_) {
+          // Overlay service may not be running; Flutter-side pill is sufficient.
+        }
       }
     } finally {
       if (mounted) {
@@ -221,6 +234,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
           _saving = false;
         });
       }
+      _saveInProgress = false;
     }
   }
 

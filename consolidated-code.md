@@ -1,14 +1,15 @@
 # Consolidated Source Bundle
 
-Generated: 2026-04-11T19:20:27+00:00
+Generated: 2026-04-13T18:24:22+00:00
 
 ## Summary
-- Dart files: 70
+- Dart files: 71
 - Android files: 26
 - Cloudfare files: 2
-- Total files: 98
+- Total files: 99
 
 ## File Index
+- lib/app/route_observer.dart (dart)
 - lib/app/router.dart (dart)
 - lib/background_note_handler.dart (dart)
 - lib/core/background/connectivity_sync_coordinator.dart (dart)
@@ -110,12 +111,22 @@ Generated: 2026-04-11T19:20:27+00:00
 
 ## Files
 
+### lib/app/route_observer.dart
+
+```dart
+import 'package:flutter/material.dart';
+
+final RouteObserver<PageRoute<dynamic>> routeObserver =
+    RouteObserver<PageRoute<dynamic>>();
+```
+
 ### lib/app/router.dart
 
 ```dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wishperlog/app/route_observer.dart';
 import 'package:wishperlog/features/home/presentation/home_screen_layout.dart';
 import 'package:wishperlog/features/notes/presentation/screens/folder_screen.dart';
 import 'package:wishperlog/features/notes/presentation/screens/note_detail_screen.dart';
@@ -163,6 +174,7 @@ CustomTransitionPage<T> _buildPage<T>({
 }
 
 final GoRouter router = GoRouter(
+  observers: [routeObserver],
   routes: [
     GoRoute(
       path: '/',
@@ -720,7 +732,11 @@ class AppEnv {
 
   static String get groqApiKey => _safeGet('GROQ_API_KEY');
 
+  static String get mistralApiKey => _safeGet('MISTRAL_API_KEY');
+
   static String get huggingFaceApiKey => _safeGet('HUGGINGFACE_API_KEY');
+
+  static String get cerebrasApiKey => _safeGet('CEREBRAS_API_KEY');
 
   static String get googleWebClientId {
     const fromDefine = String.fromEnvironment(
@@ -1047,6 +1063,16 @@ class IsarNoteStore {
 
   /// Put a single note - uses Firestore if in fallback mode
   Future<void> put(Note note) async {
+    // ── Idempotency guard: never write a note whose content is identical ────
+    final existing = await getByNoteId(note.noteId);
+    if (existing != null &&
+        existing.rawTranscript == note.rawTranscript &&
+        existing.title          == note.title &&
+        existing.status         == note.status &&
+        existing.updatedAt      == note.updatedAt) {
+      debugPrint('[IsarNoteStore] put skipped — identical note: ${note.noteId}');
+      return;
+    }
     if (_useFirestoreOnly) {
       final uid = _getCurrentUserId();
       if (uid == null) {
@@ -1142,6 +1168,49 @@ class IsarNoteStore {
       return isar.notes.filter().noteIdEqualTo(noteId).findFirst();
     }
     return null;
+  }
+
+  /// Finds a very recent note with the same transcript and source.
+  ///
+  /// This is used to guard against duplicate delivery from multiple capture
+  /// listeners that can emit the same transcript more than once.
+  Future<Note?> findRecentByTranscript({
+    required String uid,
+    required String rawTranscript,
+    required CaptureSource source,
+    Duration within = const Duration(seconds: 5),
+  }) async {
+    final normalizedTranscript = rawTranscript.trim();
+    if (normalizedTranscript.isEmpty) return null;
+
+    final cutoff = DateTime.now().subtract(within);
+
+    if (_useFirestoreOnly) {
+      final notes = await getAllNotes();
+      final matches = notes.where((note) {
+        return note.uid == uid &&
+            note.source == source &&
+            note.rawTranscript.trim() == normalizedTranscript &&
+            note.createdAt.isAfter(cutoff);
+      }).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return matches.isEmpty ? null : matches.first;
+    }
+
+    await init();
+    if (_isar == null || !_isar!.isOpen) return null;
+
+    return _isar!.notes
+        .filter()
+        .uidEqualTo(uid)
+        .and()
+        .sourceEqualTo(source)
+        .and()
+        .rawTranscriptEqualTo(normalizedTranscript)
+        .and()
+        .createdAtGreaterThan(cutoff, include: true)
+        .sortByCreatedAtDesc()
+        .findFirst();
   }
 
   Future<Note?> getById(String noteId) => getByNoteId(noteId);
@@ -1970,46 +2039,302 @@ class ThemeCubit extends Cubit<ThemeMode> {
 
 ### lib/features/ai/data/ai_classifier_router.dart
 
-```dart
+````dart
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wishperlog/core/config/app_env.dart';
 import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
 import 'package:wishperlog/features/ai/data/groq_note_classifier.dart';
+import 'package:wishperlog/features/nlp/nlp_task_parser.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 
-/// Routes classification requests through the active provider with automatic
-/// fallback chain: Gemini → Groq → local (no enrichment).
-///
-/// The fallback is SEAMLESS — callers receive a valid result regardless of
-/// which provider handled it.  `result.wasFallback` and `result.model`
-/// expose which path was taken for logging/debugging.
+class AiModelOption {
+  const AiModelOption({
+    required this.provider,
+    required this.id,
+    required this.label,
+    required this.description,
+    this.recommended = false,
+  });
+
+  final AiProvider provider;
+  final String id;
+  final String label;
+  final String description;
+  final bool recommended;
+}
+
 class AiClassifierRouter {
-  static const _prefsKey = 'ai_provider';
+  static const _prefsProviderKey = 'ai_provider';
+  static const _prefsModelPrefix = 'ai_model_';
+
+  static const List<AiProvider> _fallbackOrder = [
+    AiProvider.gemini,
+    AiProvider.groq,
+    AiProvider.mistral,
+    AiProvider.cerebras,
+    AiProvider.huggingface,
+  ];
+
+  static const Map<AiProvider, List<AiModelOption>> _modelCatalog = {
+    AiProvider.gemini: [
+      AiModelOption(
+        provider: AiProvider.gemini,
+        id: 'gemini-1.5-flash',
+        label: 'Gemini 1.5 Flash',
+        description: 'Best compatibility for AI Studio keys. Fast and stable for note cleanup, categorization, and digest extraction.',
+        recommended: true,
+      ),
+      AiModelOption(
+        provider: AiProvider.gemini,
+        id: 'gemini-2.5-flash',
+        label: 'Gemini 2.5 Flash',
+        description: 'Higher-quality reasoning when available. Good for longer transcripts and denser note summaries.',
+      ),
+      AiModelOption(
+        provider: AiProvider.gemini,
+        id: 'gemini-3-flash',
+        label: 'Gemini 3 Flash',
+        description: 'Newest fast Gemini option. Use when you want the strongest quality-to-speed balance.',
+      ),
+    ],
+    AiProvider.groq: [
+      AiModelOption(
+        provider: AiProvider.groq,
+        id: 'llama-3.3-70b-versatile',
+        label: 'Llama 3.3 70B Versatile',
+        description: 'Best quality on Groq for classification and clean note rewriting.',
+        recommended: true,
+      ),
+      AiModelOption(
+        provider: AiProvider.groq,
+        id: 'llama-3.1-8b-instant',
+        label: 'Llama 3.1 8B Instant',
+        description: 'Very fast fallback for quick routing, short notes, and quota-sensitive sessions.',
+      ),
+      AiModelOption(
+        provider: AiProvider.groq,
+        id: 'qwen3-32b',
+        label: 'Qwen 3 32B',
+        description: 'Good multilingual and structured-output performance for mixed-language notes.',
+      ),
+      AiModelOption(
+        provider: AiProvider.groq,
+        id: 'llama-4-scout-17b-16e-instruct',
+        label: 'Llama 4 Scout',
+        description: 'Balanced quality and speed for general-purpose note classification.',
+      ),
+    ],
+    AiProvider.mistral: [
+      AiModelOption(
+        provider: AiProvider.mistral,
+        id: 'mistral-large-latest',
+        label: 'Mistral Large',
+        description: 'Strong structured reasoning and classification quality for free-form notes.',
+        recommended: true,
+      ),
+      AiModelOption(
+        provider: AiProvider.mistral,
+        id: 'open-mistral-nemo',
+        label: 'Mistral Nemo',
+        description: 'Efficient daily-driver model when you want lower latency and solid accuracy.',
+      ),
+      AiModelOption(
+        provider: AiProvider.mistral,
+        id: 'codestral-latest',
+        label: 'Codestral',
+        description: 'Useful for terse, highly structured output when the note text is noisy or fragmented.',
+      ),
+    ],
+    AiProvider.huggingface: [
+      AiModelOption(
+        provider: AiProvider.huggingface,
+        id: 'meta-llama/Llama-3.1-70B-Instruct',
+        label: 'Llama 3.1 70B Instruct',
+        description: 'Strong general reasoning via Hugging Face hosted inference.',
+        recommended: true,
+      ),
+      AiModelOption(
+        provider: AiProvider.huggingface,
+        id: 'mistralai/Mistral-Nemo-Instruct-2407',
+        label: 'Mistral Nemo Instruct',
+        description: 'Good for fast testing and light-weight classification on the HF API.',
+      ),
+      AiModelOption(
+        provider: AiProvider.huggingface,
+        id: 'google/gemma-2-27b-it',
+        label: 'Gemma 2 27B IT',
+        description: 'Solid compact alternative for testing broad open-model support.',
+      ),
+    ],
+    AiProvider.cerebras: [
+      AiModelOption(
+        provider: AiProvider.cerebras,
+        id: 'llama-3.3-70b',
+        label: 'Llama 3.3 70B',
+        description: 'High-throughput model for strong note cleanup and extraction.',
+        recommended: true,
+      ),
+      AiModelOption(
+        provider: AiProvider.cerebras,
+        id: 'llama-3.1-8b',
+        label: 'Llama 3.1 8B',
+        description: 'Fast and inexpensive fallback for short notes or quota-sensitive runs.',
+      ),
+      AiModelOption(
+        provider: AiProvider.cerebras,
+        id: 'llama-4-scout-17b-16e-instruct',
+        label: 'Llama 4 Scout',
+        description: 'Balanced choice when you want a newer instruction model on Cerebras.',
+      ),
+    ],
+    AiProvider.auto: [],
+  };
 
   final GeminiNoteClassifier _gemini;
-  final GroqNoteClassifier   _groq;
-  AiProvider _activeProvider     = AiProvider.auto;
-  String     _lastUsedModelName  = 'AI';
+  final GroqNoteClassifier _groq;
+  final Map<AiProvider, _OpenAiCompatibleClassifier> _openAiClients = {};
+
+  AiProvider _activeProvider = AiProvider.auto;
+  String _lastUsedModelName = 'AI';
+  final Map<AiProvider, String> _selectedModelIds = {};
 
   AiClassifierRouter()
       : _gemini = GeminiNoteClassifier(),
-        _groq   = GroqNoteClassifier();
+        _groq = GroqNoteClassifier() {
+    _seedDefaults();
+    _openAiClients[AiProvider.mistral] = _OpenAiCompatibleClassifier(
+      providerName: 'mistral',
+      apiKey: AppEnv.mistralApiKey,
+      endpoint: Uri.parse('https://api.mistral.ai/v1/chat/completions'),
+      fallbackModels: const ['open-mistral-nemo', 'codestral-latest'],
+    );
+    _openAiClients[AiProvider.huggingface] = _OpenAiCompatibleClassifier(
+      providerName: 'huggingface',
+      apiKey: AppEnv.huggingFaceApiKey,
+      endpoint: Uri.parse('https://api-inference.huggingface.co/v1/chat/completions'),
+      fallbackModels: const [
+        'mistralai/Mistral-Nemo-Instruct-2407',
+        'google/gemma-2-27b-it',
+      ],
+    );
+    _openAiClients[AiProvider.cerebras] = _OpenAiCompatibleClassifier(
+      providerName: 'cerebras',
+      apiKey: AppEnv.cerebrasApiKey,
+      endpoint: Uri.parse('https://api.cerebras.ai/v1/chat/completions'),
+      fallbackModels: const ['llama-3.1-8b', 'llama-4-scout-17b-16e-instruct'],
+    );
+  }
 
-  AiProvider get activeProvider    => _activeProvider;
-  String     get lastUsedModelName => _lastUsedModelName;
+  AiProvider get activeProvider => _activeProvider;
+  String get lastUsedModelName => _lastUsedModelName;
   bool get geminiConfigured => _gemini.isConfigured;
-  bool get groqConfigured   => _groq.isConfigured;
+  bool get groqConfigured => _groq.isConfigured;
+  bool get mistralConfigured => AppEnv.mistralApiKey.isNotEmpty;
+  bool get huggingfaceConfigured => AppEnv.huggingFaceApiKey.isNotEmpty;
+  bool get cerebrasConfigured => AppEnv.cerebrasApiKey.isNotEmpty;
 
-  /// Load persisted provider preference.
+  List<AiModelOption> modelsFor(AiProvider provider) {
+    return List.unmodifiable(_modelCatalog[provider] ?? const <AiModelOption>[]);
+  }
+
+  String selectedModelIdFor(AiProvider provider) {
+    final models = _modelCatalog[provider] ?? const <AiModelOption>[];
+    final selected = _selectedModelIds[provider];
+    if (selected != null && selected.isNotEmpty) {
+      return selected;
+    }
+    return models.firstWhere(
+      (option) => option.recommended,
+      orElse: () => models.isNotEmpty ? models.first : const AiModelOption(
+        provider: AiProvider.auto,
+        id: 'local',
+        label: 'Local',
+        description: 'No AI provider configured.',
+      ),
+    ).id;
+  }
+
+  AiModelOption? selectedModelFor(AiProvider provider) {
+    final modelId = selectedModelIdFor(provider);
+    for (final option in modelsFor(provider)) {
+      if (option.id == modelId) return option;
+    }
+    return null;
+  }
+
+  bool isConfigured(AiProvider provider) {
+    switch (provider) {
+      case AiProvider.auto:
+        return geminiConfigured || groqConfigured || mistralConfigured || huggingfaceConfigured || cerebrasConfigured;
+      case AiProvider.gemini:
+        return geminiConfigured;
+      case AiProvider.groq:
+        return groqConfigured;
+      case AiProvider.mistral:
+        return mistralConfigured;
+      case AiProvider.huggingface:
+        return huggingfaceConfigured;
+      case AiProvider.cerebras:
+        return cerebrasConfigured;
+    }
+  }
+
+  String providerLabel(AiProvider provider) {
+    switch (provider) {
+      case AiProvider.auto:
+        return 'Auto';
+      case AiProvider.gemini:
+        return 'Gemini';
+      case AiProvider.groq:
+        return 'Groq';
+      case AiProvider.mistral:
+        return 'Mistral';
+      case AiProvider.huggingface:
+        return 'Hugging Face';
+      case AiProvider.cerebras:
+        return 'Cerebras';
+    }
+  }
+
+  String providerDescription(AiProvider provider) {
+    switch (provider) {
+      case AiProvider.auto:
+        return 'Tries Gemini first, then Groq, then Mistral, Cerebras, and Hugging Face.';
+      case AiProvider.gemini:
+        return 'Best for AI Studio keys and the cleanest note rewrites.';
+      case AiProvider.groq:
+        return 'Fastest OpenAI-compatible fallback for real-time note capture.';
+      case AiProvider.mistral:
+        return 'Strong structured reasoning with an experimentation-friendly API.';
+      case AiProvider.huggingface:
+        return 'Broad open-model testing via hosted inference endpoints.';
+      case AiProvider.cerebras:
+        return 'High-throughput Llama inference with low-latency responses.';
+    }
+  }
+
   Future<void> hydrate() async {
     try {
-      final prefs  = await SharedPreferences.getInstance();
-      final stored = prefs.getString(_prefsKey);
+      final prefs = await SharedPreferences.getInstance();
+      final storedProvider = prefs.getString(_prefsProviderKey);
       _activeProvider = AiProvider.values.firstWhere(
-        (p) => p.name == stored,
+        (p) => p.name == storedProvider,
         orElse: () => AiProvider.auto,
       );
+
+      for (final provider in AiProvider.values) {
+        if (provider == AiProvider.auto) continue;
+        final storedModel = prefs.getString('$_prefsModelPrefix${provider.name}');
+        if (storedModel != null && storedModel.isNotEmpty) {
+          _selectedModelIds[provider] = storedModel;
+        }
+      }
+      _seedDefaults();
     } catch (e) {
       debugPrint('[AiClassifierRouter] hydrate error: $e');
     }
@@ -2019,94 +2344,271 @@ class AiClassifierRouter {
     _activeProvider = provider;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsKey, provider.name);
+      await prefs.setString(_prefsProviderKey, provider.name);
     } catch (e) {
       debugPrint('[AiClassifierRouter] setProvider error: $e');
     }
   }
 
-  /// Classify [rawTranscript] using the configured provider chain.
-  ///
-  /// Temporal context (current date/time) is automatically injected
-  /// inside [GeminiNoteClassifier.buildSystemPrompt()] — no extra work needed.
-  Future<GeminiClassificationResult> classify(String rawTranscript) async {
-    GeminiClassificationResult result;
-
-    switch (_activeProvider) {
-      case AiProvider.groq:
-        result = await _tryGroq(rawTranscript) ?? _localFallback(rawTranscript);
-        break;
-
-      case AiProvider.gemini:
-        try {
-          result = await _gemini.classify(rawTranscript);
-        } catch (e) {
-          debugPrint('[AiClassifierRouter] Gemini forced-mode failed: $e');
-          result = _localFallback(rawTranscript);
-        }
-        break;
-
-      case AiProvider.huggingface:
-      case AiProvider.auto:
-        // Try Gemini first, seamlessly fall through to Groq, then local.
-        result = await _tryGeminiThenGroq(rawTranscript);
-        break;
+  Future<void> setModel(AiProvider provider, String modelId) async {
+    _selectedModelIds[provider] = modelId;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('$_prefsModelPrefix${provider.name}', modelId);
+    } catch (e) {
+      debugPrint('[AiClassifierRouter] setModel error: $e');
     }
-
-    _lastUsedModelName = result.model;
-    debugPrint('[AiClassifierRouter] Classified via ${result.model} '
-        '(fallback=${result.wasFallback}): ${result.category.name}');
-    return result;
   }
 
-  // ─── Internal routing helpers ──────────────────────────────────────────────
-
-  Future<GeminiClassificationResult> _tryGeminiThenGroq(String raw) async {
-    // ── Step 1: Gemini ────────────────────────────────────────────────────────
-    if (_gemini.isConfigured) {
-      try {
-        return await _gemini.classify(raw);
-      } catch (e) {
-        debugPrint('[AiClassifierRouter] Gemini failed → trying Groq. Error: $e');
+  Future<GeminiClassificationResult> classify(String rawTranscript) async {
+    final providers = _orderedProviders();
+    for (final provider in providers) {
+      final result = await _classifyWithProvider(provider, rawTranscript);
+      if (result != null) {
+        _lastUsedModelName = result.model;
+        debugPrint('[AiClassifierRouter] Classified via ${result.model} '
+            '(fallback=${result.wasFallback}): ${result.category.name}');
+        return result;
       }
     }
 
-    // ── Step 2: Groq fallback ─────────────────────────────────────────────────
-    final groqResult = await _tryGroq(raw);
-    if (groqResult != null) return groqResult;
-
-    // ── Step 3: Local (no-AI) fallback ────────────────────────────────────────
-    debugPrint('[AiClassifierRouter] Both AI providers failed — using local fallback');
-    return _localFallback(raw);
+    final fallback = _localFallback(rawTranscript);
+    _lastUsedModelName = fallback.model;
+    debugPrint('[AiClassifierRouter] All providers failed — using local fallback');
+    return fallback;
   }
 
-  Future<GeminiClassificationResult?> _tryGroq(String raw) async {
-    if (!_groq.isConfigured) return null;
+  List<AiProvider> _orderedProviders() {
+    if (_activeProvider == AiProvider.auto) {
+      return _fallbackOrder;
+    }
+    return <AiProvider>[
+      _activeProvider,
+      ..._fallbackOrder.where((provider) => provider != _activeProvider),
+    ];
+  }
+
+  Future<GeminiClassificationResult?> _classifyWithProvider(
+    AiProvider provider,
+    String rawTranscript,
+  ) async {
+    switch (provider) {
+      case AiProvider.auto:
+        return null;
+      case AiProvider.gemini:
+        if (!_gemini.isConfigured) return null;
+        try {
+          return await _gemini.classify(
+            rawTranscript,
+            modelName: selectedModelIdFor(AiProvider.gemini),
+          );
+        } catch (e) {
+          debugPrint('[AiClassifierRouter] Gemini failed: $e');
+          return null;
+        }
+      case AiProvider.groq:
+        if (!_groq.isConfigured) return null;
+        try {
+          return await _groq.classify(
+            rawTranscript,
+            modelName: selectedModelIdFor(AiProvider.groq),
+          );
+        } catch (e) {
+          debugPrint('[AiClassifierRouter] Groq failed: $e');
+          return null;
+        }
+      case AiProvider.mistral:
+      case AiProvider.huggingface:
+      case AiProvider.cerebras:
+        final client = _openAiClients[provider];
+        if (client == null || !client.isConfigured) return null;
+        try {
+          return await client.classify(
+            rawTranscript,
+            modelName: selectedModelIdFor(provider),
+          );
+        } catch (e) {
+          debugPrint('[AiClassifierRouter] ${provider.name} failed: $e');
+          return null;
+        }
+    }
+  }
+
+  GeminiClassificationResult _localFallback(String raw) {
+    final cleaned = raw.trim();
+    final parsed = NlpTaskParser.parse(cleaned);
+    return GeminiClassificationResult(
+      title: parsed.cleanTitle?.isNotEmpty == true ? parsed.cleanTitle! : _fallbackTitle(cleaned),
+      category: parsed.category,
+      priority: parsed.priority,
+      extractedDate: parsed.extractedDate,
+      cleanBody: cleaned,
+      model: 'local',
+      wasFallback: true,
+    );
+  }
+
+  String _fallbackTitle(String raw) {
+    final words = raw.trim().split(RegExp(r'\s+')).take(6).toList();
+    return words.isEmpty ? 'Quick note' : words.join(' ');
+  }
+
+  void _seedDefaults() {
+    for (final entry in _modelCatalog.entries) {
+      final provider = entry.key;
+      if (provider == AiProvider.auto) continue;
+      if (_selectedModelIds[provider]?.isNotEmpty == true) continue;
+      final models = entry.value;
+      if (models.isEmpty) continue;
+      _selectedModelIds[provider] = models.firstWhere(
+        (option) => option.recommended,
+        orElse: () => models.first,
+      ).id;
+    }
+  }
+}
+
+class _OpenAiCompatibleClassifier {
+  _OpenAiCompatibleClassifier({
+    required this.providerName,
+    required this.apiKey,
+    required this.endpoint,
+    required this.fallbackModels,
+  });
+
+  final String providerName;
+  final String apiKey;
+  final Uri endpoint;
+  final List<String> fallbackModels;
+
+  bool get isConfigured => apiKey.isNotEmpty;
+
+  Future<GeminiClassificationResult?> classify(
+    String rawTranscript, {
+    String? modelName,
+  }) async {
+    if (!isConfigured || rawTranscript.trim().isEmpty) return null;
+
+    final candidates = <String>{
+      if (modelName != null && modelName.trim().isNotEmpty) modelName.trim(),
+      ...fallbackModels,
+    }.toList();
+
+    for (final model in candidates) {
+      final result = await _callApi(rawTranscript, model);
+      if (result != null) return result;
+    }
+    return null;
+  }
+
+  Future<GeminiClassificationResult?> _callApi(
+    String rawTranscript,
+    String model,
+  ) async {
     try {
-      return await _groq.classify(raw);
+      final response = await http.post(
+        endpoint,
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'model': model,
+          'messages': [
+            {'role': 'system', 'content': GeminiNoteClassifier.buildSystemPrompt()},
+            {'role': 'user', 'content': 'Raw input: ${rawTranscript.trim()}'},
+          ],
+          'temperature': 0.2,
+          'max_tokens': 512,
+          'response_format': {'type': 'json_object'},
+        }),
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 429) {
+        debugPrint('[$providerName] Rate limit hit on $model');
+        return null;
+      }
+
+      if (response.statusCode != 200) {
+        debugPrint('[$providerName] API error ${response.statusCode} on $model: ${response.body}');
+        return null;
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final content = _extractContent(body);
+      if (content == null || content.trim().isEmpty) return null;
+
+      return _parse(rawTranscript, content.trim(), model: '$providerName-$model');
     } catch (e) {
-      debugPrint('[AiClassifierRouter] Groq failed: $e');
+      debugPrint('[$providerName] classify error on $model: $e');
       return null;
     }
   }
 
-  /// Zero-AI local fallback — returns raw text with "general" category.
-  GeminiClassificationResult _localFallback(String raw) {
-    final cleaned = raw.trim();
-    final words   = cleaned.split(RegExp(r'\s+')).take(6).toList();
-    final title   = words.isEmpty ? 'Quick note' : words.join(' ');
-    return GeminiClassificationResult(
-      title:         title,
-      category:      inferCategoryFromText(cleaned),
-      priority:      NotePriority.medium,
-      extractedDate: null,
-      cleanBody:     cleaned,
-      model:         'local',
-      wasFallback:   true,
-    );
+  String? _extractContent(Map<String, dynamic> body) {
+    final choices = body['choices'];
+    if (choices is! List || choices.isEmpty) return null;
+    final first = choices.first;
+    if (first is! Map<String, dynamic>) return null;
+    final message = first['message'];
+    if (message is! Map<String, dynamic>) return null;
+    final content = message['content'];
+    return content is String ? content : null;
+  }
+
+  GeminiClassificationResult? _parse(
+    String raw,
+    String payload, {
+    required String model,
+  }) {
+    try {
+      final noFence = payload
+          .replaceAll(RegExp(r'```json\s*'), '')
+          .replaceAll('```', '')
+          .trim();
+      final start = noFence.indexOf('{');
+      final end = noFence.lastIndexOf('}');
+      if (start < 0 || end <= start) return null;
+
+      final decoded = jsonDecode(noFence.substring(start, end + 1)) as Map<String, dynamic>;
+      final title = (decoded['title'] as String?)?.trim();
+      final cleanBody = (decoded['clean_body'] as String?)?.trim();
+      final categoryText = (decoded['category'] as String?) ?? NoteCategory.general.name;
+      final inferredCategory = parseCategory(categoryText);
+      final textForHeuristics = [raw, title, cleanBody].whereType<String>().join(' ');
+
+      return GeminiClassificationResult(
+        title: title?.isNotEmpty == true ? title! : _fallbackTitle(raw),
+        category: inferredCategory == NoteCategory.general
+            ? inferCategoryFromText(textForHeuristics)
+            : inferredCategory,
+        priority: parsePriority((decoded['priority'] as String?) ?? NotePriority.medium.name),
+        extractedDate: _parseDate(decoded['extracted_date']),
+        cleanBody: cleanBody?.isNotEmpty == true ? cleanBody! : raw.trim(),
+        model: model,
+        wasFallback: false,
+      );
+    } catch (e) {
+      debugPrint('[$providerName] parse error: $e');
+      return null;
+    }
+  }
+
+  String _fallbackTitle(String raw) {
+    final words = raw.trim().split(RegExp(r'\s+')).take(6).toList();
+    return words.isEmpty ? 'Quick note' : words.join(' ');
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null || value.toString().toLowerCase() == 'null') return null;
+    try {
+      return DateTime.parse(value.toString().trim());
+    } catch (_) {
+      return null;
+    }
   }
 }
-```
+````
 
 ### lib/features/ai/data/ai_processing_service.dart
 
@@ -2120,6 +2622,7 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
 import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
+import 'package:wishperlog/features/sync/data/message_state_service.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
 import 'package:wishperlog/shared/models/enums.dart';
@@ -2255,14 +2758,15 @@ class AiProcessingService {
 
     // ── STEP 2: Build enriched note ────────────────────────────────────────────
     final enriched = note.copyWith(
-      title:         result.title,
-      cleanBody:     result.cleanBody,
-      category:      result.category,
-      priority:      result.priority,
-      extractedDate: result.extractedDate,
-      aiModel:       result.model,
-      status:        NoteStatus.active,
-      updatedAt:     DateTime.now(),
+      title:              result.title,
+      cleanBody:          result.cleanBody,
+      translatedContent:  result.translatedContent,
+      category:           result.category,
+      priority:           result.priority,
+      extractedDate:      result.extractedDate,
+      aiModel:            result.model,
+      status:             NoteStatus.active,
+      updatedAt:          DateTime.now(),
     );
 
     // ── STEP 3: Persist locally ────────────────────────────────────────────────
@@ -2285,6 +2789,8 @@ class AiProcessingService {
 
     // ── STEP 6: Notify UI ──────────────────────────────────────────────────────
     _noteEventBus.emitNoteUpdated(enriched.noteId);
+
+    unawaited(MessageStateService.instance.recompute(uid: enriched.uid));
   }
 
   Future<void> _markFallback(String noteId) async {
@@ -2299,6 +2805,7 @@ class AiProcessingService {
       await _isarNoteStore.put(fallback);
       unawaited(_pushToFirestore(fallback));
       _noteEventBus.emitNoteUpdated(noteId);
+      unawaited(MessageStateService.instance.recompute(uid: fallback.uid));
     } catch (e) {
       debugPrint('[AiProcessingService] _markFallback error for $noteId: $e');
     }
@@ -2346,6 +2853,7 @@ import 'dart:convert';
 
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:wishperlog/core/config/app_env.dart';
+import 'package:wishperlog/features/nlp/nlp_task_parser.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 
@@ -2359,6 +2867,7 @@ class GeminiClassificationResult {
     required this.cleanBody,
     required this.model,
     required this.wasFallback,
+    this.translatedContent,
   });
 
   final String title;
@@ -2368,7 +2877,10 @@ class GeminiClassificationResult {
   final String cleanBody;
   final String model;
   final bool wasFallback;
+  /// English translation when input was detected as non-English. Null otherwise.
+  final String? translatedContent;
 }
+
 
 class GeminiNoteClassifier {
   GeminiNoteClassifier({String? apiKey, GenerativeModel? model})
@@ -2377,6 +2889,12 @@ class GeminiNoteClassifier {
 
   final String _apiKey;
   final GenerativeModel? _providedModel;
+
+  static const List<String> supportedModels = [
+    'gemini-2.5-flash-preview-04-17',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+  ];
 
   bool get isConfigured => _apiKey.isNotEmpty;
 
@@ -2408,11 +2926,12 @@ No markdown fences, no backticks, no prose.
 First byte MUST be `{`  Last byte MUST be `}`
 ════════════════════════════════════════════
 {
-  "title":          "<string: 3–9 words>",
-  "clean_body":     "<string: corrected full note>",
-  "category":       "<string: tasks|reminders|ideas|follow-up|journal|general>",
-  "priority":       "<string: high|medium|low>",
-  "extracted_date": "<string YYYY-MM-DD | null>"
+  "title":               "<string: 3–9 words in INPUT language>",
+  "clean_body":          "<string: corrected full note in INPUT language>",
+  "translated_content":  "<string: English translation if non-English input, else null>",
+  "category":            "<string: tasks|reminders|ideas|follow-up|journal|general>",
+  "priority":            "<string: high|medium|low>",
+  "extracted_date":      "<string YYYY-MM-DD | null>"
 }
 
 ━━━ FIELD RULES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2480,7 +2999,7 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
     final temporal =
         '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} ${now.year} '
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} '
-        '(${_tzOffsetString(now)})';
+        '(${_tzOffsetString(now)}, tz=${now.timeZoneName})';
 
     return _systemPromptTemplate.replaceFirst('{{TEMPORAL_CONTEXT}}', temporal);
   }
@@ -2497,7 +3016,10 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
   // Classify
   // ──────────────────────────────────────────────────────────────────────────
 
-  Future<GeminiClassificationResult> classify(String rawTranscript) async {
+  Future<GeminiClassificationResult> classify(
+    String rawTranscript, {
+    String? modelName,
+  }) async {
     if (!isConfigured) {
       return _localFallback(rawTranscript, 'gemini-local');
     }
@@ -2506,9 +3028,10 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
     }
 
     try {
+      final selectedModel = modelName ?? 'gemini-1.5-flash';
       final model = _providedModel ??
           GenerativeModel(
-            model: 'gemini-1.5-flash-latest',
+            model: selectedModel,
             apiKey: _apiKey,
             generationConfig: GenerationConfig(
               temperature: 0.2,
@@ -2531,7 +3054,7 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
         throw Exception('Gemini returned empty response');
       }
 
-      return _parseJson(rawTranscript, raw.trim(), model: 'gemini-1.5-flash');
+      return _parseJson(rawTranscript, raw.trim(), model: selectedModel);
     } on TimeoutException catch (e) {
       throw Exception('[GeminiClassifier] Timeout: $e');
     } catch (e) {
@@ -2565,9 +3088,11 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
       final inferredCategory = parseCategory(categoryText);
       final textForHeuristics = [raw, title, cleanBody].whereType<String>().join(' ');
 
+      final translatedContent = (decoded['translated_content'] as String?)?.trim();
       return GeminiClassificationResult(
-        title:         title?.isNotEmpty == true ? title! : _fallbackTitle(raw),
-        category:      inferredCategory == NoteCategory.general
+        title:              title?.isNotEmpty == true ? title! : _fallbackTitle(raw),
+        translatedContent:  (translatedContent?.isNotEmpty == true) ? translatedContent : null,
+        category:           inferredCategory == NoteCategory.general
             ? inferCategoryFromText(textForHeuristics)
             : inferredCategory,
         priority:      parsePriority((decoded['priority'] as String?) ?? NotePriority.medium.name),
@@ -2582,11 +3107,12 @@ IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
   }
 
   GeminiClassificationResult _localFallback(String raw, String model) {
+    final parsed = NlpTaskParser.parse(raw);
     return GeminiClassificationResult(
-      title:         _fallbackTitle(raw),
-      category:      inferCategoryFromText(raw),
-      priority:      NotePriority.medium,
-      extractedDate: null,
+      title:         parsed.cleanTitle?.isNotEmpty == true ? parsed.cleanTitle! : _fallbackTitle(raw),
+      category:      parsed.category,
+      priority:      parsed.priority,
+      extractedDate: parsed.extractedDate,
       cleanBody:     raw.trim(),
       model:         model,
       wasFallback:   true,
@@ -2638,6 +3164,12 @@ class GroqNoteClassifier {
   static const _baseUrl      = 'https://api.groq.com/openai/v1/chat/completions';
   static const _primaryModel = 'llama-3.3-70b-versatile';
   static const _fallbackModel = 'llama-3.1-8b-instant';
+  static const List<String> supportedModels = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'qwen3-32b',
+    'llama-4-scout-17b-16e-instruct',
+  ];
 
   final String _apiKey;
 
@@ -2645,15 +3177,27 @@ class GroqNoteClassifier {
 
   bool get isConfigured => _apiKey.isNotEmpty;
 
-  Future<GeminiClassificationResult?> classify(String rawTranscript) async {
+  Future<GeminiClassificationResult?> classify(
+    String rawTranscript, {
+    String? modelName,
+  }) async {
     if (!isConfigured || rawTranscript.trim().isEmpty) return null;
 
-    // Try primary model, fallback to smaller model on 429 rate-limit.
-    final result = await _callApi(rawTranscript, _primaryModel);
-    if (result != null) return result;
+    final candidates = <String>{
+      if (modelName != null && modelName.trim().isNotEmpty) modelName.trim(),
+      _primaryModel,
+      _fallbackModel,
+      ...supportedModels,
+    }.toList();
 
-    debugPrint('[GroqClassifier] Primary model failed, trying fallback model');
-    return _callApi(rawTranscript, _fallbackModel);
+    for (final model in candidates) {
+      final result = await _callApi(rawTranscript, model);
+      if (result != null) return result;
+      if (model == _primaryModel) {
+        debugPrint('[GroqClassifier] Primary model failed, trying fallback model');
+      }
+    }
+    return null;
   }
 
   Future<GeminiClassificationResult?> _callApi(String rawTranscript, String model) async {
@@ -2757,9 +3301,8 @@ class GroqNoteClassifier {
 //
 // v2.0 — Digest Collection Architecture
 //
-// Change: updateDigestTimes() now writes to BOTH the root user doc (legacy)
-// AND the new users/{uid}/digest/config sub-document so the Cloudflare Worker
-// can query the digest collection directly.
+// Change: digest schedule writes now stay on the root user doc only.
+// The Cloudflare Worker reads the root digest fields directly.
 //
 // All other methods are preserved exactly.
 
@@ -2876,15 +3419,6 @@ class UserRepository {
         ...data,
         'created_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
-      // ── Bootstrap digest/config for new users ──────────────────────────────
-      await _writeDigestConfigDoc(
-        uid        : firebaseUser.uid,
-        displayName: firebaseUser.displayName ?? '',
-        chatId     : null,
-        utcSlots   : const [],
-        localSlots : const ['09:00'],
-      );
       return;
     }
 
@@ -2915,38 +3449,17 @@ class UserRepository {
     final user = _firebaseAuth.currentUser;
     if (user == null) return;
     final utcSlot = _toUtcSlotFromHm(digestTime);
-    final batch   = _firestore.batch();
-
-    // Legacy user root doc
-    batch.set(
-      _firestore.collection('users').doc(user.uid),
-      {
-        'digest_time'    : digestTime,
-        'digest_times'   : [digestTime],
-        'digest_times_utc': [utcSlot],
-        'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
-      },
-      SetOptions(merge: true),
-    );
-
-    // New digest/config doc (Worker canonical source)
-    batch.set(
-      _digestConfigRef(user.uid),
-      {
-        'digest_slots_utc'  : [utcSlot],
-        'digest_slots_local': [digestTime],
-        'timezone_offset_min': DateTime.now().timeZoneOffset.inMinutes,
-        'updated_at'        : FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-
-    await batch.commit();
+    await _firestore.collection('users').doc(user.uid).set({
+      'digest_time'            : digestTime,
+      'digest_times'           : [digestTime],
+      'digest_times_utc'       : [utcSlot],
+      'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
+      'updated_at'             : FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
-  /// Persists digest times to BOTH the legacy user root doc and the new
-  /// `users/{uid}/digest/config` document so the Cloudflare Worker can query
-  /// the digest subcollection directly.
+  /// Persists digest times to the legacy user root doc, which is now the
+  /// canonical schedule source for the Cloudflare Worker.
   Future<void> updateDigestTimes(
     List<TimeOfDay> times, {
     List<String> utcSlots = const [],
@@ -2967,28 +3480,10 @@ class UserRepository {
       'updated_at'             : FieldValue.serverTimestamp(),
     };
 
-    final digestConfigData = <String, dynamic>{
-      'digest_slots_utc'   : normalizedUtcSlots,
-      'digest_slots_local' : localSlots,
-      'timezone_offset_min': DateTime.now().timeZoneOffset.inMinutes,
-      'updated_at'         : FieldValue.serverTimestamp(),
-    };
-
-    final batch = _firestore.batch();
-
-    batch.set(
-      _firestore.collection('users').doc(user.uid),
+    await _firestore.collection('users').doc(user.uid).set(
       legacyData,
       SetOptions(merge: true),
     );
-
-    batch.set(
-      _digestConfigRef(user.uid),
-      digestConfigData,
-      SetOptions(merge: true),
-    );
-
-    await batch.commit();
   }
 
   // ── Overlay ────────────────────────────────────────────────────────────────
@@ -3008,30 +3503,11 @@ class UserRepository {
     if (user == null) return;
     final normalized = chatId.trim();
 
-    final batch = _firestore.batch();
-
-    // Root user doc
-    batch.set(
-      _firestore.collection('users').doc(user.uid),
-      {
-        'telegram_chat_id': normalized.isEmpty
-            ? FieldValue.delete()
-            : normalized,
-      },
-      SetOptions(merge: true),
-    );
-
-    // Mirror to digest/config
-    batch.set(
-      _digestConfigRef(user.uid),
-      {
-        'telegram_chat_id': normalized.isEmpty ? null : normalized,
-        'updated_at': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-
-    await batch.commit();
+    await _firestore.collection('users').doc(user.uid).set({
+      'telegram_chat_id': normalized.isEmpty
+          ? FieldValue.delete()
+          : normalized,
+    }, SetOptions(merge: true));
 
     final prefs = await SharedPreferences.getInstance();
     if (normalized.isEmpty) {
@@ -3085,31 +3561,6 @@ class UserRepository {
     }, SetOptions(merge: true));
   }
 
-  // ── Private helpers ────────────────────────────────────────────────────────
-
-  /// Reference to `users/{uid}/digest/config` — the Worker's canonical source.
-  DocumentReference<Map<String, dynamic>> _digestConfigRef(String uid) =>
-      _firestore.collection('users').doc(uid).collection('digest').doc('config');
-
-  /// Writes the digest config document for a given user.
-  Future<void> _writeDigestConfigDoc({
-    required String uid,
-    required String displayName,
-    required String? chatId,
-    required List<String> utcSlots,
-    required List<String> localSlots,
-  }) async {
-    await _digestConfigRef(uid).set({
-      'uid'               : uid,
-      'display_name'      : displayName,
-      'telegram_chat_id'  : chatId,
-      'digest_slots_utc'  : utcSlots,
-      'digest_slots_local': localSlots,
-      'timezone_offset_min': DateTime.now().timeZoneOffset.inMinutes,
-      'updated_at'        : FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
   String _formatTimeOfDay(TimeOfDay time) =>
       '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
@@ -3133,6 +3584,7 @@ class UserRepository {
     if (hour == null || minute == null) return digestTime.trim();
     return _toUtcSlot(TimeOfDay(hour: hour, minute: minute));
   }
+
 }
 ```
 
@@ -3198,6 +3650,9 @@ class CaptureService {
     required String rawTranscript,
     required CaptureSource source,
     bool syncToCloud = true,
+    NoteCategory? categoryOverride,
+    NotePriority? priorityOverride,
+    DateTime? extractedDateOverride,
   }) async {
     final trimmed = rawTranscript.trim();
     if (trimmed.isEmpty) return null;
@@ -3205,8 +3660,20 @@ class CaptureService {
     try {
       final now = DateTime.now();
       final user = _auth?.currentUser;
+      if (user != null) {
+        final recent = await _isarNoteStore.findRecentByTranscript(
+          uid: user.uid,
+          rawTranscript: trimmed,
+          source: source,
+        );
+        if (recent != null) {
+          debugPrint('[CaptureService] Duplicate capture skipped: ${recent.noteId}');
+          return recent;
+        }
+      }
       final noteId = '${now.microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
-      final inferredCategory = inferCategoryFromText(trimmed);
+      final inferredCategory = categoryOverride ?? inferCategoryFromText(trimmed);
+      final resolvedPriority = priorityOverride ?? NotePriority.medium;
 
       // STEP 1: Instant local save with fallback title.
       final quickTitle = _quickTitle(trimmed);
@@ -3217,8 +3684,6 @@ class CaptureService {
         title: quickTitle,
         cleanBody: trimmed,
         category: inferredCategory,
-        priority: NotePriority.medium,
-        extractedDate: null,
         createdAt: now,
         updatedAt: now,
         status: NoteStatus.pendingAi,
@@ -3226,6 +3691,8 @@ class CaptureService {
         gcalEventId: null,
         gtaskId: null,
         source: source,
+        priority: resolvedPriority,
+        extractedDate: extractedDateOverride,
         syncedAt: null,
       );
 
@@ -3897,6 +4364,7 @@ import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
 import 'package:wishperlog/core/theme/app_durations.dart';
+import 'package:wishperlog/app/route_observer.dart';
 import 'package:wishperlog/features/capture/data/capture_service.dart';
 import 'package:wishperlog/features/capture/presentation/state/capture_ui_controller.dart';
 import 'package:wishperlog/features/home/presentation/widgets/folder_grid.dart';
@@ -3914,7 +4382,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with RouteAware {
   static const MethodChannel _overlayChannel = MethodChannel('wishperlog/overlay');
 
   final NoteRepository _notes = sl<NoteRepository>();
@@ -3946,6 +4414,39 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.unsubscribe(this);
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    _canvasFocusNode.dispose();
+    _writingController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    _clearCanvasFocus();
+  }
+
+  @override
+  void didPopNext() {
+    _clearCanvasFocus();
+  }
+
+  void _clearCanvasFocus() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _canvasFocusNode.unfocus();
+  }
+
   Future<Uint8List?> _loadLauncherIconBytes() async {
     try {
       final bytes = await _overlayChannel.invokeMethod<Uint8List>('getLauncherIcon');
@@ -3953,13 +4454,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       return null;
     }
-  }
-
-  @override
-  void dispose() {
-    _canvasFocusNode.dispose();
-    _writingController.dispose();
-    super.dispose();
   }
 
   Future<void> _ensureSpeechReady() async {
@@ -4058,41 +4552,33 @@ class _HomeScreenState extends State<HomeScreen> {
         rawTranscript: textToSave,
         source: CaptureSource.homeWritingBox,
         syncToCloud: true,
+        categoryOverride: _quickCategory,
+        priorityOverride: _quickPriority,
+        extractedDateOverride: _quickReminderAt,
       );
       if (savedNote == null) {
         return;
       }
-
-      final appliedReminder = _quickReminderAt;
-      final shouldApplyMetadata =
-          savedNote.category != _quickCategory ||
-          savedNote.priority != _quickPriority ||
-          savedNote.extractedDate != appliedReminder;
-      if (shouldApplyMetadata) {
-        await _notes.updateEditedNote(
-          noteId: savedNote.noteId,
-          title: savedNote.title,
-          cleanBody: savedNote.cleanBody,
-          category: _quickCategory,
-          priority: _quickPriority,
-          extractedDate: appliedReminder,
-        );
-      }
-
-      final finalNote = savedNote.copyWith(
-        category: _quickCategory,
-        priority: _quickPriority,
-        extractedDate: appliedReminder,
-      );
       _writingController.clear();
 
       if (mounted) {
         sl<CaptureUiController>().notifyExternalRecordingSaved(
-          title: finalNote.title,
-          category: finalNote.category,
-          model: finalNote.aiModel,
-          noteId: finalNote.noteId,
+          title: savedNote.title,
+          category: savedNote.category,
+          model: savedNote.aiModel,
+          noteId: savedNote.noteId,
         );
+        // Also trigger the native dynamic island pill for Thought Canvas saves.
+        try {
+          await _overlayChannel.invokeMethod<void>('notifySaved', {
+            'title':      savedNote.title,
+            'category':   savedNote.category.name,
+            'prefix':     saveOriginPrefix(savedNote.aiModel),
+            'collection': 'notes',
+          });
+        } catch (_) {
+          // Overlay service may not be running; Flutter-side pill is sufficient.
+        }
       }
     } finally {
       if (mounted) {
@@ -4927,78 +5413,84 @@ class ThoughtCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? const Color(0xFF10253A) : const Color(0xFFF3F7FC);
-    final surfaceTop = isDark ? const Color(0xFF17344C) : const Color(0xFFFFFFFF);
-    final surfaceBottom = isDark ? const Color(0xFF0B1A28) : const Color(0xFFE1EAF4);
-    final highlight = isDark ? const Color(0x2CFFFFFF) : const Color(0xD8FFFFFF);
-    final shadowDark = isDark ? const Color(0xB0141E29) : const Color(0x2E90A4BC);
-    final shadowSoft = isDark ? const Color(0x66131D29) : const Color(0x1C7A8FA8);
-    final rim = isDark ? const Color(0x3D8BB3D9) : const Color(0x92C0D4E8);
+    final surface = isDark ? const Color(0xFF102538) : const Color(0xFFF4F7FB);
+    final surfaceTop = isDark ? const Color(0xFF17364C) : const Color(0xFFFFFFFF);
+    final surfaceBottom = isDark ? const Color(0xFF0A1825) : const Color(0xFFDDE7F0);
+    final highlight = isDark ? const Color(0x26FFFFFF) : const Color(0xCCFFFFFF);
+    final shadowDark = isDark ? const Color(0xC4121B27) : const Color(0x2B7890A8);
+    final shadowSoft = isDark ? const Color(0x73131D29) : const Color(0x22A8BDD2);
+    final rim = isDark ? const Color(0x3C8BB5DA) : const Color(0x92D7E5F1);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(32),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                surfaceTop,
-                surface,
-                surfaceBottom,
-              ],
-              stops: const [0.0, 0.56, 1.0],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 8, 2, 6),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(36),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? shadowDark : const Color(0x44FFFFFF),
+              blurRadius: 26,
+              spreadRadius: 0,
+              offset: const Offset(0, 10),
             ),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: rim, width: 0.9),
-            boxShadow: [
-              BoxShadow(
-                color: isDark ? shadowDark : shadowSoft,
-                blurRadius: 28,
-                spreadRadius: -4,
-                offset: const Offset(12, 14),
-              ),
-              BoxShadow(
-                color: isDark ? const Color(0x661B3046) : const Color(0x72FFFFFF),
-                blurRadius: 22,
-                spreadRadius: -8,
-                offset: const Offset(-10, -10),
-              ),
-              BoxShadow(
-                color: isDark ? Colors.black.withValues(alpha: 0.18) : shadowDark,
-                blurRadius: 48,
-                spreadRadius: -18,
-                offset: const Offset(0, 18),
-              ),
-            ],
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(32),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  highlight.withValues(alpha: isDark ? 0.10 : 0.45),
-                  Colors.transparent,
-                  Colors.transparent,
-                ],
-              ),
+            BoxShadow(
+              color: isDark ? const Color(0x55000000) : shadowSoft,
+              blurRadius: 30,
+              spreadRadius: -2,
+              offset: const Offset(12, 14),
             ),
-            child: Column(
+            BoxShadow(
+              color: isDark ? const Color(0x4415222F) : const Color(0xB7FFFFFF),
+              blurRadius: 20,
+              spreadRadius: -4,
+              offset: const Offset(-8, -8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(36),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    surfaceTop,
+                    surface,
+                    surfaceBottom,
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+                borderRadius: BorderRadius.circular(36),
+                border: Border.all(color: rim, width: 0.8),
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(36),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      highlight.withValues(alpha: isDark ? 0.10 : 0.35),
+                      Colors.transparent,
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: Column(
             children: [
               Container(
                 height: 1.2,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+                margin: const EdgeInsets.fromLTRB(18, 16, 18, 0),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                     colors: [
                       Colors.transparent,
-                      highlight.withValues(alpha: isDark ? 0.40 : 0.86),
+                      highlight.withValues(alpha: isDark ? 0.28 : 0.78),
                       Colors.transparent,
                     ],
                   ),
@@ -5036,17 +5528,17 @@ class ThoughtCanvas extends StatelessWidget {
                       fontSize: 15.2,
                     ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+                    contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
                   ),
                 ),
               ),
               // ── Action bar ──────────────────────────────────────────────
               Container(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: isDark ? const Color(0x2F92B4D2) : const Color(0x74C4D8E9),
+                      color: isDark ? const Color(0x2A8FB2D2) : const Color(0x6AB9CBE0),
                       width: 0.8,
                     ),
                   ),
@@ -5055,7 +5547,7 @@ class ThoughtCanvas extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      isDark ? const Color(0x0817242E) : const Color(0x56FFFFFF),
+                      isDark ? const Color(0x0F16232E) : const Color(0x74FFFFFF),
                     ],
                   ),
                 ),
@@ -5100,29 +5592,29 @@ class ThoughtCanvas extends StatelessWidget {
                                         AppColors.tasks.withValues(alpha: 0.78),
                                       ]
                                     : [
-                                        isDark ? const Color(0xFF20374D) : const Color(0xFFF7FBFF),
-                                        isDark ? const Color(0xFF122131) : const Color(0xFFDCE8F3),
+                                        isDark ? const Color(0xFF20384D) : const Color(0xFFF9FCFF),
+                                        isDark ? const Color(0xFF112132) : const Color(0xFFD9E6F1),
                                       ],
                               ),
                               border: Border.all(
                                 color: isRecording
                                     ? AppColors.tasks.withValues(alpha: 0.9)
-                                    : (isDark ? const Color(0x4C9FBEE0) : const Color(0x86BDD1E4)),
+                                    : (isDark ? const Color(0x448FB1D5) : const Color(0x8CC2D5E7)),
                                 width: isRecording ? 1.2 : 0.8,
                               ),
                               boxShadow: [
                                 BoxShadow(
                                   color: isDark
-                                      ? Colors.black.withValues(alpha: 0.35)
-                                      : const Color(0x408FA7BC),
+                                      ? Colors.black.withValues(alpha: 0.30)
+                                      : const Color(0x3391A8BB),
                                   blurRadius: 10,
                                   offset: const Offset(3, 4),
                                 ),
                                 BoxShadow(
                                   color: isDark
-                                      ? const Color(0x2BFFFFFF)
-                                      : Colors.white.withValues(alpha: 0.76),
-                                  blurRadius: 8,
+                                      ? const Color(0x24FFFFFF)
+                                      : Colors.white.withValues(alpha: 0.84),
+                                  blurRadius: 10,
                                   offset: const Offset(-3, -3),
                                 ),
                               ],
@@ -5209,8 +5701,10 @@ class ThoughtCanvas extends StatelessWidget {
                 ),
               ),
             ],
+                ),
+              ),
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -5603,6 +6097,19 @@ class NoteRepository {
 
     final now = DateTime.now();
     final user = _auth?.currentUser;
+
+    if (user != null) {
+      final recent = await _isarNoteStore.findRecentByTranscript(
+        uid: user.uid,
+        rawTranscript: text,
+        source: CaptureSource.homeWritingBox,
+      );
+      if (recent != null) {
+        debugPrint('[NoteRepository] Duplicate home save skipped: ${recent.noteId}');
+        return;
+      }
+    }
+
     final classification = await _aiRouter.classify(text);
     final status = classification.wasFallback
         ? NoteStatus.pendingAi
@@ -6992,6 +7499,9 @@ class NoteViewScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 18),
+                                if (note.translatedContent != null)
+                                  _TranslationToggle(note: note)
+                                else
                                 SelectableText(
                                   note.cleanBody.isNotEmpty
                                       ? note.cleanBody
@@ -7004,6 +7514,7 @@ class NoteViewScreen extends StatelessWidget {
                                     letterSpacing: 0.1,
                                   ),
                                 ),
+
                               ],
                             ),
                           ),
@@ -7086,6 +7597,72 @@ class _SurfacePill extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Translation toggle (original ↔ English) ──────────────────────────────────
+class _TranslationToggle extends StatefulWidget {
+  const _TranslationToggle({required this.note});
+  final Note note;
+  @override
+  State<_TranslationToggle> createState() => _TranslationToggleState();
+}
+
+class _TranslationToggleState extends State<_TranslationToggle> {
+  bool _showOriginal = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final bodyText = _showOriginal
+        ? (widget.note.cleanBody.isNotEmpty ? widget.note.cleanBody : widget.note.rawTranscript)
+        : (widget.note.translatedContent ?? widget.note.cleanBody);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () => setState(() => _showOriginal = !_showOriginal),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.tasks.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.tasks.withValues(alpha: 0.30)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.translate_rounded, size: 13, color: AppColors.tasks),
+                    const SizedBox(width: 5),
+                    Text(
+                      _showOriginal ? 'Show English' : 'Show Original',
+                      style: const TextStyle(
+                        color: AppColors.tasks,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SelectableText(
+          bodyText,
+          style: TextStyle(
+            color: context.textPri,
+            fontSize: 16,
+            height: 1.75,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0.1,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -13101,7 +13678,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // ── 15-minute slot picker ─────────────────────────────────────────────────
+  // ── Minute-wise digest scheduler ──────────────────────────────────────────
 
   Future<void> _addDigestTime() async {
     final slot = await showMinuteWiseTimePicker(context, _digestTimes);
@@ -13893,57 +14470,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SegmentedButton<AiProvider>(
-                      segments: const [
-                        ButtonSegment(
-                          value: AiProvider.auto,
-                          label: Text('Auto'),
-                        ),
-                        ButtonSegment(
-                          value: AiProvider.gemini,
-                          label: Text('Gemini'),
-                        ),
-                        ButtonSegment(
-                          value: AiProvider.groq,
-                          label: Text('Groq'),
-                        ),
-                      ],
-                      selected: {_aiRouter.activeProvider},
-                      onSelectionChanged: (Set<AiProvider> newSelection) async {
-                        if (newSelection.isNotEmpty) {
-                          await _aiRouter.setProvider(newSelection.first);
-                          setState(() {});
-                        }
-                      },
-                      style: SegmentedButton.styleFrom(
-                        backgroundColor: context.surface1,
-                        selectedBackgroundColor: AppColors.ideas,
-                        selectedForegroundColor: Colors.white,
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: AiProvider.values.map((provider) {
+                        final selected = _aiRouter.activeProvider == provider;
+                        return ChoiceChip(
+                          label: Text(_aiRouter.providerLabel(provider)),
+                          selected: selected,
+                          onSelected: (_) async {
+                            await _aiRouter.setProvider(provider);
+                            if (mounted) setState(() {});
+                          },
+                          selectedColor: AppColors.ideas,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.white : context.textPri,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          side: BorderSide(
+                            color: selected
+                                ? AppColors.ideas.withValues(alpha: 0.24)
+                                : context.border,
+                          ),
+                          backgroundColor: context.surface1,
+                        );
+                      }).toList(),
                     ),
                     const SizedBox(height: 12),
-                    if (_aiRouter.activeProvider == AiProvider.auto)
-                      _buildAiStatusBadge(
-                        'Auto-fallback (Gemini -> Groq)',
-                        true,
-                        AppColors.ideas,
-                      )
-                    else if (_aiRouter.activeProvider == AiProvider.gemini)
-                      _buildAiStatusBadge(
-                        _aiRouter.geminiConfigured
-                            ? 'Gemini API configured'
-                            : 'Missing Gemini API Key in .env',
-                        _aiRouter.geminiConfigured,
-                        AppColors.tasks,
-                      )
-                    else if (_aiRouter.activeProvider == AiProvider.groq)
-                      _buildAiStatusBadge(
-                        _aiRouter.groqConfigured
-                            ? 'Groq API configured'
-                            : 'Missing Groq API Key in .env',
-                        _aiRouter.groqConfigured,
-                        const Color(0xFFF97316),
+                    _buildAiStatusBadge(
+                      _aiRouter.providerDescription(_aiRouter.activeProvider),
+                      _aiRouter.isConfigured(_aiRouter.activeProvider),
+                      _aiRouter.activeProvider == AiProvider.gemini
+                          ? AppColors.tasks
+                          : _aiRouter.activeProvider == AiProvider.groq
+                              ? const Color(0xFFF97316)
+                              : AppColors.ideas,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAiSelectionSummary(context),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Model',
+                      style: TextStyle(
+                        color: context.textSec,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.7,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._buildAiModelOptions(context),
                   ],
                 ),
               ),
@@ -14100,6 +14676,160 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return '${diff.inDays}d ago';
   }
 
+  List<Widget> _buildAiModelOptions(BuildContext context) {
+    final provider = _aiRouter.activeProvider;
+    if (provider == AiProvider.auto) {
+      return [
+        _buildAiStatusBadge(
+          'Auto will try Gemini, Groq, Mistral, Cerebras, then Hugging Face.',
+          true,
+          AppColors.ideas,
+        ),
+      ];
+    }
+
+    final models = _aiRouter.modelsFor(provider);
+    if (models.isEmpty) {
+      return [
+        _buildAiStatusBadge(
+          'No models are registered for ${_aiRouter.providerLabel(provider)}.',
+          false,
+          AppColors.errorStatus,
+        ),
+      ];
+    }
+
+    return models
+        .map((option) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _buildAiModelCard(context, option),
+            ))
+        .toList();
+  }
+
+  Widget _buildAiModelCard(BuildContext context, AiModelOption option) {
+    final provider = _aiRouter.activeProvider;
+    final selected = _aiRouter.selectedModelIdFor(provider) == option.id;
+    final configured = _aiRouter.isConfigured(provider);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: configured
+          ? () async {
+              await _aiRouter.setModel(provider, option.id);
+              if (mounted) setState(() {});
+            }
+          : null,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.ideas.withValues(alpha: 0.08)
+              : context.surface1.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? AppColors.ideas.withValues(alpha: 0.34)
+                : context.border.withValues(alpha: 0.65),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_off_rounded,
+              color: selected ? AppColors.ideas : context.textSec,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          option.label,
+                          style: TextStyle(
+                            color: context.textPri,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (option.recommended)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.ideas.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Recommended',
+                            style: TextStyle(
+                              color: AppColors.ideas,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    option.description,
+                    style: TextStyle(
+                      color: context.textSec,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildSmallStatusPill(
+                        context,
+                        selected ? 'Selected' : option.id,
+                        selected ? AppColors.ideas : context.textSec,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildSmallStatusPill(
+                        context,
+                        configured ? 'Ready' : 'Missing key',
+                        configured ? AppColors.tasks : AppColors.errorStatus,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSmallStatusPill(BuildContext context, String text, Color tint) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: context.isDark ? 0.14 : 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: tint,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   Widget _buildAiStatusBadge(String text, bool ok, Color tint) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -14132,6 +14862,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiSelectionSummary(BuildContext context) {
+    final provider = _aiRouter.activeProvider;
+    final selectedModel = _aiRouter.selectedModelFor(provider);
+    final configured = _aiRouter.isConfigured(provider);
+    final keyLabel = switch (provider) {
+      AiProvider.gemini => 'GEMINI_API_KEY',
+      AiProvider.groq => 'GROQ_API_KEY',
+      AiProvider.mistral => 'MISTRAL_API_KEY',
+      AiProvider.huggingface => 'HUGGINGFACE_API_KEY',
+      AiProvider.cerebras => 'CEREBRAS_API_KEY',
+      AiProvider.auto => 'Multiple keys',
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: context.surface1.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.border.withValues(alpha: 0.65)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Current selection',
+            style: TextStyle(
+              color: context.textSec,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${_aiRouter.providerLabel(provider)} • ${selectedModel?.label ?? selectedModel?.id ?? 'Auto'}',
+            style: TextStyle(
+              color: context.textPri,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            configured
+                ? 'Ready to classify with $keyLabel.'
+                : 'Add $keyLabel in .env to enable this provider.',
+            style: TextStyle(
+              color: configured ? AppColors.tasks : AppColors.errorStatus,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          if (selectedModel != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              selectedModel.description,
+              style: TextStyle(
+                color: context.textSec,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -15575,10 +16373,14 @@ class ExternalSyncService {
     try {
       final uid = _auth.currentUser?.uid;
       if (uid == null) return;
-      await _firestore
+      final docRef = _firestore
           .collection('users').doc(uid)
-          .collection('notes').doc(noteId)
-          .update(fields);
+          .collection('notes').doc(noteId);
+
+      final snap = await docRef.get();
+      if (!snap.exists) return;
+
+      await docRef.set(fields, SetOptions(merge: true));
     } catch (e) {
       debugPrint('[ExternalSync] Firestore patch error for $noteId: $e');
     }
@@ -16069,6 +16871,8 @@ class HeaderClient extends http.BaseClient {
 ### lib/features/sync/data/message_state_service.dart
 
 ```dart
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -16090,6 +16894,9 @@ class MessageStateService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final IsarNoteStore _isarNoteStore;
+  Timer? _recomputeTimer;
+  String? _queuedUid;
+  bool _recomputeRunning = false;
 
   Future<void> rebuildDigest(List<Note> activeNotes, {String? uid}) async {
     final resolvedUid = uid ?? _auth.currentUser?.uid;
@@ -16106,7 +16913,12 @@ class MessageStateService {
         displayName: displayName,
       );
 
-      await _persist(resolvedUid, messages);
+      await _persist(
+        resolvedUid,
+        messages,
+        activeNotes,
+        displayName: displayName,
+      );
       debugPrint(
         '[MessageStateService] rebuilt for $resolvedUid '
         '(telegram ${messages['telegram']?.length ?? 0} chars)',
@@ -16124,12 +16936,35 @@ class MessageStateService {
       return;
     }
 
+    _queuedUid = resolvedUid;
+    _recomputeTimer?.cancel();
+    _recomputeTimer = Timer(const Duration(milliseconds: 250), () {
+      _recomputeTimer = null;
+      unawaited(_runQueuedRecompute());
+    });
+  }
+
+  Future<void> _runQueuedRecompute() async {
+    if (_recomputeRunning) return;
+    final resolvedUid = _queuedUid;
+    if (resolvedUid == null || resolvedUid.trim().isEmpty) return;
+
+    _queuedUid = null;
+    _recomputeRunning = true;
     try {
       final notes = await _fetchActiveNotes(resolvedUid);
       await rebuildDigest(notes, uid: resolvedUid);
     } catch (e, st) {
       debugPrint('[MessageStateService] recompute error: $e');
       debugPrintStack(stackTrace: st);
+    } finally {
+      _recomputeRunning = false;
+      if (_queuedUid != null && _recomputeTimer == null) {
+        _recomputeTimer = Timer(const Duration(milliseconds: 16), () {
+          _recomputeTimer = null;
+          unawaited(_runQueuedRecompute());
+        });
+      }
     }
   }
 
@@ -16177,6 +17012,9 @@ class MessageStateService {
         'telegram_tasks': '📝 <b>WishperLog Tasks</b>\nNo active notes.',
         'telegram_reminders': '⏰ <b>WishperLog Reminders</b>\nNo active notes.',
         'telegram_ideas': '💡 <b>WishperLog Ideas</b>\nNo active notes.',
+        'telegram_followup': '🔁 <b>WishperLog Follow-up</b>\nNo active notes.',
+        'telegram_journal': '📓 <b>WishperLog Journal</b>\nNo active notes.',
+        'telegram_general': '📦 <b>WishperLog General</b>\nNo active notes.',
       };
     }
 
@@ -16190,104 +17028,169 @@ class MessageStateService {
     final tasks = active.where((n) => n.category == NoteCategory.tasks).toList();
     final reminders = active.where((n) => n.category == NoteCategory.reminders).toList();
     final ideas = active.where((n) => n.category == NoteCategory.ideas).toList();
+    final followUps = active.where((n) => n.category == NoteCategory.followUp).toList();
+    final journals = active.where((n) => n.category == NoteCategory.journal).toList();
+    final generals = active.where((n) => n.category == NoteCategory.general).toList();
 
     return {
       'telegram': _buildDigestMessage(
-        title: 'WishperLog Daily Digest',
+        title: 'Daily Digest',
+        icon: '📋',
+        subtitle: 'Your complete daily snapshot',
         greeting: displayName,
         notes: active,
         maxItems: 5,
         includeStats: true,
       ),
       'telegram_digest': _buildDigestMessage(
-        title: 'WishperLog Daily Digest',
+        title: 'Daily Digest',
+        icon: '📋',
+        subtitle: 'Your complete daily snapshot',
         greeting: displayName,
         notes: active,
         maxItems: 5,
         includeStats: true,
       ),
       'telegram_summary': _buildDigestMessage(
-        title: 'WishperLog Summary',
+        title: 'Summary',
+        icon: '🧭',
+        subtitle: 'A quick view of everything active',
         greeting: displayName,
         notes: active,
         maxItems: 5,
         includeStats: true,
       ),
       'telegram_top': _buildDigestMessage(
-        title: 'WishperLog Top',
+        title: 'Top Priorities',
+        icon: '🏆',
+        subtitle: 'Your sharpest focus items right now',
         greeting: displayName,
-        notes: _topPriorityNotes(active, maxItems: 3),
+        notes: active.take(3).toList(),
         maxItems: 3,
         includeStats: false,
       ),
       'telegram_tasks': _buildDigestMessage(
-        title: 'WishperLog Tasks',
+        title: 'Tasks',
+        icon: '📝',
+        subtitle: 'Actionable items that need attention',
         greeting: displayName,
         notes: tasks,
         maxItems: 5,
         includeStats: false,
       ),
       'telegram_reminders': _buildDigestMessage(
-        title: 'WishperLog Reminders',
+        title: 'Reminders',
+        icon: '⏰',
+        subtitle: 'Things you should not forget',
         greeting: displayName,
         notes: reminders,
         maxItems: 5,
         includeStats: false,
       ),
       'telegram_ideas': _buildDigestMessage(
-        title: 'WishperLog Ideas',
+        title: 'Ideas',
+        icon: '💡',
+        subtitle: 'Thoughts worth capturing and keeping',
         greeting: displayName,
         notes: ideas,
+        maxItems: 5,
+        includeStats: false,
+      ),
+      'telegram_followup': _buildDigestMessage(
+        title: 'Follow-up',
+        icon: '🔁',
+        subtitle: 'Things you need to circle back on',
+        greeting: displayName,
+        notes: followUps,
+        maxItems: 5,
+        includeStats: false,
+      ),
+      'telegram_journal': _buildDigestMessage(
+        title: 'Journal',
+        icon: '📓',
+        subtitle: 'Notes that belong in your personal log',
+        greeting: displayName,
+        notes: journals,
+        maxItems: 5,
+        includeStats: false,
+      ),
+      'telegram_general': _buildDigestMessage(
+        title: 'General',
+        icon: '📦',
+        subtitle: 'Everything that does not fit elsewhere',
+        greeting: displayName,
+        notes: generals,
         maxItems: 5,
         includeStats: false,
       ),
     };
   }
 
-  Future<void> _persist(String uid, Map<String, String> messages) async {
-    await _firestore.collection('users').doc(uid).set({
-      'message_state': {
-        'telegram': messages['telegram'],
-        'telegram_digest': messages['telegram_digest'],
-        'telegram_summary': messages['telegram_summary'],
-        'telegram_top': messages['telegram_top'],
-        'telegram_tasks': messages['telegram_tasks'],
-        'telegram_reminders': messages['telegram_reminders'],
-        'telegram_ideas': messages['telegram_ideas'],
-        'updated_at': FieldValue.serverTimestamp(),
-      },
+  Future<void> _persist(
+    String uid,
+    Map<String, String> messages,
+    List<Note> activeNotes, {
+    String? displayName,
+  }) async {
+    final active = activeNotes
+        .where((n) => n.status == NoteStatus.active)
+        .toList()
+      ..sort((a, b) {
+        final pa = _priorityRank(a.priority.name);
+        final pb = _priorityRank(b.priority.name);
+        if (pa != pb) return pa.compareTo(pb);
+        return b.updatedAt.compareTo(a.updatedAt);
+      });
+
+    final categoryCounts = <String, int>{
+      'tasks': active.where((n) => n.category == NoteCategory.tasks).length,
+      'reminders': active.where((n) => n.category == NoteCategory.reminders).length,
+      'ideas': active.where((n) => n.category == NoteCategory.ideas).length,
+      'followUp': active.where((n) => n.category == NoteCategory.followUp).length,
+      'journal': active.where((n) => n.category == NoteCategory.journal).length,
+      'general': active.where((n) => n.category == NoteCategory.general).length,
+    };
+
+    final priorityCounts = <String, int>{
+      'high': active.where((n) => n.priority == NotePriority.high).length,
+      'medium': active.where((n) => n.priority == NotePriority.medium).length,
+      'low': active.where((n) => n.priority == NotePriority.low).length,
+    };
+
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .set({
+      'schema_version': 2,
+      'display_name': displayName ?? '',
+      'updated_at': FieldValue.serverTimestamp(),
+      'active_note_count': active.length,
+      'category_counts': categoryCounts,
+      'priority_counts': priorityCounts,
+      'message_state': messages,
+      'summary': messages['telegram_summary'] ?? messages['telegram_digest'] ?? messages['telegram'] ?? '',
+      'telegram_digest': messages['telegram_digest'] ?? '',
+      'telegram_summary': messages['telegram_summary'] ?? '',
+      'telegram_top': messages['telegram_top'] ?? '',
+      'telegram_tasks': messages['telegram_tasks'] ?? '',
+      'telegram_reminders': messages['telegram_reminders'] ?? '',
+      'telegram_ideas': messages['telegram_ideas'] ?? '',
+      'telegram_followup': messages['telegram_followup'] ?? '',
+      'telegram_journal': messages['telegram_journal'] ?? '',
+      'telegram_general': messages['telegram_general'] ?? '',
     }, SetOptions(merge: true));
   }
 }
 
-List<Note> _topPriorityNotes(List<Note> notes, {required int maxItems}) {
-  final ranked = [...notes]
-    ..sort((a, b) {
-      final pa = _priorityRank(a.priority.name);
-      final pb = _priorityRank(b.priority.name);
-      if (pa != pb) return pa.compareTo(pb);
-      return b.updatedAt.compareTo(a.updatedAt);
-    });
-
-  final high = ranked.where((n) => n.priority == NotePriority.high).toList();
-  final selected = high.isNotEmpty
-      ? high
-      : ranked.where((n) => n.priority == NotePriority.medium).toList();
-
-  return selected.take(maxItems).toList();
-}
-
 String _buildDigestMessage({
   required String title,
+  required String icon,
+  required String subtitle,
   required String? greeting,
   required List<Note> notes,
   required int maxItems,
   required bool includeStats,
 }) {
-  if (notes.isEmpty) {
-    return '<b>$title</b>\nNo active notes.';
-  }
-
   final sorted = [...notes]
     ..sort((a, b) {
       final pa = _priorityRank(a.priority.name);
@@ -16302,30 +17205,36 @@ String _buildDigestMessage({
   final ideas = notes.where((n) => n.category == NoteCategory.ideas).length;
 
   final buffer = StringBuffer();
-  buffer.writeln('📋 <b>$title</b>');
+  buffer.writeln('$icon <b>WishperLog</b>');
+  buffer.writeln('<b>${_escapeHtml(title)}</b>');
+  buffer.writeln('<i>${_escapeHtml(subtitle)}</i>');
   if ((greeting ?? '').trim().isNotEmpty) {
-    buffer.writeln('Hello ${_ascii(greeting ?? 'there')}! Here\'s your snapshot:');
+    buffer.writeln();
+    buffer.writeln('Hello <b>${_escapeHtml(_ascii(greeting ?? 'there'))}</b>');
   }
 
   if (includeStats) {
     buffer.writeln();
-    buffer.writeln('• Active notes: ${notes.length}');
-    buffer.writeln('• Tasks: $tasks');
-    buffer.writeln('• Reminders: $reminders');
-    buffer.writeln('• Ideas: $ideas');
+    buffer.writeln('<i>${notes.length} notes · $tasks tasks · $reminders reminders · $ideas ideas</i>');
+  }
+
+  if (active.isEmpty) {
+    buffer.writeln();
+    buffer.writeln('<i>No active notes right now. You are all caught up.</i>');
+    return buffer.toString().trim();
   }
 
   buffer.writeln();
   buffer.writeln('<b>Top items</b>');
   for (final note in active) {
-    final titleText = _ascii(note.title.isEmpty ? 'Untitled' : note.title);
-    final category = note.category.name.toUpperCase();
+    final titleText = _escapeHtml(_ascii(note.title.isEmpty ? 'Untitled' : note.title));
+    final category = _categoryLabel(note.category.name);
     final priority = _priorityLabel(note.priority.name);
-    buffer.writeln('• [$category][$priority] $titleText');
+    buffer.writeln('• <b>$category</b> <code>$priority</code> $titleText');
 
     final body = _ascii(note.cleanBody);
     if (body.isNotEmpty) {
-      buffer.writeln('  <i>${body.length > 120 ? '${body.substring(0, 120)}…' : body}</i>');
+      buffer.writeln('  <i>${_escapeHtml(body.length > 110 ? '${body.substring(0, 110)}…' : body)}</i>');
     }
   }
 
@@ -16354,11 +17263,33 @@ String _priorityLabel(String? p) {
   };
 }
 
+String _categoryLabel(String? value) {
+  return switch ((value ?? '').toLowerCase()) {
+    'tasks' => 'Tasks',
+    'reminders' => 'Reminders',
+    'ideas' => 'Ideas',
+    'followup' => 'Follow-up',
+    'follow_up' => 'Follow-up',
+    'follow-up' => 'Follow-up',
+    'journal' => 'Journal',
+    _ => 'General',
+  };
+}
+
 String _ascii(String? v) {
   return (v ?? '')
       .replaceAll(RegExp(r'[^\x00-\x7F]'), '')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
+}
+
+String _escapeHtml(String input) {
+  return input
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
 }
 ```
 
@@ -16370,8 +17301,7 @@ String _ascii(String? v) {
 // v2.0 — Digest Collection Architecture + Dual-Method Linking
 //
 // Changes from v1:
-//   • writeDigestConfig()   — mirrors telegram_chat_id + digest_slots to
-//                             users/{uid}/digest/config (new sub-collection).
+//   • writeDigestConfig()   — updates the root user schedule fields.
 //   • addQueryHistory()     — writes bot command records to
 //                             users/{uid}/digest/history_{timestamp}.
 //   • linkManualChatId()    — validates and saves a raw chat_id pasted by
@@ -16414,13 +17344,6 @@ class TelegramService {
   /// Root user document: users/{uid}
   DocumentReference<Map<String, dynamic>> get _userDoc =>
       _firestore.collection('users').doc(_uid);
-
-  /// Digest config document: users/{uid}/digest/config
-  ///
-  /// This is the NEW authoritative source the Cloudflare Worker reads for
-  /// scheduling data (digest_slots, telegram_chat_id, display_name).
-  DocumentReference<Map<String, dynamic>> get _digestConfigDoc =>
-      _userDoc.collection('digest').doc('config');
 
   // ── Bot username helpers ────────────────────────────────────────────────────
 
@@ -16523,8 +17446,8 @@ class TelegramService {
   /// Validates and saves a chat_id that the user copied from the bot manually.
   ///
   /// Telegram chat_ids for private chats are numeric (positive or negative).
-  /// This method validates the format, writes to the user doc AND the digest
-  /// config doc, and returns the normalised chat_id string.
+  /// This method validates the format, writes to the user doc, and returns
+  /// the normalised chat_id string.
   ///
   /// Throws [ArgumentError] if [rawChatId] is not a valid Telegram chat id.
   Future<String> linkManualChatId(String rawChatId) async {
@@ -16540,34 +17463,14 @@ class TelegramService {
 
     final chatIdStr = trimmed;
 
-    // Write to both locations atomically via a batch.
-    final batch = _firestore.batch();
-
-    batch.set(
-      _userDoc,
-      {
-        'telegram_chat_id': chatIdStr,
-        // Clear any pending token since the user linked manually.
-        'telegram_link_token': FieldValue.delete(),
-        'telegram_link_token_created_at': FieldValue.delete(),
-        'telegram_link_pin': FieldValue.delete(),
-        'telegram_link_pin_created_at': FieldValue.delete(),
-      },
-      SetOptions(merge: true),
-    );
-
-    // Mirror to digest/config so the Worker can find it.
-    batch.set(
-      _digestConfigDoc,
-      {
-        'telegram_chat_id': chatIdStr,
-        'linked_at': FieldValue.serverTimestamp(),
-        'link_method': 'manual',
-      },
-      SetOptions(merge: true),
-    );
-
-    await batch.commit();
+    await _userDoc.set({
+      'telegram_chat_id': chatIdStr,
+      // Clear any pending token since the user linked manually.
+      'telegram_link_token': FieldValue.delete(),
+      'telegram_link_token_created_at': FieldValue.delete(),
+      'telegram_link_pin': FieldValue.delete(),
+      'telegram_link_pin_created_at': FieldValue.delete(),
+    }, SetOptions(merge: true));
 
     _lastLinkToken = null;
     return chatIdStr;
@@ -16593,40 +17496,22 @@ class TelegramService {
   Future<void> disconnectTelegram() async {
     _lastLinkToken = null;
 
-    final batch = _firestore.batch();
-
-    batch.update(_userDoc, {
+    await _userDoc.set({
       'telegram_chat_id': FieldValue.delete(),
       'telegram_link_token': FieldValue.delete(),
       'telegram_link_token_created_at': FieldValue.delete(),
       'telegram_link_pin': FieldValue.delete(),
       'telegram_link_pin_created_at': FieldValue.delete(),
       'message_state': FieldValue.delete(),
-    });
-
-    // Clear chat_id from digest config too.
-    batch.set(
-      _digestConfigDoc,
-      {'telegram_chat_id': FieldValue.delete()},
-      SetOptions(merge: true),
-    );
-
-    await batch.commit();
+    }, SetOptions(merge: true));
   }
 
   // ── Digest Collection API ───────────────────────────────────────────────────
 
-  /// Writes (or updates) the digest scheduling configuration to the NEW
-  /// `users/{uid}/digest/config` document.
-  ///
-  /// The Cloudflare Worker reads this document directly to determine:
-  ///   - Which time-slots to fire for this user  (digest_slots_utc)
-  ///   - Which Telegram chat to send to          (telegram_chat_id)
-  ///   - Display name for the greeting           (display_name)
+  /// Writes the digest scheduling configuration to the root user document.
   ///
   /// [utcSlots] — list of "HH:MM" strings in UTC.
-  /// [localSlots] — list of "HH:MM" strings in the user's local time (stored
-  ///   for display purposes only — the Worker always uses utcSlots).
+  /// [localSlots] — list of "HH:MM" strings in the user's local time.
   Future<void> writeDigestConfig({
     required List<String> utcSlots,
     required List<String> localSlots,
@@ -16634,18 +17519,21 @@ class TelegramService {
     final uid  = _uid;
     final user = _auth.currentUser;
 
-    // Fetch current chat_id from the user root doc to mirror it here.
+    // Persist schedule on the root user doc, which is the canonical source
+    // for both the app and the Worker.
     final userSnap = await _userDoc.get();
     final chatId = (userSnap.data()?['telegram_chat_id'] ?? '').toString().trim();
     final displayName = user?.displayName ?? (userSnap.data()?['display_name'] ?? '');
 
-    await _digestConfigDoc.set({
+    await _userDoc.set({
       'uid'                  : uid,
       'display_name'         : displayName,
       'telegram_chat_id'     : chatId.isEmpty ? null : chatId,
-      'digest_slots_utc'     : utcSlots,
-      'digest_slots_local'   : localSlots,
-      'timezone_offset_min'  : DateTime.now().timeZoneOffset.inMinutes,
+      'digest_time'          : localSlots.isNotEmpty ? localSlots.first : null,
+      'digest_times'         : localSlots,
+      'digest_times_utc'     : utcSlots,
+      'digest_slots'         : localSlots,
+      'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
       'updated_at'           : FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -16673,19 +17561,17 @@ class TelegramService {
   // ── Digest slot persistence ─────────────────────────────────────────────────
 
   /// Saves digest slots to both the legacy user root doc and the new
-  /// digest/config document so both the app and the Worker stay in sync.
+  /// root digest fields so both the app and the Worker stay in sync.
   Future<void> saveDigestSlots(List<String> slots) async {
-    final batch = _firestore.batch();
-
-    batch.set(_userDoc, {'digest_slots': slots}, SetOptions(merge: true));
-
-    batch.set(
-      _digestConfigDoc,
-      {'digest_slots_utc': slots, 'updated_at': FieldValue.serverTimestamp()},
+    await _userDoc.set(
+      {
+        'digest_times_utc': slots,
+        'digest_times': slots,
+        'digest_slots': slots,
+        'updated_at': FieldValue.serverTimestamp(),
+      },
       SetOptions(merge: true),
     );
-
-    await batch.commit();
   }
 
   Future<List<String>> getDigestSlots() async {
@@ -17222,7 +18108,9 @@ enum AiProvider {
   auto,
   gemini,
   groq,
+  mistral,
   huggingface,
+  cerebras,
 }
 ```
 
@@ -17284,6 +18172,10 @@ class Note {
 
   DateTime? syncedAt;
 
+  /// Non-null when the AI detected non-English input and produced an English
+  /// translation. The original text stays in [title] / [cleanBody].
+  String? translatedContent;
+
   Note({
     required this.noteId,
     required this.uid,
@@ -17301,6 +18193,7 @@ class Note {
     this.gtaskId,
     required this.source,
     this.syncedAt,
+    this.translatedContent,
   });
 
   Note copyWith({
@@ -17324,6 +18217,8 @@ class Note {
     CaptureSource? source,
     DateTime? syncedAt,
     bool clearSyncedAt = false,
+    String? translatedContent,
+    bool clearTranslatedContent = false,
   }) {
     return Note(
       noteId: noteId ?? this.noteId,
@@ -17344,6 +18239,9 @@ class Note {
       gtaskId: clearGtaskId ? null : (gtaskId ?? this.gtaskId),
       source: source ?? this.source,
       syncedAt: clearSyncedAt ? null : (syncedAt ?? this.syncedAt),
+      translatedContent: clearTranslatedContent
+          ? null
+          : (translatedContent ?? this.translatedContent),
     );
   }
 
@@ -17371,6 +18269,7 @@ class Note {
       'gtask_id': gtaskId,
       'gcal_event_id': gcalEventId,
       'is_deleted': status == NoteStatus.deleted,
+      'translated_content': translatedContent,
     };
   }
 
@@ -17451,6 +18350,7 @@ class Note {
         (json['source'] as String?) ?? CaptureSource.homeWritingBox.name,
       ),
       syncedAt: _readFirestoreDate(json['synced_at']),
+      translatedContent: json['translated_content'] as String?,
     );
   }
 
@@ -22232,7 +23132,7 @@ class _TopNotchPillState extends State<_TopNotchPill>
 ```kotlin
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
@@ -23063,7 +23963,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        // Do NOT null the channel here: BackgroundNoteService might still need it.
+        FlutterEngineHolder.channel = null
         super.onDestroy()
     }
 }
@@ -23620,10 +24520,15 @@ class OverlayForegroundService : Service() {
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
                         longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                        longPressRunnable = null; longPressTriggered = false; isUserHolding = false
+                        longPressRunnable = null; longPressTriggered = false
                         restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
                         restartListenRunnable = null
-                        if (isRecording) stopVoiceCapture()
+                        if (isRecording) {
+                            isUserHolding = false   // clear AFTER stop so onEndOfSpeech sees correct state
+                            stopVoiceCapture()
+                        } else {
+                            isUserHolding = false
+                        }
                         if (isDragging) {
                             val cx = bubbleParams.x + v.width / 2
                             val snapX = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
@@ -24690,24 +25595,20 @@ include(":app")
 ```typescript
 // cloudfare/src/worker.ts
 //
-// WishperLog Digest Worker — v3.0
+// WishperLog Digest Worker — v3.1
 //
-// ── Architecture change (v3) ─────────────────────────────────────────────────
-// The cron now reads scheduling data from the NEW  users/{uid}/digest/config
-// subcollection instead of the user root document.  This lets us query only
-// the "digest-opted-in" users (those who have a config doc) rather than
-// loading every user document.
+// ── Architecture change (v3.1) ──────────────────────────────────────────────
+// The cron now reads scheduling data from the user root document so digest
+// delivery does not depend on the optional digest/config mirror write.
 //
 // Firestore query path for cron:
-//   collectionGroup: users/{uid}/digest  →  filter doc id == "config"
-//   (implemented as a collection-group query on "digest" with doc filter)
+//   collection: users  →  filter docs with telegram_chat_id present
 //
 // Firestore path for cron dedup KV:
 //   key format: "YYYY-MM-DD:HH:MM:<uid>"   TTL: 26 h (93 600 s)
 //
 // Webhook: reads user root doc via token lookup (unchanged) then writes a
 // history entry to users/{uid}/digest/history_<ts>.
-//
 // ENV secrets (wrangler secret put <name>):
 //   TELEGRAM_BOT_TOKEN
 //   FIREBASE_PROJECT_ID
@@ -24785,7 +25686,10 @@ async function getFirebaseToken(env: Env): Promise<string> {
     body   : `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
 
-  const data = (await resp.json()) as { access_token: string };
+  const data = (await resp.json()) as { access_token?: string; error?: string };
+  if (!data.access_token) {
+    throw new Error(`Firebase token exchange failed: ${data.error ?? "unknown"}`);
+  }
   return data.access_token;
 }
 
@@ -24920,35 +25824,6 @@ async function runDigestCron(env: Env): Promise<void> {
 
   console.log(`[Cron] Running at UTC ${slotKey} on ${dateKey}`);
 
-  // ── NEW: query the digest/config subcollection via collectionGroup ──────────
-  //
-  // We use the Firestore collectionGroup query endpoint to fetch all documents
-  // from any "digest" collection where docId == "config".  This avoids loading
-  // every user root document.
-  //
-  // REST equivalent of:
-  //   db.collectionGroup("digest")
-  //     .where(FieldPath.documentId(), "==", "config")
-  //     .select(["uid","telegram_chat_id","digest_slots_utc","display_name"])
-  //
-  const queryBody = {
-    structuredQuery: {
-      from: [{ collectionId: "digest", allDescendants: true }],
-      where: {
-        fieldFilter: {
-          field    : { fieldPath: "__name__" },
-          op       : "EQUAL",
-          // Match documents whose last path segment is "config"
-          value    : { referenceValue: `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users` },
-        },
-      },
-    },
-  };
-
-  // Because Firestore REST doesn't support trailing wildcard name filters,
-  // we query by collectionGroup and filter on the client side for doc id.
-  // A simpler and fully-supported approach: run a collectionGroup query with
-  // no where clause (fetches all "digest" sub-docs) and skip non-"config" docs.
   const queryUrl =
     `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
 
@@ -24960,17 +25835,17 @@ async function runDigestCron(env: Env): Promise<void> {
     },
     body: JSON.stringify({
       structuredQuery: {
-        from: [{ collectionId: "digest", allDescendants: true }],
+        from: [{ collectionId: "users" }],
         select: {
           fields: [
-            { fieldPath: "uid" },
             { fieldPath: "telegram_chat_id" },
-            { fieldPath: "digest_slots_utc" },
+            { fieldPath: "digest_times_utc" },
+            { fieldPath: "digest_slots" },
+            { fieldPath: "digest_time" },
             { fieldPath: "display_name" },
+            { fieldPath: "message_state" },
           ],
         },
-        // Only want the "config" document in each user's digest sub-collection.
-        // We filter by the document resource name suffix.
         where: {
           fieldFilter: {
             field: { fieldPath: "telegram_chat_id" },
@@ -24996,25 +25871,23 @@ async function runDigestCron(env: Env): Promise<void> {
     const doc = result?.document;
     if (!doc) continue;
 
-    // Only process "config" docs (name ends with "/digest/config").
     const docName: string = doc.name ?? "";
-    if (!docName.endsWith("/digest/config")) continue;
+    const uid = docName.split("/").pop();
+    if (!uid) continue;
 
-    const uid     = extractField(doc, "uid")              as string | undefined;
-    const chatId  = extractField(doc, "telegram_chat_id") as string | undefined;
-    const name    = extractField(doc, "display_name")     as string | undefined ?? "there";
-    const slots   = extractArray(doc, "digest_slots_utc");
+    const chatId = extractField(doc, "telegram_chat_id") as string | undefined;
+    const name   = (extractField(doc, "display_name") as string | undefined) ?? "there";
+    const slots  = [
+      ...extractArray(doc, "digest_times_utc"),
+      ...extractArray(doc, "digest_slots"),
+      ...(extractField(doc, "digest_time") ? [String(extractField(doc, "digest_time"))] : []),
+    ].filter((slot) => Boolean(slot.trim()));
 
     if (!uid || !chatId || !slots.includes(slotKey)) continue;
 
     let message = "";
     try {
-      const userSnap = await firestoreGet(
-        `users/${uid}`,
-        token,
-        env.FIREBASE_PROJECT_ID,
-      );
-      message = pickTelegramMessage(extractMessageState(userSnap as any), "summary");
+      message = pickTelegramMessage(extractMessageState(doc), "summary");
     } catch (e) {
       console.warn(`[Cron] Failed to read cached digest for ${uid}: ${e}`);
     }
@@ -25031,6 +25904,9 @@ async function runDigestCron(env: Env): Promise<void> {
     let notes: NoteDoc[] = [];
     try {
       if (!message) {
+        notes = extractDigestNotes(doc);
+      }
+      if (!message && notes.length === 0) {
         const notesSnap = await firestoreGet(
           `users/${uid}/notes?pageSize=200`,
           token,
@@ -25097,6 +25973,42 @@ async function writeDigestHistory(
 
 // ── Telegram webhook handler ──────────────────────────────────────────────────
 
+// ── Live-digest builder (used by webhook to avoid stale cached state) ─────────
+async function buildLiveTelegramMessage(
+  uid: string,
+  token: string,
+  env: Env,
+): Promise<string> {
+  const notes = await fetchUserNotes(uid, token, env);
+  const userDoc = await fetchUserDoc(uid, token, env);
+  const f = userDoc?.fields ?? {};
+  const displayName = (f['display_name']?.stringValue ?? '').trim();
+  const noteDocs = parseNoteDocs(notes, uid);
+  return buildDigest(noteDocs, displayName, '📋 Your Notes Summary');
+}
+
+async function fetchUserNotes(uid: string, token: string, env: Env): Promise<any[]> {
+  const notesSnap = await firestoreGet(
+    `users/${uid}/notes?pageSize=200`,
+    token,
+    env.FIREBASE_PROJECT_ID,
+  );
+
+  return ((notesSnap as any)?.documents ?? []) as any[];
+}
+
+async function fetchUserDoc(uid: string, token: string, env: Env): Promise<any | null> {
+  try {
+    return await firestoreGet(
+      `users/${uid}`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+  } catch {
+    return null;
+  }
+}
+
 async function handleWebhook(req: Request, env: Env): Promise<Response> {
   let body: any;
   try {
@@ -25126,7 +26038,17 @@ async function handleWebhook(req: Request, env: Env): Promise<Response> {
       // /start with no token → send help + Chat ID
       await sendTelegramMessage(
         String(chatId),
-        `<b>WishperLog Bot</b>\n\nYour Chat ID is: <code>${chatId}</code>\n\nPaste this into WishperLog → Settings → Telegram → Manual link.`,
+        [
+          '<b>WishperLog</b> <i>Telegram link</i>',
+          '',
+          'Your Chat ID',
+          `<code>${chatId}</code>`,
+          '',
+          '<i>Manual linking</i>',
+          '1. Open WishperLog → Settings → Telegram',
+          '2. Tap <b>Manual Chat ID</b>',
+          '3. Paste the number above',
+        ].join('\n'),
         env.TELEGRAM_BOT_TOKEN,
       );
     }
@@ -25135,9 +26057,43 @@ async function handleWebhook(req: Request, env: Env): Promise<Response> {
 
   // ── Handle digest commands ─────────────────────────────────────────────────
   const cmd = text.replace(/^\//, "").split("@")[0].toLowerCase();
+  if (cmd === "summary" || cmd === "top") {
+    // Always fetch live notes from Firestore for freshest data.
+    try {
+      const uid = await resolveTelegramUserId(String(chatId), token, env);
+      const liveMessage = await buildLiveTelegramMessage(uid, token, env);
+      await sendTelegramMessage(String(chatId), liveMessage, env.TELEGRAM_BOT_TOKEN);
+    } catch (e) {
+      console.error(`[Webhook] Failed to build live digest for ${chatId}:`, e);
+      await sendTelegramMessage(
+        String(chatId),
+        '⚠️ Could not fetch your notes right now. Try again shortly.',
+        env.TELEGRAM_BOT_TOKEN,
+      );
+    }
+    return new Response("ok");
+  }
+
   await handleDigestCommand(chatId, cmd, token, env);
 
   return new Response("ok");
+}
+
+async function resolveTelegramUserId(
+  chatId: string,
+  token: string,
+  env: Env,
+): Promise<string> {
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const configDoc =
+    await findLinkedDigestConfigDoc(queryUrl, token, chatId, env);
+
+  const uid = extractUidFromDocName(configDoc?.name ?? "");
+  if (uid) return uid;
+
+  throw new Error(`Telegram chat ${chatId} is not linked to a user`);
 }
 
 async function handleStartWithToken(
@@ -25158,7 +26114,17 @@ async function handleStartWithToken(
   if (!userDoc) {
     await sendTelegramMessage(
       String(chatId),
-      "<b>Link code not found or already used.</b>\n\nOpen WishperLog and tap Connect in Telegram again, then use the Telegram link that the app opens or copies for you. If you are on the manual path, tap /start with no code and copy the Chat ID back into the app.",
+      [
+        '<b>Telegram link not found or already used.</b>',
+        '',
+        '<i>Quick recovery</i>',
+        '• Open WishperLog → Settings → Telegram',
+        '• Tap <b>Connect in Telegram</b> again',
+        '• Use the new link or copied code immediately',
+        '',
+        '<i>Manual fallback</i>',
+        'Send <b>/start</b> without a code to get your Chat ID, then paste it back into the app.',
+      ].join('\n'),
       env.TELEGRAM_BOT_TOKEN,
     );
     return;
@@ -25195,7 +26161,17 @@ async function handleStartWithToken(
 
   await sendTelegramMessage(
     chatIdStr,
-    `<b>✅ WishperLog connected!</b>\n\nHello ${asciiOnly(displayName)}! Your daily digest will arrive at your scheduled times.\n\n<b>Commands:</b>\n/summary  /tasks  /reminders  /ideas`,
+    [
+      '✅ <b>WishperLog connected</b>',
+      '',
+      `Hello <b>${escapeHtml(asciiOnly(displayName))}</b>!`,
+      'Your digests are now linked and ready.',
+      '',
+      '<b>Quick commands</b>',
+      '<code>/summary</code> <code>/top</code> <code>/tasks</code>',
+      '<code>/reminders</code> <code>/ideas</code> <code>/followup</code>',
+      '<code>/journal</code> <code>/general</code>',
+    ].join('\n'),
     env.TELEGRAM_BOT_TOKEN,
   );
 }
@@ -25249,24 +26225,45 @@ async function handleDigestCommand(
   const configDoc =
     await findLinkedDigestConfigDoc(queryUrl, token, String(chatId), env);
 
-  if (!configDoc || !configDoc.name?.endsWith("/digest/config")) {
+  if (!configDoc) {
     await sendTelegramMessage(
       String(chatId),
-      "Your Telegram isn't linked yet. Open WishperLog → Telegram screen and connect again.",
+      [
+        '<b>Telegram is not linked yet.</b>',
+        '',
+        'Open WishperLog → Telegram and connect again.',
+      ].join('\n'),
       env.TELEGRAM_BOT_TOKEN,
     );
     return;
   }
 
-  // Derive the uid from the document name: users/{uid}/digest/config
-  const nameParts = (configDoc.name as string).split("/");
-  const uid       = nameParts[nameParts.length - 3]; // users / {uid} / digest / config
+  const uid = extractUidFromDocName(configDoc.name ?? "");
+  if (!uid) {
+    await sendTelegramMessage(
+      String(chatId),
+      [
+        '<b>Telegram is linked, but the user record could not be resolved.</b>',
+        '',
+        'Open WishperLog → Settings → Telegram and reconnect.',
+      ].join('\n'),
+      env.TELEGRAM_BOT_TOKEN,
+    );
+    return;
+  }
   const name      = (extractField(configDoc, "display_name") as string) ?? "there";
 
   if (!isSupportedTelegramCommand(cmd)) {
     await sendTelegramMessage(
       String(chatId),
-      "<b>WishperLog commands</b>\n/summary  /top  /tasks  /reminders  /ideas",
+      [
+        '<b>WishperLog commands</b>',
+        '<i>Use any of these:</i>',
+        '',
+        '<code>/summary</code>  <code>/top</code>  <code>/tasks</code>',
+        '<code>/reminders</code>  <code>/ideas</code>  <code>/followup</code>',
+        '<code>/journal</code>  <code>/general</code>',
+      ].join('\n'),
       env.TELEGRAM_BOT_TOKEN,
     );
     return;
@@ -25274,12 +26271,7 @@ async function handleDigestCommand(
 
   let message = "";
   try {
-    const userSnap = await firestoreGet(
-      `users/${uid}`,
-      token,
-      env.FIREBASE_PROJECT_ID,
-    );
-    message = pickTelegramMessage(extractMessageState(userSnap as any), cmd);
+    message = await loadCachedTelegramMessage(uid, configDoc, cmd, token, env);
   } catch (e) {
     console.warn(`[Cmd] Failed to read cached message for ${uid}: ${e}`);
   }
@@ -25287,13 +26279,18 @@ async function handleDigestCommand(
   const heading = pickHeading(cmd);
 
   if (!message) {
-    const notesSnap = await firestoreGet(
-      `users/${uid}/notes?pageSize=200`,
-      token,
-      env.FIREBASE_PROJECT_ID,
-    );
-
-    const notes = parseNoteDocs(((notesSnap as any)?.documents ?? []) as any[], uid);
+    const infoDoc = await loadDigestInfoDoc(uid, token, env);
+    const notes =
+      extractDigestNotes(infoDoc).length > 0
+        ? extractDigestNotes(infoDoc)
+        : parseNoteDocs(
+            ((await firestoreGet(
+              `users/${uid}/notes?pageSize=200`,
+              token,
+              env.FIREBASE_PROJECT_ID,
+            )) as any)?.documents ?? [],
+            uid,
+          );
     const sentNotes = pickNotesForCommand(notes, cmd);
     message = buildDigest(sentNotes, name, heading);
     await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
@@ -25324,6 +26321,61 @@ function extractMessageState(doc: any): Record<string, string> {
   return output;
 }
 
+async function loadCachedTelegramMessage(
+  uid: string,
+  configDoc: any,
+  cmd: string,
+  token: string,
+  env: Env,
+): Promise<string> {
+  const infoDoc = await loadDigestInfoDoc(uid, token, env);
+  const configState = {
+    ...extractMessageState(configDoc),
+    ...extractMessageState(infoDoc),
+  };
+  const fromConfig = pickTelegramMessage(configState, cmd);
+  if (fromConfig) return fromConfig;
+
+  try {
+    const userSnap = await firestoreGet(
+      `users/${uid}`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+    return pickTelegramMessage(extractMessageState(userSnap as any), cmd);
+  } catch {
+    return "";
+  }
+}
+
+async function loadDigestInfoDoc(uid: string, token: string, env: Env): Promise<any | null> {
+  try {
+    return await firestoreGet(
+      `users/${uid}/digest/config/info/current`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+  } catch {
+    return null;
+  }
+}
+
+function extractDigestNotes(doc: any): NoteDoc[] {
+  const values = doc?.fields?.notes?.arrayValue?.values ?? [];
+  return values
+    .map((entry: any) => {
+      const fields = entry?.mapValue?.fields ?? {};
+      const str = (key: string) => fields[key]?.stringValue ?? '';
+      return {
+        title: str('title') || str('note_title'),
+        category: str('category'),
+        priority: str('priority'),
+        body: str('body') || str('clean_body'),
+      } as NoteDoc;
+    })
+    .filter((note: NoteDoc) => Boolean(note.title || note.body || note.category));
+}
+
 function pickTelegramMessage(state: Record<string, string>, cmd: string): string {
   const summary = state.telegram_summary ?? state.telegram_digest ?? state.telegram ?? "";
   switch (cmd) {
@@ -25342,6 +26394,14 @@ function pickTelegramMessage(state: Record<string, string>, cmd: string): string
     case "ideas":
     case "idea":
       return state.telegram_ideas ?? summary;
+    case "followup":
+    case "follow-up":
+    case "follow_up":
+      return state.telegram_followup ?? summary;
+    case "journal":
+      return state.telegram_journal ?? summary;
+    case "general":
+      return state.telegram_general ?? summary;
     default:
       return "";
   }
@@ -25361,6 +26421,14 @@ function pickHeading(cmd: string): string {
     case "ideas":
     case "idea":
       return "Ideas";
+    case "followup":
+    case "follow-up":
+    case "follow_up":
+      return "Follow-up";
+    case "journal":
+      return "Journal";
+    case "general":
+      return "General";
     default:
       return "Summary";
   }
@@ -25382,6 +26450,14 @@ function pickNotesForCommand(notes: NoteDoc[], cmd: string): NoteDoc[] {
     case "ideas":
     case "idea":
       return notes.filter((n) => n.category === "ideas");
+    case "followup":
+    case "follow-up":
+    case "follow_up":
+      return notes.filter((n) => n.category === "followUp");
+    case "journal":
+      return notes.filter((n) => n.category === "journal");
+    case "general":
+      return notes.filter((n) => n.category === "general");
     default:
       return notes;
   }
@@ -25399,6 +26475,11 @@ function isSupportedTelegramCommand(cmd: string): boolean {
     "reminder",
     "ideas",
     "idea",
+    "followup",
+    "follow-up",
+    "follow_up",
+    "journal",
+    "general",
   ].includes(cmd);
 }
 
@@ -25449,27 +26530,18 @@ async function findLinkedDigestConfigDoc(
     for (const result of results) {
       const doc = result?.document;
       if (!doc) continue;
-      if (doc.name?.endsWith("/digest/config")) return doc;
-
-      const uid = doc.name?.split("/").pop();
-      if (!uid) continue;
-
-      try {
-        const digestDoc = await firestoreGet(
-          `users/${uid}/digest/config`,
-          token,
-          env.FIREBASE_PROJECT_ID,
-        );
-        if ((digestDoc as any)?.name?.endsWith("/digest/config")) {
-          return digestDoc;
-        }
-      } catch {
-        continue;
-      }
+      return doc;
     }
   }
 
   return null;
+}
+
+function extractUidFromDocName(name: string): string | null {
+  const parts = name.split("/").filter(Boolean);
+  if (parts.length < 2) return null;
+  if (parts[0] !== "users") return null;
+  return parts[1] ?? null;
 }
 
 // ── Note parsing ──────────────────────────────────────────────────────────────
@@ -25495,25 +26567,54 @@ function parseNoteDocs(docs: any[], _uid: string): NoteDoc[] {
 }
 
 function buildDigest(notes: NoteDoc[], name: string, heading: string): string {
-  if (notes.length === 0) return `<b>${heading}</b>\nNo active notes.`;
-
   const ranked = [...notes]
     .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
     .slice(0, 5);
 
-  const lines = [`<b>WishperLog ${heading}</b>`, `Hello ${asciiOnly(name)}!`, ""];
+  const title = `<b>${escapeHtml(heading)}</b>`;
+  const greeting = asciiOnly(name)
+    ? `Hello <b>${escapeHtml(asciiOnly(name))}</b>`
+    : 'Hello';
 
-  ranked.forEach((n, i) => {
-    lines.push(
-      `${i + 1}. [${n.category.toUpperCase()}][${priorityLabel(n.priority)}] ${asciiOnly(n.title)}`,
-    );
-    if (n.body) {
-      lines.push(`   <i>${asciiOnly(n.body).slice(0, 100)}</i>`);
+  if (ranked.length === 0) {
+    return [
+      '📋 <b>WishperLog</b>',
+      title,
+      `<i>${greeting}</i>`,
+      '',
+      '<i>No active notes right now. You are all caught up.</i>',
+    ].join('\n');
+  }
+
+  const stats = [
+    `${notes.length} note${notes.length === 1 ? "" : "s"}`,
+    `${notes.filter((n) => n.priority === "high").length} high`,
+    `${notes.filter((n) => n.category === "tasks").length} tasks`,
+  ].join(" · ");
+
+  const lines = [
+    '📋 <b>WishperLog</b>',
+    title,
+    `<i>${greeting}</i>`,
+    `<i>${escapeHtml(stats)}</i>`,
+    '',
+    '<b>Top items</b>',
+  ];
+
+  ranked.forEach((n) => {
+    const category = categoryLabelFromKey(n.category);
+    const priority = priorityLabel(n.priority);
+    const titleText = escapeHtml(asciiOnly(n.title) || "Untitled note");
+    lines.push(`• <b>${category}</b> <code>${priority}</code> ${titleText}`);
+
+    const body = asciiOnly(n.body).slice(0, 140);
+    if (body) {
+      lines.push(`  <i>${escapeHtml(body)}</i>`);
     }
   });
 
   if (notes.length > ranked.length) {
-    lines.push(`\n<i>+${notes.length - ranked.length} more</i>`);
+    lines.push("", `<i>+${notes.length - ranked.length} more</i>`);
   }
 
   return lines.join("\n");
@@ -25525,9 +26626,13 @@ export default {
   async scheduled(
     _event: ScheduledEvent,
     env: Env,
-    _ctx: ExecutionContext,
+    ctx: ExecutionContext,
   ): Promise<void> {
-    await runDigestCron(env);
+    (ctx as any).waitUntil?.(
+      runDigestCron(env).catch((e) =>
+        console.error('[Cron] runDigestCron failed:', e),
+      ),
+    );
   },
 
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -25582,6 +26687,28 @@ function priorityLabel(p: string): string {
     case "low":  return "LOW";
     default:     return "MED";
   }
+}
+
+function categoryLabelFromKey(key: string): string {
+  switch ((key ?? "").toLowerCase()) {
+    case "tasks": return "Tasks";
+    case "reminders": return "Reminders";
+    case "ideas": return "Ideas";
+    case "followup":
+    case "follow_up":
+    case "follow-up": return "Follow-up";
+    case "journal": return "Journal";
+    default: return "General";
+  }
+}
+
+function escapeHtml(input: string): string {
+  return (input ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 ```
 

@@ -32,7 +32,6 @@ enum CaptureSource {
 
 enum AiProvider {
   auto,
-  gemini,
   groq,
   mistral,
   huggingface,

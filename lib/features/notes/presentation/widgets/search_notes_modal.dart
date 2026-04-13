@@ -74,7 +74,7 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
                             fontWeight: FontWeight.w600,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Search title, body, or category...',
+                            hintText: 'Search raw, cleaned, translated, or category...',
                             hintStyle: TextStyle(color: secondaryColor),
                             border: InputBorder.none,
                             isDense: true,
@@ -121,7 +121,7 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
                             borderRadius: BorderRadius.circular(14),
                             onTap: () {
                               Navigator.of(context).pop();
-                              context.push('/notes/{note.noteId}');
+                              context.push('/notes/${note.noteId}');
                             },
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(

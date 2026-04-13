@@ -13,6 +13,8 @@ import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/models/note.dart';
 
 class CaptureService {
+  static final Set<String> _inFlightDedupKeys = {};
+
   CaptureService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
@@ -63,10 +65,28 @@ class CaptureService {
   }) async {
     final trimmed = rawTranscript.trim();
     if (trimmed.isEmpty) return null;
+    final dedupKey = '${_auth?.currentUser?.uid ?? 'local'}::$trimmed';
+
+    if (_inFlightDedupKeys.contains(dedupKey)) {
+      debugPrint('[CaptureService] Duplicate capture suppressed (in-flight)');
+      return null;
+    }
+
+    _inFlightDedupKeys.add(dedupKey);
 
     try {
       final now = DateTime.now();
       final user = _auth?.currentUser;
+      if (user != null) {
+        final recent = await _isarNoteStore.findRecentByTranscriptAnySource(
+          uid: user.uid,
+          rawTranscript: trimmed,
+        );
+        if (recent != null) {
+          debugPrint('[CaptureService] Duplicate capture skipped: ${recent.noteId}');
+          return recent;
+        }
+      }
       final noteId = '${now.microsecondsSinceEpoch}_${Random().nextInt(1 << 20)}';
       final inferredCategory = categoryOverride ?? inferCategoryFromText(trimmed);
       final resolvedPriority = priorityOverride ?? NotePriority.medium;
@@ -109,6 +129,8 @@ class CaptureService {
       debugPrint('[CaptureService] ERROR during ingestRawCapture: $error');
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
+    } finally {
+      _inFlightDedupKeys.remove(dedupKey);
     }
   }
 

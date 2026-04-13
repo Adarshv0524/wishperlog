@@ -1087,11 +1087,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _buildAiStatusBadge(
                       _aiRouter.providerDescription(_aiRouter.activeProvider),
                       _aiRouter.isConfigured(_aiRouter.activeProvider),
-                      _aiRouter.activeProvider == AiProvider.gemini
-                          ? AppColors.tasks
-                          : _aiRouter.activeProvider == AiProvider.groq
-                              ? const Color(0xFFF97316)
-                              : AppColors.ideas,
+                      _aiRouter.activeProvider == AiProvider.groq
+                          ? const Color(0xFFF97316)
+                          : _aiRouter.activeProvider == AiProvider.mistral
+                              ? AppColors.ideas
+                              : AppColors.general,
                     ),
                     const SizedBox(height: 12),
                     _buildAiSelectionSummary(context),
@@ -1459,7 +1459,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final selectedModel = _aiRouter.selectedModelFor(provider);
     final configured = _aiRouter.isConfigured(provider);
     final keyLabel = switch (provider) {
-      AiProvider.gemini => 'GEMINI_API_KEY',
       AiProvider.groq => 'GROQ_API_KEY',
       AiProvider.mistral => 'MISTRAL_API_KEY',
       AiProvider.huggingface => 'HUGGINGFACE_API_KEY',

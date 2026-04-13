@@ -90,27 +90,50 @@ bool _hasPhrase(String text, List<String> phrases) {
   return false;
 }
 
+// ── Hindi (romanised/transliterated) keyword banks ────────────────────────
+const _hiFollowUp = [
+  'follow karo', 'follow up karo', 'puchna hai', 'reply karo',
+  'update lo', 'baat karo',
+];
+const _hiDateSignals = [
+  'kal', 'aaj', 'subah', 'shaam', 'raat ko', 'is hafte', 'agli baar',
+  'yaad rakhna', 'mujhe yaad dilana', 'reminder', 'deadline',
+];
+const _hiTaskSignals = [
+  'karna hai', 'karo', 'lena hai', 'bhejo', 'call karo', 'book karo',
+  'likhna hai', 'khareedna', 'dena hai', 'fix karo', 'batao',
+];
+const _hiIdeaSignals = [
+  'kya agar', 'ek idea', 'sochna chahiye', 'explore karo', 'shayad',
+];
+
+// ── Telugu (romanised) keyword banks ─────────────────────────────────────
+const _teFollowUp = [
+  'follow up cheyyali', 'chudali', 'update telusukovali',
+];
+const _teDateSignals = [
+  'repu', 'ee roju', 'ee vaaram', 'remind cheyyandi', 'gurtu pettukovali',
+];
+const _teTaskSignals = [
+  'cheyyali', 'pampali', 'call cheyyali', 'book cheyyali', 'fix cheyyali',
+];
+
 NoteCategory inferCategoryFromText(String raw) {
   final text = _normalizeInferenceText(raw);
   if (text.isEmpty) return NoteCategory.general;
 
+  // Follow-up detection (English + Hindi + Telugu)
   if (_hasPhrase(text, const [
-    'follow up',
-    'followup',
-    'check in',
-    'check with',
-    'ping',
-    'any update on',
-    'touch base',
-    'get back to',
+    'follow up', 'followup', 'check in', 'check with', 'ping',
+    'any update on', 'touch base', 'get back to',
+    ..._hiFollowUp, ..._teFollowUp,
   ])) {
     return NoteCategory.followUp;
   }
 
   final hasDateSignal = _hasPhrase(text, const [
-    'today',
-    'tomorrow',
-    'tonight',
+    'today', 'tomorrow', 'tonight',
+    ..._hiDateSignals, ..._teDateSignals,
     'next monday',
     'next tuesday',
     'next wednesday',
@@ -140,26 +163,16 @@ NoteCategory inferCategoryFromText(String raw) {
     r'^(call|buy|book|send|email|text|reply|fix|finish|review|update|draft|write|prepare|submit|pay|schedule|move|order|install|create|check|clean|plan|meet|join|ring)\b',
   ).hasMatch(text);
   final actionSignal = actionVerbAtStart || _hasPhrase(text, const [
-    'to do',
-    'todo',
-    'need to',
-    'must',
-    'should',
-    'have to',
-    'remember to',
+    'to do', 'todo', 'need to', 'must', 'should', 'have to', 'remember to',
+    ..._hiTaskSignals, ..._teTaskSignals,
   ]);
   if (actionSignal) {
     return NoteCategory.tasks;
   }
 
   if (_hasPhrase(text, const [
-    'idea',
-    'brainstorm',
-    'what if',
-    'could be',
-    'maybe',
-    'explore',
-    'consider',
+    'idea', 'brainstorm', 'what if', 'could be', 'maybe', 'explore', 'consider',
+    ..._hiIdeaSignals,
   ])) {
     return NoteCategory.ideas;
   }

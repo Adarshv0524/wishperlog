@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
-import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
+import 'package:wishperlog/features/ai/data/unified_ai_classifier.dart';
 import 'package:wishperlog/features/sync/data/message_state_service.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
@@ -108,6 +108,14 @@ class AiProcessingService {
     _inFlight.add(noteId);
     try {
       final note = await _isarNoteStore.getById(noteId);
+      // Guard: if the background handler already enriched the note
+      // (status = active, aiModel != ''), skip re-classification.
+      if (note != null &&
+          note.status != NoteStatus.pendingAi &&
+          note.aiModel.isNotEmpty) {
+        debugPrint('[AiProcessingService] Skipping already-active note: $noteId');
+        return;
+      }
       if (note == null) {
         debugPrint('[AiProcessingService] Note $noteId not found — skipping');
         return;
@@ -131,8 +139,8 @@ class AiProcessingService {
 
     // ── STEP 1: Classify ───────────────────────────────────────────────────────
     // Temporal context is auto-injected by AiClassifierRouter via
-    // GeminiNoteClassifier.buildSystemPrompt() — no extra work needed here.
-    final GeminiClassificationResult result;
+    // UnifiedAiClassifier.buildSystemPrompt() — no extra work needed here.
+    final UnifiedAiClassificationResult result;
     try {
       result = await _aiRouter.classify(note.rawTranscript);
     } catch (e) {
@@ -143,14 +151,16 @@ class AiProcessingService {
 
     // ── STEP 2: Build enriched note ────────────────────────────────────────────
     final enriched = note.copyWith(
-      title:         result.title,
-      cleanBody:     result.cleanBody,
-      category:      result.category,
-      priority:      result.priority,
-      extractedDate: result.extractedDate,
-      aiModel:       result.model,
-      status:        NoteStatus.active,
-      updatedAt:     DateTime.now(),
+      title:              result.title,
+      cleanBody:          result.cleanBody,
+      translatedContent:  result.translatedContent,
+      translatedTitle:    result.translatedTitle,
+      category:           result.category,
+      priority:           result.priority,
+      extractedDate:      result.extractedDate,
+      aiModel:            result.model,
+      status:             NoteStatus.active,
+      updatedAt:          DateTime.now(),
     );
 
     // ── STEP 3: Persist locally ────────────────────────────────────────────────
@@ -212,6 +222,8 @@ class AiProcessingService {
     'note_id':        note.noteId,
     'uid':            note.uid,
     'raw_transcript': note.rawTranscript,
+    'translated_content': note.translatedContent,
+    'translated_title': note.translatedTitle,
     'title':          note.title,
     'clean_body':     note.cleanBody,
     'category':       note.category.name,

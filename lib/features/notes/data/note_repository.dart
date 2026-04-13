@@ -64,6 +64,18 @@ class NoteRepository {
 
     final now = DateTime.now();
     final user = _auth?.currentUser;
+
+    if (user != null) {
+      final recent = await _isarNoteStore.findRecentByTranscriptAnySource(
+        uid: user.uid,
+        rawTranscript: text,
+      );
+      if (recent != null) {
+        debugPrint('[NoteRepository] Duplicate home save skipped: ${recent.noteId}');
+        return;
+      }
+    }
+
     final classification = await _aiRouter.classify(text);
     final status = classification.wasFallback
         ? NoteStatus.pendingAi
