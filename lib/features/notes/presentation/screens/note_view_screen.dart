@@ -666,12 +666,9 @@ class _InlineEditPanel extends StatelessWidget {
               decoration: _inputDecoration(context, label: 'Body', hint: 'Note details'),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
+            Row(
               children: [
-                SizedBox(
-                  width: 170,
+                Expanded(
                   child: DropdownButtonFormField<NoteCategory>(
                     initialValue: category,
                     decoration: _inputDecoration(context, label: 'Category', hint: 'Choose category'),
@@ -679,7 +676,10 @@ class _InlineEditPanel extends StatelessWidget {
                         .map(
                           (value) => DropdownMenuItem(
                             value: value,
-                            child: Text(categoryLabel(value)),
+                            child: Text(
+                              categoryLabel(value),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),
@@ -688,8 +688,8 @@ class _InlineEditPanel extends StatelessWidget {
                     },
                   ),
                 ),
-                SizedBox(
-                  width: 170,
+                const SizedBox(width: 10),
+                Expanded(
                   child: DropdownButtonFormField<NotePriority>(
                     initialValue: priority,
                     decoration: _inputDecoration(context, label: 'Priority', hint: 'Choose priority'),
@@ -697,7 +697,10 @@ class _InlineEditPanel extends StatelessWidget {
                         .map(
                           (value) => DropdownMenuItem(
                             value: value,
-                            child: Text(value.name.toUpperCase()),
+                            child: Text(
+                              value.name.toUpperCase(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),

@@ -129,13 +129,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      final doc = await _users.watchCurrentUserDocument().first;
-      final chatId = (doc?['telegram_chat_id'] ?? '').toString().trim();
-      if (mounted) {
-        setState(() {
-          _telegramChatId = chatId.isEmpty ? null : chatId;
-        });
-      }
+      _telegramChatIdSub?.cancel();
+      _telegramChatIdSub = TelegramService.instance.watchLinkedChatId().listen((chatId) {
+        if (mounted) {
+          setState(() {
+            _telegramChatId = chatId;
+          });
+        }
+      });
     } catch (e) {
       debugPrint('[Settings] Telegram hydrate error: $e');
     }

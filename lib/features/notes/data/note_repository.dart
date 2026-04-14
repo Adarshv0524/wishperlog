@@ -103,7 +103,7 @@ class NoteRepository {
     await _isarNoteStore.put(note);
 
     if (note.status == NoteStatus.active) {
-      final externalResult = await _externalSync.syncExternalForNote(note);
+      final externalResult = await _externalSync.syncSingleNote(note);
       if (externalResult.noteChanged) {
         await _isarNoteStore.put(externalResult.note);
         await _syncNoteToFirestore(externalResult.note);
@@ -167,6 +167,7 @@ class NoteRepository {
 
     await _isarNoteStore.put(updated);
     await _syncNoteToFirestore(updated);
+    unawaited(_pushExternalSync(updated));
   }
 
   Future<void> archive(String noteId) async {
@@ -180,6 +181,7 @@ class NoteRepository {
 
     await _isarNoteStore.put(updated);
     await _syncNoteToFirestore(updated);
+    unawaited(_pushExternalSync(updated));
   }
 
   Future<void> cyclePriority(String noteId) async {
@@ -223,6 +225,7 @@ class NoteRepository {
 
     await _isarNoteStore.put(updated);
     await _syncNoteToFirestore(updated);
+    unawaited(_pushExternalSync(updated));
   }
 
   Future<Note?> _findById(String noteId) async {
@@ -231,6 +234,18 @@ class NoteRepository {
 
   Future<int> _pendingAiCount() async {
     return _isarNoteStore.countPendingAi();
+  }
+
+  Future<void> _pushExternalSync(Note note) async {
+    try {
+      final r = await _externalSync.syncSingleNote(note);
+      if (r.noteChanged) {
+        await _isarNoteStore.put(r.note);
+        await _syncNoteToFirestore(r.note);
+      }
+    } catch (e) {
+      debugPrint('[NoteRepository] _pushExternalSync error: $e');
+    }
   }
 
   Future<void> _syncNoteToFirestore(Note note) async {

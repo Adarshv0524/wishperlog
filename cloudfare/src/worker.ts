@@ -290,12 +290,25 @@ function resolveChatId(userDoc: any, digestConfig: any): string | null {
 // Read digest times from user doc (canonical field)
 function resolveDigestTimes(userDoc: any): string[] {
   const f = userDoc?.fields ?? {};
-  const digestTimesField = f['digest_times']?.arrayValue?.values ?? [];
-  return digestTimesField
-    .map((v: any) => v?.stringValue ?? v?.integerValue ?? '')
-    .filter(Boolean)
-    .map((v: string | number) => String(v).trim())
-    .filter((v: string) => v.length > 0);
+
+  // Try array field (new format)
+  const digestTimesField = f['digest_times']?.arrayValue?.values;
+  if (digestTimesField && Array.isArray(digestTimesField) && digestTimesField.length > 0) {
+    return digestTimesField
+      .map((v: any) => v?.stringValue ?? v?.integerValue ?? '')
+      .filter(Boolean)
+      .map((v: string | number) => String(v).trim())
+      .filter((v: string) => v.length > 0);
+  }
+
+  // Fallback string field (legacy format)
+  const singleDigestTime = f['digest_time']?.stringValue;
+  if (singleDigestTime) {
+    const clean = String(singleDigestTime).trim();
+    if (clean.length > 0) return [clean];
+  }
+
+  return [];
 }
 
 async function runDigestCron(env: Env): Promise<void> {
@@ -450,13 +463,22 @@ async function buildLiveTelegramMessage(
 }
 
 async function fetchUserNotes(uid: string, token: string, env: Env): Promise<any[]> {
-  const notesSnap = await firestoreGet(
-    `users/${uid}/notes?pageSize=200`,
-    token,
-    env.FIREBASE_PROJECT_ID,
-  );
+  let allDocs: any[] = [];
+  let pageToken = '';
 
-  return ((notesSnap as any)?.documents ?? []) as any[];
+  for (let i = 0; i < 5; i++) { // Max 1000 notes
+    let url = `users/${uid}/notes?pageSize=200`;
+    if (pageToken) url += `&pageToken=${pageToken}`;
+
+    const snap = await firestoreGet(url, token, env.FIREBASE_PROJECT_ID);
+    const docs = ((snap as any)?.documents ?? []) as any[];
+    allDocs.push(...docs);
+
+    pageToken = (snap as any)?.nextPageToken ?? '';
+    if (!pageToken) break;
+  }
+
+  return allDocs;
 }
 
 async function fetchUserDoc(uid: string, token: string, env: Env): Promise<any | null> {
@@ -670,11 +692,11 @@ async function handleDigestCommand(
       String(chatId),
       [
         '<b>WishperLog commands</b>',
-        '<i>Use any of these:</i>',
+        '<i>Tap any link to filter your notes:</i>',
         '',
-        '<code>/summary</code>  <code>/top</code>  <code>/tasks</code>',
-        '<code>/reminders</code>  <code>/ideas</code>  <code>/followup</code>',
-        '<code>/journal</code>  <code>/general</code>',
+        '/summary  /top  /tasks',
+        '/reminders  /ideas  /followup',
+        '/journal  /general',
       ].join('\n'),
       env.TELEGRAM_BOT_TOKEN,
     );
@@ -931,16 +953,24 @@ interface NoteDoc {
 }
 
 function parseNoteDocs(docs: any[], _uid: string): NoteDoc[] {
-  return docs.map((doc) => {
-    const f = doc?.fields ?? {};
-    const str = (k: string) => f[k]?.stringValue ?? "";
-    return {
-      title: str("title"),
-      category: str("category"),
-      priority: str("priority"),
-      body: str("clean_body"),
-    };
-  });
+  return docs
+    .map((doc) => {
+      const f = doc?.fields ?? {};
+      const str = (k: string) => f[k]?.stringValue ?? "";
+      return {
+        title: str("title"),
+        category: str("category"),
+        priority: str("priority"),
+        body: str("clean_body"),
+        status: str("status"), // added status back
+      };
+    })
+    .filter((note) => {
+      // Default to "active" if missing. Reject archived and deleted.
+      const s = note.status.toLowerCase();
+      if (s === "deleted" || s === "archived") return false;
+      return true;
+    });
 }
 
 function buildDigest(
@@ -998,7 +1028,7 @@ function buildDigest(
     const priority = priorityLabel(n.priority);
     const titleText = escapeHtml(safeText(n.title) || "Untitled note");
 
-    lines.push(`\n${category} | <code>${priority}</code>`);
+    lines.push(`\n${category} | ${priority}`);
     lines.push(`<b>${titleText}</b>`);
 
     const body = safeText(n.body).slice(0, 500);
@@ -1007,10 +1037,12 @@ function buildDigest(
     }
   });
 
+  lines.push("\n━━━━━━━━━━━━━━━");
   if (notes.length > ranked.length) {
-    lines.push("\n━━━━━━━━━━━━━━━");
-    lines.push(`<i>+${notes.length - ranked.length} more. Use /summary to see all.</i>`);
+    lines.push(`<i>+${notes.length - ranked.length} more. Tap /summary to see all.</i>`);
   }
+
+  lines.push("<i>Quick links:</i> /tasks • /ideas • /followup");
 
   return lines.join("\n");
 }

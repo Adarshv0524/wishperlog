@@ -125,29 +125,58 @@ class ExternalSyncService {
     return SyncRunResult(processed: processed, updated: updated);
   }
 
-  /// Sync a single note's external entries (called after AI classification).
+  /// Sync a single note's external entries (called after AI classification or edit/delete).
   Future<SyncNoteExternalResult> syncSingleNote(Note note) async {
     final headers = await _authHeaders();
     if (headers == null) return SyncNoteExternalResult(note: note);
 
     final client   = HeaderClient(headers);
+    final tasksApi = gtasks.TasksApi(client);
+    final calApi   = gcal.CalendarApi(client);
     Note updated   = note;
     bool changed   = false;
 
     try {
-      // Google Tasks — for task-like categories.
-      if (_shouldSyncToTasks(note.category)) {
-        final r = await _upsertGoogleTask(gtasks.TasksApi(client), note);
-        if (r != null && r.noteId == note.noteId) {
-          updated = r; changed = true;
+      if (note.status == NoteStatus.deleted) {
+        // Immediate deletion cascade to Google APIs
+        if (note.gtaskId != null) {
+          final listId = await _getCachedTaskListId(tasksApi);
+          if (listId != null) {
+            try {
+              await tasksApi.tasks.delete(listId, note.gtaskId!);
+              updated = updated.copyWith(gtaskId: null, syncedAt: DateTime.now());
+              changed = true;
+              debugPrint('[ExternalSync] Deleted remote task ${note.gtaskId}');
+            } catch (e) {
+              debugPrint('[ExternalSync] Remote task delete error: $e');
+            }
+          }
         }
-      }
+        if (note.gcalEventId != null) {
+          try {
+            await calApi.events.delete(_calendarId, note.gcalEventId!);
+            updated = updated.copyWith(gcalEventId: null, syncedAt: DateTime.now());
+            changed = true;
+            debugPrint('[ExternalSync] Deleted remote cal event ${note.gcalEventId}');
+          } catch (e) {
+            debugPrint('[ExternalSync] Remote cal event delete error: $e');
+          }
+        }
+      } else {
+        // Google Tasks — for task-like categories.
+        if (_shouldSyncToTasks(note.category)) {
+          final r = await _upsertGoogleTask(tasksApi, note);
+          if (r != null && r.noteId == note.noteId) {
+            updated = r; changed = true;
+          }
+        }
 
-      // Google Calendar — only if there's a concrete date.
-      if (note.extractedDate != null) {
-        final r = await _upsertCalendarEvent(gcal.CalendarApi(client), updated);
-        if (r != null && r.noteId == updated.noteId) {
-          updated = r; changed = true;
+        // Google Calendar — only if there's a concrete date.
+        if (note.extractedDate != null) {
+          final r = await _upsertCalendarEvent(calApi, updated);
+          if (r != null && r.noteId == updated.noteId) {
+            updated = r; changed = true;
+          }
         }
       }
     } catch (e) {
@@ -169,41 +198,6 @@ class ExternalSyncService {
     } finally {
       client.close();
     }
-  }
-
-  /// Sync a specific note with external services (Google Tasks/Calendar).
-  Future<SyncNoteExternalResult> syncExternalForNote(Note note) async {
-    try {
-      final headers = await _authHeaders();
-      if (headers == null) {
-        throw Exception('Authentication headers are missing.');
-      }
-
-      // Example logic for syncing a note
-      if (note.status == NoteStatus.deleted) {
-        // Handle deletion logic
-        await _deleteRemoteEntry(note);
-        return SyncNoteExternalResult(note: note, noteChanged: true);
-      } else {
-        // Handle update or creation logic
-        final updatedNote = await _updateOrCreateRemoteEntry(note);
-        return SyncNoteExternalResult(note: updatedNote, noteChanged: true);
-      }
-    } catch (e) {
-      debugPrint('[ExternalSyncService] syncExternalForNote error: $e');
-      return SyncNoteExternalResult(note: note);
-    }
-  }
-
-  Future<void> _deleteRemoteEntry(Note note) async {
-    // Logic to delete a remote entry
-    debugPrint('Deleting remote entry for note: ${note.noteId}');
-  }
-
-  Future<Note> _updateOrCreateRemoteEntry(Note note) async {
-    // Logic to update or create a remote entry
-    debugPrint('Updating/Creating remote entry for note: ${note.noteId}');
-    return note;
   }
 
   // ── Google Tasks sync ─────────────────────────────────────────────────────

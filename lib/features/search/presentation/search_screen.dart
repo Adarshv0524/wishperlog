@@ -326,6 +326,7 @@ class _SearchScreenState extends State<SearchScreen>
                 padding: EdgeInsets.only(bottom: entry.key == hits.length - 1 ? 0 : 10),
                 child: _SearchResultCard(
                   hit: entry.value,
+                  query: _query,
                   onTap: () {
                     HapticFeedback.selectionClick();
                     context.pop();
@@ -342,9 +343,10 @@ class _SearchScreenState extends State<SearchScreen>
 }
 
 class _SearchResultCard extends StatelessWidget {
-  const _SearchResultCard({required this.hit, required this.onTap});
+  const _SearchResultCard({required this.hit, required this.query, required this.onTap});
 
   final SearchHit hit;
+  final String query;
   final VoidCallback onTap;
 
   Color _priorityColor(NotePriority p) => switch (p) {
@@ -391,14 +393,21 @@ class _SearchResultCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          note.title.isEmpty ? 'Untitled' : note.title,
+                        child: _HighlightedText(
+                          text: note.title.isEmpty ? 'Untitled' : note.title,
+                          query: query,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                          baseStyle: TextStyle(
                             color: context.textPri,
                             fontSize: 15.5,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.25,
+                          ),
+                          highlightStyle: TextStyle(
+                            color: context.textPri,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w900,
                             letterSpacing: -0.25,
                           ),
                         ),
@@ -416,13 +425,20 @@ class _SearchResultCard extends StatelessWidget {
                   ),
                   if (hit.snippet.isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    Text(
-                      hit.snippet,
+                    _HighlightedText(
+                      text: hit.snippet,
+                      query: query,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      baseStyle: TextStyle(
                         color: context.textSec,
                         fontSize: 13,
+                        height: 1.45,
+                      ),
+                      highlightStyle: TextStyle(
+                        color: context.textPri,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
                         height: 1.45,
                       ),
                     ),
@@ -624,6 +640,87 @@ class _MiniActionPill extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HighlightedText extends StatelessWidget {
+  const _HighlightedText({
+    required this.text,
+    required this.query,
+    required this.baseStyle,
+    required this.highlightStyle,
+    this.maxLines,
+    this.overflow,
+  });
+
+  final String text;
+  final String query;
+  final TextStyle baseStyle;
+  final TextStyle highlightStyle;
+  final int? maxLines;
+  final TextOverflow? overflow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (query.trim().isEmpty || text.isEmpty) {
+      return Text(
+        text,
+        style: baseStyle,
+        maxLines: maxLines,
+        overflow: overflow,
+      );
+    }
+
+    final terms = query.trim().toLowerCase().split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+    if (terms.isEmpty) {
+      return Text(
+        text,
+        style: baseStyle,
+        maxLines: maxLines,
+        overflow: overflow,
+      );
+    }
+
+    // Build regex pattern matching any of the query terms (ignore case)
+    final pattern = terms.map(RegExp.escape).join('|');
+    final regex = RegExp(pattern, caseSensitive: false);
+    final matches = regex.allMatches(text).toList();
+
+    if (matches.isEmpty) {
+      return Text(
+        text,
+        style: baseStyle,
+        maxLines: maxLines,
+        overflow: overflow,
+      );
+    }
+
+    final spans = <TextSpan>[];
+    int currentPos = 0;
+
+    for (final match in matches) {
+      if (match.start > currentPos) {
+        spans.add(TextSpan(text: text.substring(currentPos, match.start)));
+      }
+      spans.add(TextSpan(
+        text: text.substring(match.start, match.end),
+        style: highlightStyle,
+      ));
+      currentPos = match.end;
+    }
+
+    if (currentPos < text.length) {
+      spans.add(TextSpan(text: text.substring(currentPos)));
+    }
+
+    return RichText(
+      maxLines: maxLines,
+      overflow: overflow ?? TextOverflow.clip,
+      text: TextSpan(
+        style: baseStyle,
+        children: spans,
       ),
     );
   }

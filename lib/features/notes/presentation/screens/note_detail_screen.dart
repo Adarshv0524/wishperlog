@@ -387,6 +387,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                                           child: Text(
                                             categoryLabel(category),
                                             style: _dropdownTextStyle(context),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       )
@@ -418,6 +419,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                                           child: Text(
                                             priority.name.toUpperCase(),
                                             style: _dropdownTextStyle(context),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       )

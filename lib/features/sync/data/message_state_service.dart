@@ -377,18 +377,20 @@ String _buildDigestMessage({
     final titleText = _escapeHtml(_ascii(note.title.isEmpty ? 'Untitled' : note.title));
     final category = _categoryLabel(note.category.name);
     final priority = _priorityLabel(note.priority.name);
-    buffer.writeln('• <b>$category</b> <code>$priority</code> $titleText');
+    buffer.writeln('\n$category | $priority');
+    buffer.writeln('<b>$titleText</b>');
 
     final body = _ascii(note.cleanBody);
     if (body.isNotEmpty) {
-      buffer.writeln('  <i>${_escapeHtml(body.length > 110 ? '${body.substring(0, 110)}…' : body)}</i>');
+      buffer.writeln('<i>${_escapeHtml(body.length > 500 ? '${body.substring(0, 500)}…' : body)}</i>');
     }
   }
 
+  buffer.writeln('\n━━━━━━━━━━━━━━━');
   if (notes.length > active.length) {
-    buffer.writeln();
-    buffer.writeln('<i>+${notes.length - active.length} more</i>');
+    buffer.writeln('<i>+${notes.length - active.length} more. Tap /summary to see all.</i>');
   }
+  buffer.writeln('<i>Quick links:</i> /tasks • /ideas • /followup');
 
   return buffer.toString().trim();
 }

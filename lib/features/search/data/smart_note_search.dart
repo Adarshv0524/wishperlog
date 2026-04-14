@@ -146,10 +146,13 @@ class SmartNoteSearch {
         }
       }
 
-      // Exact phrase bonus
-      if (terms.length > 1) {
+      // Exact phrase / exact substring bonus
+      final rawQueryLower = rawQuery.toLowerCase();
+      if (rawQueryLower.length > 2 && lowerField.contains(rawQueryLower)) {
+        fieldScore += 5.0 * fieldWeight;
+      } else if (terms.length > 1) {
         final phrase = terms.join(' ');
-        if (lowerField.contains(phrase)) {
+        if (lowerField.contains(phrase) || lowerField.replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), ' ').contains(phrase)) {
           fieldScore += 1.5 * fieldWeight;
         }
       }
@@ -160,11 +163,31 @@ class SmartNoteSearch {
       if (weighted > bestFieldScore) {
         bestFieldScore = weighted;
         bestField = fieldName;
-        snippet = _extractSnippet(fieldText, terms.first);
+        // if raw substring exists, use it for snippet. otherwise use best term
+        if (rawQueryLower.length > 2 && lowerField.contains(rawQueryLower)) {
+          snippet = _extractSnippet(fieldText, rawQueryLower);
+        } else {
+          snippet = _extractSnippet(fieldText, terms.first);
+        }
       }
     }
 
-    if (total == 0) return SearchHit(note: note, score: 0);
+    // Ensure we can still search for raw substrings even if TF-IDF yields 0 (e.g. stop words)
+    if (total == 0) {
+      final rawQueryLower = rawQuery.toLowerCase();
+      if (rawQueryLower.length > 2) {
+        // Force fallback check for literal substring presence
+        for (final entry in fields.entries) {
+          if (entry.value.$2.toLowerCase().contains(rawQueryLower)) {
+            total += 1.0 * entry.value.$1;
+            bestField = entry.key;
+            snippet = _extractSnippet(entry.value.$2, rawQueryLower);
+            break;
+          }
+        }
+      }
+      if (total == 0) return SearchHit(note: note, score: 0);
+    }
 
     // Recency decay: score × e^(-λ·days), half-life = 30 days
     const halfLifeDays = 30.0;
@@ -173,9 +196,12 @@ class SmartNoteSearch {
       -(math.log(2) / halfLifeDays) * ageDays.clamp(0, 365),
     );
 
-    // Small boost if ALL terms matched
-    final allTermsCovered = terms.every((t) => _noteAllText(note).contains(t));
-    if (allTermsCovered) total *= 1.25;
+    // Small boost if ALL terms matched OR raw substring matched
+    final noteAllLower = _noteAllText(note);
+    final allTermsCovered = terms.every((t) => noteAllLower.contains(t));
+    if (allTermsCovered || (rawQuery.length > 2 && noteAllLower.contains(rawQuery.toLowerCase()))) {
+      total *= 1.25;
+    }
 
     final finalScore = total * (0.5 + 0.5 * recencyMultiplier);
     return SearchHit(

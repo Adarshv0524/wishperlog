@@ -73,13 +73,22 @@ class FirestoreNoteSyncService {
           (snapshot) async {
             try {
               final notes = snapshot.docs
-                  .map(
-                    (doc) => Note.fromFirestoreJson(
-                      doc.data(),
-                      uid: uid,
-                      noteId: doc.id,
-                    ),
-                  )
+                  .map((doc) {
+                    try {
+                      return Note.fromFirestoreJson(
+                        doc.data(),
+                        uid: uid,
+                        noteId: doc.id,
+                      );
+                    } catch (e, st) {
+                      debugPrint(
+                        '[FirestoreNoteSyncService] Error parsing note ${doc.id}: $e',
+                      );
+                      debugPrintStack(stackTrace: st);
+                      return null;
+                    }
+                  })
+                  .whereType<Note>()
                   .toList();
               await _isarNoteStore.putAll(notes);
             } catch (e, st) {
