@@ -198,14 +198,39 @@ class TelegramService {
   Future<void> disconnectTelegram() async {
     _lastLinkToken = null;
 
+    // Wipe all Telegram config from the root user doc, including any
+    // residual telegram_* fields written by the old permission-denied fallback.
     await _userDoc.set({
-      'telegram_chat_id': FieldValue.delete(),
-      'telegram_link_token': FieldValue.delete(),
-      'telegram_link_token_created_at': FieldValue.delete(),
-      'telegram_link_pin': FieldValue.delete(),
-      'telegram_link_pin_created_at': FieldValue.delete(),
-      'message_state': FieldValue.delete(),
+      'telegram_chat_id'               : FieldValue.delete(),
+      'telegram_link_token'            : FieldValue.delete(),
+      'telegram_link_token_created_at' : FieldValue.delete(),
+      'telegram_link_pin'              : FieldValue.delete(),
+      'telegram_link_pin_created_at'   : FieldValue.delete(),
+      'message_state'                  : FieldValue.delete(),
+      // Legacy root-level telegram_* fields (from permission-denied fallback):
+      'telegram_digest'                : FieldValue.delete(),
+      'telegram_summary'               : FieldValue.delete(),
+      'telegram_top'                   : FieldValue.delete(),
+      'telegram_tasks'                 : FieldValue.delete(),
+      'telegram_reminders'             : FieldValue.delete(),
+      'telegram_ideas'                 : FieldValue.delete(),
+      'telegram_followup'              : FieldValue.delete(),
+      'telegram_journal'               : FieldValue.delete(),
+      'telegram_general'               : FieldValue.delete(),
     }, SetOptions(merge: true));
+
+    // Delete the digest subcollection docs (best-effort, non-fatal).
+    try {
+      final uid = _uid;
+      await _firestore
+          .collection('users').doc(uid)
+          .collection('digest').doc('latest')
+          .delete();
+      await _firestore
+          .collection('users').doc(uid)
+          .collection('digest').doc('config')
+          .delete();
+    } catch (_) {}
   }
 
   // ── Digest Collection API ───────────────────────────────────────────────────

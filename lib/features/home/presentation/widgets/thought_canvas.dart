@@ -22,6 +22,8 @@ class ThoughtCanvas extends StatelessWidget {
     this.reminderActive = false,
     this.tagLabel,
     this.reminderLabel,
+    this.languageCode = 'en-US',
+    this.onLanguageSelect,
     super.key,
   });
 
@@ -40,7 +42,8 @@ class ThoughtCanvas extends StatelessWidget {
   final bool reminderActive;
   final String? tagLabel;
   final String? reminderLabel;
-
+  final String languageCode;
+  final VoidCallback? onLanguageSelect;
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -204,6 +207,17 @@ class ThoughtCanvas extends StatelessWidget {
                           onLongPress: onReminderLongPress,
                         ),
                         const Spacer(),
+                        // Language selector (tap to cycle: en-US / hi-IN / te-IN)
+                        if (onLanguageSelect != null)
+                          _BarBtn(
+                            icon: Icons.language_rounded,
+                            color: languageCode != 'en-US'
+                                ? AppColors.tasks
+                                : context.textSec,
+                            active: languageCode != 'en-US',
+                            onTap: () => onLanguageSelect?.call(),
+                          ),
+                        const SizedBox(width: 4),
                         // Mic (long-press to dictate)
                         GestureDetector(
                           onLongPressStart: (_) => onMicPressStart(),

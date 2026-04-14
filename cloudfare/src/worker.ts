@@ -29,6 +29,8 @@ interface Env {
   FIREBASE_CLIENT_EMAIL: string;
   FIREBASE_PRIVATE_KEY: string;
   TRIGGER_SECRET: string;
+  GROQ_API_KEY?: string;
+  CEREBRAS_API_KEY?: string;
 }
 
 type KVNamespace = {
@@ -38,21 +40,24 @@ type KVNamespace = {
 
 type ScheduledEvent = unknown;
 
-type ExecutionContext = unknown;
+interface ExecutionContext {
+  waitUntil(promise: Promise<unknown>): void;
+  passThroughOnException(): void;
+}
 
 // ── JWT / Auth ────────────────────────────────────────────────────────────────
 
 async function getFirebaseToken(env: Env): Promise<string> {
   const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
-  const now        = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
 
-  const header  = { alg: "RS256", typ: "JWT" };
+  const header = { alg: "RS256", typ: "JWT" };
   const payload = {
-    iss  : env.FIREBASE_CLIENT_EMAIL,
-    sub  : env.FIREBASE_CLIENT_EMAIL,
-    aud  : "https://oauth2.googleapis.com/token",
-    iat  : now,
-    exp  : now + 3600,
+    iss: env.FIREBASE_CLIENT_EMAIL,
+    sub: env.FIREBASE_CLIENT_EMAIL,
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
     scope: "https://www.googleapis.com/auth/datastore",
   };
 
@@ -86,9 +91,9 @@ async function getFirebaseToken(env: Env): Promise<string> {
   const jwt = `${unsigned}.${sigB64}`;
 
   const resp = await fetch("https://oauth2.googleapis.com/token", {
-    method : "POST",
+    method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body   : `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
   });
 
   const data = (await resp.json()) as { access_token?: string; error?: string };
@@ -111,6 +116,33 @@ function pemToBuffer(pem: string): ArrayBuffer {
 
 // ── Firestore REST helpers ────────────────────────────────────────────────────
 
+async function listAllUsers(
+  token: string,
+  projectId: string,
+): Promise<any[]> {
+  const allDocs: any[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const qs = pageToken
+      ? `pageSize=300&pageToken=${encodeURIComponent(pageToken)}`
+      : 'pageSize=300';
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?${qs}`;
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`listAllUsers failed: ${resp.status}`);
+    const body = (await resp.json()) as {
+      documents?: any[];
+      nextPageToken?: string;
+    };
+    allDocs.push(...(body.documents ?? []));
+    pageToken = body.nextPageToken;
+  } while (pageToken);
+
+  return allDocs;
+}
+
 async function firestoreGet(
   path: string,
   token: string,
@@ -132,10 +164,10 @@ async function firestorePost(
 ): Promise<unknown> {
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
   const resp = await fetch(url, {
-    method : "POST",
+    method: "POST",
     headers: {
-      Authorization  : `Bearer ${token}`,
-      "Content-Type" : "application/json",
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
   });
@@ -159,9 +191,9 @@ async function firestorePatch(
       .join("&")}`;
 
   const resp = await fetch(url, {
-    method : "PATCH",
+    method: "PATCH",
     headers: {
-      Authorization : `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ fields }),
@@ -178,10 +210,10 @@ function extractField(doc: any, field: string): unknown {
   const f = doc?.fields?.[field];
   if (!f) return undefined;
   return (
-    f.stringValue  ??
+    f.stringValue ??
     f.integerValue ??
     f.booleanValue ??
-    f.doubleValue  ??
+    f.doubleValue ??
     undefined
   );
 }
@@ -201,15 +233,20 @@ async function sendTelegramMessage(
   text: string,
   botToken: string,
 ): Promise<void> {
+  const truncatedText = text.length > 4000
+    ? text.slice(0, 4000) + '\n\n<i>... (message truncated)</i>'
+    : text;
+
   const resp = await fetch(
     `https://api.telegram.org/bot${botToken}/sendMessage`,
     {
-      method : "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body   : JSON.stringify({
-        chat_id   : chatId,
-        text,
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: truncatedText,
         parse_mode: "HTML",
+        disable_web_page_preview: true,
       }),
     },
   );
@@ -241,12 +278,12 @@ async function readDigestLatest(
 
 // Try digest/config first (v3), fallback to user root doc (v2)
 function resolveChatId(userDoc: any, digestConfig: any): string | null {
-  const f   = userDoc?.fields ?? {};
-  const df  = digestConfig?.fields ?? {};
+  const f = userDoc?.fields ?? {};
+  const df = digestConfig?.fields ?? {};
   const raw = df['telegram_chat_id']?.stringValue
-           ?? f['telegram_chat_id']?.stringValue
-           ?? f['chat_id']?.stringValue
-           ?? null;
+    ?? f['telegram_chat_id']?.stringValue
+    ?? f['chat_id']?.stringValue
+    ?? null;
   return raw ? String(raw).trim() : null;
 }
 
@@ -262,10 +299,10 @@ function resolveDigestTimes(userDoc: any): string[] {
 }
 
 async function runDigestCron(env: Env): Promise<void> {
-  const nowUtc    = new Date();
-  const slotKey   = toSlotKey(nowUtc);
-  const dateKey   = toDateKey(nowUtc);
-  const token     = await getFirebaseToken(env);
+  const nowUtc = new Date();
+  const slotKey = toSlotKey(nowUtc);
+  const dateKey = toDateKey(nowUtc);
+  const token = await getFirebaseToken(env);
 
   console.log(`[Cron] Slot ${slotKey} (${dateKey}) — scanning users`);
 
@@ -275,10 +312,10 @@ async function runDigestCron(env: Env): Promise<void> {
   let fired = 0;
 
   for (const doc of users) {
-    const uid  = extractUidFromDocName(doc?.name ?? '');
+    const uid = extractUidFromDocName(doc?.name ?? '');
     if (!uid) continue;
 
-    const f    = doc?.fields ?? {};
+    const f = doc?.fields ?? {};
     const name = (f['display_name']?.stringValue ?? '').trim();
 
     // Resolve digest times and chat_id ─────────────────────────────────────
@@ -287,8 +324,8 @@ async function runDigestCron(env: Env): Promise<void> {
 
     // Compute user-local slot using timezone_offset_minutes
     const tzOffsetMin = Number(f['timezone_offset_minutes']?.integerValue ?? 0);
-    const localMs  = nowUtc.getTime() + tzOffsetMin * 60_000;
-    const localDt  = new Date(localMs);
+    const localMs = nowUtc.getTime() + tzOffsetMin * 60_000;
+    const localDt = new Date(localMs);
     const localSlot = toSlotKey(localDt);
     const localDate = toDateKey(localDt);
 
@@ -296,7 +333,7 @@ async function runDigestCron(env: Env): Promise<void> {
 
     // Dedup: already sent today? ───────────────────────────────────────────
     const dedupKey = `${localDate}:${localSlot}:${uid}`;
-    const already  = await env.DIGEST_SENT.get(dedupKey);
+    const already = await env.DIGEST_SENT.get(dedupKey);
     if (already) {
       console.log(`[Cron] Already sent for ${uid} at ${localSlot} — skip`);
       continue;
@@ -324,8 +361,8 @@ async function runDigestCron(env: Env): Promise<void> {
     if (digestLatestDoc) {
       const lf = digestLatestDoc?.fields ?? {};
       const preRendered = lf['telegram']?.stringValue
-                       ?? lf['telegram_digest']?.stringValue
-                       ?? '';
+        ?? lf['telegram_digest']?.stringValue
+        ?? '';
       if (preRendered.trim().length > 0) {
         message = preRendered;
         console.log(`[Cron] Using pre-rendered digest/latest for ${uid}`);
@@ -344,7 +381,7 @@ async function runDigestCron(env: Env): Promise<void> {
         ((notesSnap as any)?.documents ?? []) as any[],
         uid,
       );
-      message = buildDigest(notes, name, 'Daily Digest');
+      message = buildDigest(notes, name, 'Daily Digest', 'cron', notes.length);
     }
 
     // Send ─────────────────────────────────────────────────────────────────
@@ -373,15 +410,15 @@ async function writeDigestHistory(
   env: Env,
 ): Promise<void> {
   try {
-    const ts    = Date.now();
+    const ts = Date.now();
     const docId = `history_${ts}`;
-    const path  = `users/${uid}/digest/${docId}`;
+    const path = `users/${uid}/digest/${docId}`;
 
     const fields = {
-      command         : { stringValue: command },
+      command: { stringValue: command },
       response_heading: { stringValue: heading },
-      note_count      : { integerValue: String(noteCount) },
-      queried_at      : { timestampValue: new Date().toISOString() },
+      note_count: { integerValue: String(noteCount) },
+      queried_at: { timestampValue: new Date().toISOString() },
     };
 
     await firestorePatch(path, fields, token, env.FIREBASE_PROJECT_ID);
@@ -398,13 +435,18 @@ async function buildLiveTelegramMessage(
   uid: string,
   token: string,
   env: Env,
+  cmd: string = 'summary',
 ): Promise<string> {
   const notes = await fetchUserNotes(uid, token, env);
   const userDoc = await fetchUserDoc(uid, token, env);
   const f = userDoc?.fields ?? {};
   const displayName = (f['display_name']?.stringValue ?? '').trim();
   const noteDocs = parseNoteDocs(notes, uid);
-  return buildDigest(noteDocs, displayName, '📋 Your Notes Summary');
+
+  const heading = pickHeading(cmd);
+  const filteredNotes = pickNotesForCommand(noteDocs, cmd);
+
+  return buildDigest(filteredNotes, displayName, heading, cmd, noteDocs.length);
 }
 
 async function fetchUserNotes(uid: string, token: string, env: Env): Promise<any[]> {
@@ -438,8 +480,8 @@ async function handleWebhook(req: Request, env: Env): Promise<Response> {
   }
 
   const message = body?.message;
-  const chatId  = message?.chat?.id;
-  const text    = (message?.text ?? "").trim();
+  const chatId = message?.chat?.id;
+  const text = (message?.text ?? "").trim();
 
   if (!chatId || !text.startsWith("/")) {
     return new Response("ok");
@@ -449,8 +491,8 @@ async function handleWebhook(req: Request, env: Env): Promise<Response> {
 
   // ── Handle /start <link_token> — link the user's account ──────────────────
   if (text.startsWith("/start")) {
-    const parts      = text.split(/\s+/);
-    const linkToken  = parts[1]?.trim() ?? "";
+    const parts = text.split(/\s+/);
+    const linkToken = parts[1]?.trim() ?? "";
 
     if (linkToken) {
       await handleStartWithToken(chatId, linkToken, token, env);
@@ -477,22 +519,6 @@ async function handleWebhook(req: Request, env: Env): Promise<Response> {
 
   // ── Handle digest commands ─────────────────────────────────────────────────
   const cmd = text.replace(/^\//, "").split("@")[0].toLowerCase();
-  if (cmd === "summary" || cmd === "top") {
-    // Always fetch live notes from Firestore for freshest data.
-    try {
-      const uid = await resolveTelegramUserId(String(chatId), token, env);
-      const liveMessage = await buildLiveTelegramMessage(uid, token, env);
-      await sendTelegramMessage(String(chatId), liveMessage, env.TELEGRAM_BOT_TOKEN);
-    } catch (e) {
-      console.error(`[Webhook] Failed to build live digest for ${chatId}:`, e);
-      await sendTelegramMessage(
-        String(chatId),
-        '⚠️ Could not fetch your notes right now. Try again shortly.',
-        env.TELEGRAM_BOT_TOKEN,
-      );
-    }
-    return new Response("ok");
-  }
 
   await handleDigestCommand(chatId, cmd, token, env);
 
@@ -550,7 +576,7 @@ async function handleStartWithToken(
     return;
   }
 
-  const uid         = userDoc.name?.split("/").pop() as string;
+  const uid = userDoc.name?.split("/").pop() as string;
   const displayName = (extractField(userDoc, "display_name") as string) ?? "there";
 
   // Write chat_id to both the user root doc and the digest/config doc.
@@ -572,8 +598,8 @@ async function handleStartWithToken(
     `users/${uid}/digest/config`,
     {
       telegram_chat_id: { stringValue: chatIdStr },
-      link_method     : { stringValue: "auto_deeplink" },
-      linked_at       : { timestampValue: new Date().toISOString() },
+      link_method: { stringValue: "auto_deeplink" },
+      linked_at: { timestampValue: new Date().toISOString() },
     },
     token,
     env.FIREBASE_PROJECT_ID,
@@ -584,7 +610,7 @@ async function handleStartWithToken(
     [
       '✅ <b>WishperLog connected</b>',
       '',
-      `Hello <b>${escapeHtml(asciiOnly(displayName))}</b>!`,
+      `Hello <b>${escapeHtml(safeText(displayName))}</b>!`,
       'Your digests are now linked and ready.',
       '',
       '<b>Quick commands</b>',
@@ -604,18 +630,18 @@ async function findLinkedUserDocByValue(
 ): Promise<any | null> {
   for (const fieldPath of fieldPaths) {
     const queryResp = await fetch(queryUrl, {
-      method : "POST",
+      method: "POST",
       headers: {
-        Authorization : `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         structuredQuery: {
-          from : [{ collectionId: "users" }],
+          from: [{ collectionId: "users" }],
           where: {
             fieldFilter: {
               field: { fieldPath },
-              op   : "EQUAL",
+              op: "EQUAL",
               value: { stringValue: linkToken },
             },
           },
@@ -639,40 +665,6 @@ async function handleDigestCommand(
   token: string,
   env: Env,
 ): Promise<void> {
-  const queryUrl =
-    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
-
-  const configDoc =
-    await findLinkedDigestConfigDoc(queryUrl, token, String(chatId), env);
-
-  if (!configDoc) {
-    await sendTelegramMessage(
-      String(chatId),
-      [
-        '<b>Telegram is not linked yet.</b>',
-        '',
-        'Open WishperLog → Telegram and connect again.',
-      ].join('\n'),
-      env.TELEGRAM_BOT_TOKEN,
-    );
-    return;
-  }
-
-  const uid = extractUidFromDocName(configDoc.name ?? "");
-  if (!uid) {
-    await sendTelegramMessage(
-      String(chatId),
-      [
-        '<b>Telegram is linked, but the user record could not be resolved.</b>',
-        '',
-        'Open WishperLog → Settings → Telegram and reconnect.',
-      ].join('\n'),
-      env.TELEGRAM_BOT_TOKEN,
-    );
-    return;
-  }
-  const name      = (extractField(configDoc, "display_name") as string) ?? "there";
-
   if (!isSupportedTelegramCommand(cmd)) {
     await sendTelegramMessage(
       String(chatId),
@@ -689,84 +681,49 @@ async function handleDigestCommand(
     return;
   }
 
-  let message = "";
-  try {
-    message = await loadCachedTelegramMessage(uid, configDoc, cmd, token, env);
-  } catch (e) {
-    console.warn(`[Cmd] Failed to read cached message for ${uid}: ${e}`);
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const configDoc =
+    await findLinkedDigestConfigDoc(queryUrl, token, String(chatId), env);
+
+  let uid = "";
+  if (configDoc) {
+    uid = extractUidFromDocName(configDoc.name ?? "") ?? "";
   }
 
-  const heading = pickHeading(cmd);
-
-  if (!message) {
-    const infoDoc = await loadDigestInfoDoc(uid, token, env);
-    const notes =
-      extractDigestNotes(infoDoc).length > 0
-        ? extractDigestNotes(infoDoc)
-        : parseNoteDocs(
-            ((await firestoreGet(
-              `users/${uid}/notes?pageSize=200`,
-              token,
-              env.FIREBASE_PROJECT_ID,
-            )) as any)?.documents ?? [],
-            uid,
-          );
-    const sentNotes = pickNotesForCommand(notes, cmd);
-    message = buildDigest(sentNotes, name, heading);
-    await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
-    await writeDigestHistory(uid, cmd, heading, sentNotes.length, token, env);
+  if (!uid) {
+    await sendTelegramMessage(
+      String(chatId),
+      [
+        '<b>Telegram is not linked, or user record missing.</b>',
+        '',
+        'Open WishperLog → Settings → Telegram and connect again.',
+      ].join('\n'),
+      env.TELEGRAM_BOT_TOKEN,
+    );
     return;
   }
 
-  await sendTelegramMessage(
-    String(chatId),
-    message,
-    env.TELEGRAM_BOT_TOKEN,
-  );
-
-  // Log to history
-  await writeDigestHistory(uid, cmd, heading, 0, token, env);
-}
-
-function extractMessageState(doc: any): Record<string, string> {
-  const fields = doc?.fields?.message_state?.mapValue?.fields ?? {};
-  const output: Record<string, string> = {};
-  for (const [key, value] of Object.entries(fields)) {
-    const fieldValue = value as any;
-    const raw = fieldValue?.stringValue;
-    if (typeof raw === "string" && raw.trim()) {
-      output[key] = raw;
-    }
-  }
-  return output;
-}
-
-async function loadCachedTelegramMessage(
-  uid: string,
-  configDoc: any,
-  cmd: string,
-  token: string,
-  env: Env,
-): Promise<string> {
-  const infoDoc = await loadDigestInfoDoc(uid, token, env);
-  const configState = {
-    ...extractMessageState(configDoc),
-    ...extractMessageState(infoDoc),
-  };
-  const fromConfig = pickTelegramMessage(configState, cmd);
-  if (fromConfig) return fromConfig;
-
   try {
-    const userSnap = await firestoreGet(
-      `users/${uid}`,
-      token,
-      env.FIREBASE_PROJECT_ID,
+    const liveMessage = await buildLiveTelegramMessage(uid, token, env, cmd);
+    await sendTelegramMessage(String(chatId), liveMessage, env.TELEGRAM_BOT_TOKEN);
+
+    // Log to history
+    const heading = pickHeading(cmd);
+    await writeDigestHistory(uid, cmd, heading, 0, token, env);
+  } catch (e) {
+    console.warn(`[Cmd] Failed to handle command ${cmd} for ${uid}: ${e}`);
+    await sendTelegramMessage(
+      String(chatId),
+      '⚠️ Could not fetch your notes right now. Try again shortly.',
+      env.TELEGRAM_BOT_TOKEN,
     );
-    return pickTelegramMessage(extractMessageState(userSnap as any), cmd);
-  } catch {
-    return "";
   }
 }
+
+
+
 
 async function loadDigestInfoDoc(uid: string, token: string, env: Env): Promise<any | null> {
   try {
@@ -936,9 +893,9 @@ async function findLinkedDigestConfigDoc(
 
   for (const structuredQuery of candidates) {
     const queryResp = await fetch(queryUrl, {
-      method : "POST",
+      method: "POST",
       headers: {
-        Authorization : `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ structuredQuery }),
@@ -967,34 +924,40 @@ function extractUidFromDocName(name: string): string | null {
 // ── Note parsing ──────────────────────────────────────────────────────────────
 
 interface NoteDoc {
-  title   : string;
+  title: string;
   category: string;
   priority: string;
-  body    : string;
+  body: string;
 }
 
 function parseNoteDocs(docs: any[], _uid: string): NoteDoc[] {
   return docs.map((doc) => {
-    const f   = doc?.fields ?? {};
+    const f = doc?.fields ?? {};
     const str = (k: string) => f[k]?.stringValue ?? "";
     return {
-      title   : str("title"),
+      title: str("title"),
       category: str("category"),
       priority: str("priority"),
-      body    : str("clean_body"),
+      body: str("clean_body"),
     };
   });
 }
 
-function buildDigest(notes: NoteDoc[], name: string, heading: string): string {
+function buildDigest(
+  notes: NoteDoc[],
+  name: string,
+  heading: string,
+  cmd: string,
+  totalNotesFilter: number,
+): string {
   const ranked = [...notes]
     .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
-    .slice(0, 5);
+    .slice(0, 10);
 
   const title = `<b>${escapeHtml(heading)}</b>`;
-  const greeting = asciiOnly(name)
-    ? `Hello <b>${escapeHtml(asciiOnly(name))}</b>`
-    : 'Hello';
+  const greeting = safeText(name)
+    ? `Hello <b>${escapeHtml(safeText(name))}</b>!`
+    : 'Hello!';
 
   if (ranked.length === 0) {
     return [
@@ -1002,15 +965,24 @@ function buildDigest(notes: NoteDoc[], name: string, heading: string): string {
       title,
       `<i>${greeting}</i>`,
       '',
-      '<i>No active notes right now. You are all caught up.</i>',
+      '<i>No active notes right now. You are all caught up. ✨</i>',
     ].join('\n');
   }
 
-  const stats = [
-    `${notes.length} note${notes.length === 1 ? "" : "s"}`,
-    `${notes.filter((n) => n.priority === "high").length} high`,
-    `${notes.filter((n) => n.category === "tasks").length} tasks`,
-  ].join(" · ");
+  let stats = '';
+  if (cmd === 'summary' || cmd === 'all') {
+    stats = [
+      `${totalNotesFilter} note${totalNotesFilter === 1 ? "" : "s"}`,
+      `${notes.filter((n) => n.priority === "high").length} 🔴`,
+      `${notes.filter((n) => n.category === "tasks").length} 📝`,
+      `${notes.filter((n) => n.category === "reminders").length} ⏰`,
+    ].join(" · ");
+  } else {
+    stats = [
+      `${notes.length} match${notes.length === 1 ? "es" : "es"}`,
+      `${notes.filter((n) => n.priority === "high").length} 🔴`,
+    ].join(" · ");
+  }
 
   const lines = [
     '📋 <b>WishperLog</b>',
@@ -1018,26 +990,144 @@ function buildDigest(notes: NoteDoc[], name: string, heading: string): string {
     `<i>${greeting}</i>`,
     `<i>${escapeHtml(stats)}</i>`,
     '',
-    '<b>Top items</b>',
+    '━━━━━━━━━━━━━━━',
   ];
 
   ranked.forEach((n) => {
     const category = categoryLabelFromKey(n.category);
     const priority = priorityLabel(n.priority);
-    const titleText = escapeHtml(asciiOnly(n.title) || "Untitled note");
-    lines.push(`• <b>${category}</b> <code>${priority}</code> ${titleText}`);
+    const titleText = escapeHtml(safeText(n.title) || "Untitled note");
 
-    const body = asciiOnly(n.body).slice(0, 140);
+    lines.push(`\n${category} | <code>${priority}</code>`);
+    lines.push(`<b>${titleText}</b>`);
+
+    const body = safeText(n.body).slice(0, 500);
     if (body) {
-      lines.push(`  <i>${escapeHtml(body)}</i>`);
+      lines.push(`<i>${escapeHtml(body)}</i>`);
     }
   });
 
   if (notes.length > ranked.length) {
-    lines.push("", `<i>+${notes.length - ranked.length} more</i>`);
+    lines.push("\n━━━━━━━━━━━━━━━");
+    lines.push(`<i>+${notes.length - ranked.length} more. Use /summary to see all.</i>`);
   }
 
   return lines.join("\n");
+}
+
+// ── AI Note Processing endpoint ───────────────────────────────────────────────
+//
+// POST /process-note
+// Body: { uid, noteId, rawTranscript, currentIsoTime }
+// Auth: X-Trigger-Secret header
+//
+// The Worker calls the Groq API with the phonetic-correction prompt and PATCHes
+// the Firestore note with enriched fields. The client fires this endpoint and
+// does NOT wait for the response (fire-and-forget fetch from CaptureService).
+//
+// CPU budget: parsing the Groq JSON response is O(n) string ops — well within
+// the 10 ms CPU soft limit per invocation.
+
+async function processNoteWithAi(
+  uid: string,
+  noteId: string,
+  rawTranscript: string,
+  currentIsoTime: string,
+  token: string,
+  env: Env,
+): Promise<void> {
+  const groqKey = env.GROQ_API_KEY;
+  if (!groqKey) {
+    console.warn('[ProcessNote] GROQ_API_KEY not set — skipping enrichment');
+    return;
+  }
+
+  const systemPrompt = `You are WishperLog's note classifier.
+CURRENT TIME: ${currentIsoTime}
+
+STEP 0 — PHONETIC CORRECTION (mandatory, silent):
+Fix speech-to-text typos before anything else.
+Examples: "toesday" → "Tuesday", "wendsday" → "Wednesday", "remined" → "remind".
+Use CURRENT TIME to resolve relative dates ("next Tuesday", "tomorrow").
+
+Return ONLY a JSON object — no prose, no markdown fences:
+{
+  "title": "<5-8 word imperative>",
+  "clean_body": "<polished text, max 500 chars>",
+  "category": "tasks|reminders|ideas|follow_up|journal|general",
+  "priority": "high|medium|low",
+  "extracted_date": "<ISO 8601 or null>"
+}`;
+
+  let enriched: {
+    title?: string;
+    clean_body?: string;
+    category?: string;
+    priority?: string;
+    extracted_date?: string | null;
+  } = {};
+
+  try {
+    const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Raw input: ${rawTranscript.trim()}` },
+        ],
+        temperature: 0.2,
+        max_tokens: 400,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!groqResp.ok) {
+      const errText = await groqResp.text();
+      console.error('[ProcessNote] Groq error:', groqResp.status, errText.slice(0, 200));
+      return;
+    }
+
+    const groqBody = (await groqResp.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+
+    const raw = groqBody.choices?.[0]?.message?.content?.trim() ?? '';
+    if (!raw) return;
+
+    // Strip accidental markdown fences before parse.
+    const cleaned = raw.replace(/^```(?:json)?|```$/gm, '').trim();
+    enriched = JSON.parse(cleaned) as typeof enriched;
+  } catch (e) {
+    console.error('[ProcessNote] parse error:', e);
+    return;
+  }
+
+  // Build Firestore PATCH fields — only write non-empty values.
+  const fields: Record<string, unknown> = {
+    status: { stringValue: 'active' },
+    ai_model: { stringValue: 'worker-groq' },
+  };
+  if (enriched.title) fields['title'] = { stringValue: enriched.title };
+  if (enriched.clean_body) fields['clean_body'] = { stringValue: enriched.clean_body };
+  if (enriched.category) fields['category'] = { stringValue: enriched.category };
+  if (enriched.priority) fields['priority'] = { stringValue: enriched.priority };
+  if (enriched.extracted_date) {
+    fields['extracted_date'] = { timestampValue: enriched.extracted_date };
+  }
+
+  await firestorePatch(
+    `users/${uid}/notes/${noteId}`,
+    fields,
+    token,
+    env.FIREBASE_PROJECT_ID,
+  );
+
+  console.log(`[ProcessNote] Enriched ${noteId} for uid=${uid.slice(0, 8)}`);
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -1055,7 +1145,7 @@ export default {
     );
   },
 
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
 
     if (url.pathname === "/trigger" && req.method === "GET") {
@@ -1068,6 +1158,43 @@ export default {
 
     if (url.pathname === "/webhook" && req.method === "POST") {
       return handleWebhook(req, env);
+    }
+
+    // ── AI note enrichment (fire-and-forget from CaptureService) ─────────────
+    if (url.pathname === "/process-note" && req.method === "POST") {
+      if (req.headers.get("X-Trigger-Secret") !== env.TRIGGER_SECRET) {
+        return new Response("Forbidden", { status: 403 });
+      }
+      // Parse body without blocking the caller — use waitUntil.
+      const body = await req.json() as {
+        uid?: string;
+        noteId?: string;
+        rawTranscript?: string;
+        currentIsoTime?: string;
+      };
+      const { uid, noteId, rawTranscript, currentIsoTime } = body;
+      if (!uid || !noteId || !rawTranscript) {
+        return new Response("Bad Request: uid, noteId, rawTranscript required", { status: 400 });
+      }
+      // Respond immediately — enrichment continues in background.
+      (ctx as any).waitUntil?.(
+        getFirebaseToken(env)
+          .then((tok) =>
+            processNoteWithAi(
+              uid,
+              noteId,
+              rawTranscript,
+              currentIsoTime ?? new Date().toISOString(),
+              tok,
+              env,
+            ),
+          )
+          .catch((e) => console.error('[ProcessNote] top-level error:', e)),
+      );
+      return new Response('{"status":"accepted"}', {
+        status: 202,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response("WishperLog Worker v3", { status: 200 });
@@ -1088,12 +1215,10 @@ function pad(n: number): string {
   return n.toString().padStart(2, "0");
 }
 
-function asciiOnly(v: string): string {
+function safeText(v: string | null | undefined): string {
   return (v ?? "")
-    .toString()
-    .normalize("NFKD")
-    .replace(/[^\x00-\x7F]/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/[\x00-\x1F\x7F]/g, "") // strip control characters
+    .replace(/\s+/g, " ") // normalize whitespace
     .trim();
 }
 
@@ -1103,22 +1228,22 @@ function priorityRank(p: string): number {
 
 function priorityLabel(p: string): string {
   switch ((p ?? "").toLowerCase()) {
-    case "high": return "HIGH";
-    case "low":  return "LOW";
-    default:     return "MED";
+    case "high": return "🔴 HIGH";
+    case "low": return "🟢 LOW";
+    default: return "🟡 MED";
   }
 }
 
 function categoryLabelFromKey(key: string): string {
   switch ((key ?? "").toLowerCase()) {
-    case "tasks": return "Tasks";
-    case "reminders": return "Reminders";
-    case "ideas": return "Ideas";
+    case "tasks": return "📝 Tasks";
+    case "reminders": return "⏰ Reminders";
+    case "ideas": return "💡 Ideas";
     case "followup":
     case "follow_up":
-    case "follow-up": return "Follow-up";
-    case "journal": return "Journal";
-    default: return "General";
+    case "follow-up": return "🔄 Follow-up";
+    case "journal": return "📓 Journal";
+    default: return "📌 General";
   }
 }
 

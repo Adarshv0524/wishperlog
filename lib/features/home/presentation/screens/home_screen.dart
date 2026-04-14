@@ -41,6 +41,8 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   bool _saveInProgress = false;
   bool _speechReady = false;
   bool _isDictating = false;
+  String _sttLanguage = 'en-US';
+  static const _sttLanguageCycle = ['en-US', 'hi-IN', 'te-IN'];
   String _dictationPrefix = '';
   NoteCategory _quickCategory = NoteCategory.general;
   NotePriority _quickPriority = NotePriority.medium;
@@ -584,6 +586,14 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                       onReminderLongPress: _clearReminder,
                                       onMicPressStart: _startDictation,
                                       onMicPressEnd: () => _stopDictation(submitCaptured: true),
+                                      languageCode: _sttLanguage,
+                                      onLanguageSelect: () {
+                                        final idx = _sttLanguageCycle.indexOf(_sttLanguage);
+                                        setState(() {
+                                          _sttLanguage = _sttLanguageCycle[
+                                              (idx + 1) % _sttLanguageCycle.length];
+                                        });
+                                      },
                                       isSaving: _saving,
                                       isRecording: _isDictating,
                                       tagActive: tagActive,

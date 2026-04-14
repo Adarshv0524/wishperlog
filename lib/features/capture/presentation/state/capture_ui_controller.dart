@@ -163,30 +163,36 @@ class CaptureUiController extends Cubit<CaptureUiState> {
       return;
     }
 
-    // Show provider immediately using last known provider
-    emit(CaptureUiProcessing(
-      provider: _captureService.activeProviderName,
+    // ── INSTANT CLOSE: show saved pill from transcript immediately ─────────
+    // The island closes the moment the user releases the mic button.
+    // No disk I/O, no network, no AI wait — purely derived from the transcript.
+    final instantTitle = _quickTitleFromTranscript(captured);
+    emit(CaptureUiSaved(
+      title: instantTitle,
+      category: NoteCategory.general,          // AI will refine async
+      originPrefix: '',                         // prefix updates via NoteEventBus
+      noteId: null,
     ));
 
-    // Save in background - ingestRawCapture now returns instantly
-    try {
-      final savedNote = await _captureService.ingestRawCapture(
-        rawTranscript: captured,
-        source: CaptureSource.voiceOverlay,
-        syncToCloud: true,
-      );
-
-      // Show saved with quick title; island updates again when AI finishes
-      emit(CaptureUiSaved(
-        title: savedNote?.title ?? captured,
-        category: savedNote?.category ?? NoteCategory.general,
-        originPrefix: saveOriginPrefix(savedNote?.aiModel ?? ''),
-        noteId: savedNote?.noteId,
-      ));
-    } catch (error) {
-      emit(CaptureUiError(message: 'Failed to save: $error'));
-      await Future<void>.delayed(const Duration(seconds: 2));
-    }
+    // ── BACKGROUND PERSIST: fire-and-forget ───────────────────────────────
+    // ingestRawCapture saves to Isar, mirrors to Firestore, and schedules AI.
+    // When AiProcessingService finishes it emits NoteEventBus.onNoteUpdated
+    // → CaptureUiController.notifyExternalRecordingSaved updates the island
+    //   again with the AI-enriched title/category.
+    unawaited(
+      _captureService
+          .ingestRawCapture(
+            rawTranscript: captured,
+            source: CaptureSource.voiceOverlay,
+            syncToCloud: true,
+          )
+          .catchError(
+            (Object e) {
+              debugPrint('[CaptureUiController] bg-save error: $e');
+              return null;
+            },
+          ),
+    );
 
     _autoReturnTimer?.cancel();
     _autoReturnTimer = Timer(AppDurations.notchAutoReturn, () {
@@ -310,6 +316,13 @@ class CaptureUiController extends Cubit<CaptureUiState> {
         currentTranscript: _lastTranscript,
       ));
     }
+  }
+
+  /// Derives an instant display title from raw transcript without disk I/O.
+  String _quickTitleFromTranscript(String text) {
+    final oneLine = text.replaceAll('\n', ' ').trim();
+    if (oneLine.length <= 60) return oneLine;
+    return '${oneLine.substring(0, 60).trimRight()}…';
   }
 
   void _onSpeechStatus(String status) {

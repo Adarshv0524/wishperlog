@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
@@ -141,6 +143,62 @@ class CaptureService {
     return '${oneLine.substring(0, 60).trimRight()}...';
   }
 
+  // ── Cloudflare Worker endpoint ───────────────────────────────────────────────
+  // Set this in your .env: WORKER_URL=https://wishperlog-digest.veerbhadra0524.workers.dev
+  // If empty, the Worker enrichment step is skipped (AI runs on-device only).
+  static String get _workerUrl {
+    try {
+      return const String.fromEnvironment('WORKER_URL', defaultValue: '');
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static String get _triggerSecret {
+    try {
+      return const String.fromEnvironment('TRIGGER_SECRET', defaultValue: '');
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Pings the Cloudflare Worker to run server-side AI enrichment on the note.
+  /// Fire-and-forget — never throws to caller.
+  Future<void> _notifyWorkerProcessNote({
+    required String uid,
+    required String noteId,
+    required String rawTranscript,
+  }) async {
+    try {
+      final url = _workerUrl;
+      final secret = _triggerSecret;
+      if (url.isEmpty) return;
+
+      final uri = Uri.parse('$url/process-note');
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Trigger-Secret': secret,
+        },
+        body: jsonEncode({
+          'uid': uid,
+          'noteId': noteId,
+          'rawTranscript': rawTranscript,
+          'currentIsoTime': DateTime.now().toUtc().toIso8601String(),
+        }),
+      );
+
+      debugPrint(
+        '[CaptureService] Worker enrichment dispatched for $noteId '
+        '(${response.statusCode})',
+      );
+    } catch (e) {
+      debugPrint('[CaptureService] Worker notify error (non-fatal): $e');
+    }
+  }
+
   Future<void> _syncNoteToFirestore(Note note) async {
     final auth = _auth;
     final firestore = _firestore;
@@ -181,6 +239,20 @@ class CaptureService {
       debugPrint(
         '[CaptureService] Successfully synced to Firestore: ${note.noteId}',
       );
+
+      // ── Fire-and-forget: ask Cloudflare Worker to enrich the note ──────────
+      // The Worker applies the phonetic-correction prompt + Groq and PATCHes
+      // Firestore. We do NOT await this — the note is already saved locally.
+      final workerUrl = _workerUrl;
+      if (workerUrl.isNotEmpty) {
+        unawaited(
+          _notifyWorkerProcessNote(
+            uid: user.uid,
+            noteId: note.noteId,
+            rawTranscript: note.rawTranscript,
+          ),
+        );
+      }
     } catch (e, st) {
       debugPrint(
         '[CaptureService] ERROR syncing to Firestore: ${note.noteId}: $e',

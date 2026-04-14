@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Consolidate repo source files into a Claude-friendly Markdown bundle.
 
-Collects:
-  - All Dart files under lib/
-  - Android Kotlin and Java source files
-  - Android build/config files
-  - Cloudfare app files
+Collects (Android-focused):
+    - All Dart files under lib/ and test/
+    - Android Kotlin/Java/build/config files
+    - Cloudfare worker files
+    - Firebase Functions files
+    - Important root config/documentation files
+    - Selected lightweight assets used by the app
 
 Output format:
   - Markdown document with one section per file
@@ -21,6 +23,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+EXCLUDED_PARTS = {
+    "build",
+    ".gradle",
+    "generated",
+    "intermediates",
+    "outputs",
+    "tmp",
+    "node_modules",
+    ".dart_tool",
+}
+
+
 @dataclass(frozen=True)
 class FileRecord:
     path: Path
@@ -33,15 +47,21 @@ def collect_dart_files(lib_dir: Path) -> list[Path]:
     return sorted(path for path in lib_dir.rglob("*.dart") if path.is_file())
 
 
+def collect_test_files(test_dir: Path) -> list[Path]:
+    """Collect all Dart test files from test directory."""
+    if not test_dir.exists():
+        return []
+    return sorted(path for path in test_dir.rglob("*.dart") if path.is_file())
+
+
 def collect_android_files(android_dir: Path) -> list[Path]:
     """Collect Android Kotlin, Java, and configuration files."""
-    excluded_parts = {"build", ".gradle", "generated", "intermediates", "outputs", "tmp"}
     collected_files: set[Path] = set()
 
     for file_path in android_dir.rglob("*"):
         if not file_path.is_file():
             continue
-        if any(part in excluded_parts for part in file_path.parts):
+        if any(part in EXCLUDED_PARTS for part in file_path.parts):
             continue
 
         suffix = file_path.suffix.lower()
@@ -68,7 +88,7 @@ def collect_cloudfare_files(cloudfare_dir: Path) -> list[Path]:
         ".yml",
         ".yaml",
     }
-    excluded_parts = {"build", ".wrangler", "generated", "intermediates", "outputs", "tmp"}
+    excluded_parts = EXCLUDED_PARTS | {".wrangler"}
 
     collected_files = set()
 
@@ -78,6 +98,76 @@ def collect_cloudfare_files(cloudfare_dir: Path) -> list[Path]:
                 continue
             if not any(part in excluded_parts for part in file_path.parts):
                 collected_files.add(file_path)
+
+    return sorted(collected_files)
+
+
+def collect_functions_files(functions_dir: Path) -> list[Path]:
+    """Collect Firebase Functions source and config files."""
+    if not functions_dir.exists():
+        return []
+
+    allowed_suffixes = {
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".ts",
+        ".tsx",
+        ".json",
+        ".yaml",
+        ".yml",
+    }
+
+    collected_files: set[Path] = set()
+    for file_path in functions_dir.rglob("*"):
+        if not file_path.is_file():
+            continue
+        if any(part in EXCLUDED_PARTS for part in file_path.parts):
+            continue
+        if file_path.name == "package-lock.json":
+            continue
+        if file_path.suffix.lower() in allowed_suffixes:
+            collected_files.add(file_path)
+
+    return sorted(collected_files)
+
+
+def collect_root_files(repo_root: Path) -> list[Path]:
+    """Collect important project-level config and docs files."""
+    allowed_exact_names = {
+        "pubspec.yaml",
+        "analysis_options.yaml",
+        "devtools_options.yaml",
+        "firebase.json",
+        "firestore.rules",
+        "README.md",
+        "ARCHITECTURE.md",
+        "issues.md",
+        "variables.md",
+        "cloudfare-fix.md",
+        "documentation (2).md",
+    }
+    collected: list[Path] = []
+    for child in repo_root.iterdir():
+        if child.is_file() and child.name in allowed_exact_names:
+            collected.append(child)
+    return sorted(collected)
+
+
+def collect_asset_files(assets_dir: Path) -> list[Path]:
+    """Collect small, relevant app assets (avoid large binaries)."""
+    if not assets_dir.exists():
+        return []
+
+    allowed_suffixes = {".svg", ".json", ".txt", ".md"}
+    collected_files: set[Path] = set()
+    for file_path in assets_dir.rglob("*"):
+        if not file_path.is_file():
+            continue
+        if any(part in EXCLUDED_PARTS for part in file_path.parts):
+            continue
+        if file_path.suffix.lower() in allowed_suffixes:
+            collected_files.add(file_path)
 
     return sorted(collected_files)
 
@@ -105,6 +195,10 @@ def language_for_path(file_path: Path) -> str:
         return "yaml"
     if suffix == ".toml":
         return "toml"
+    if suffix == ".svg":
+        return "xml"
+    if suffix == ".rules":
+        return "text"
     if suffix == ".properties":
         return "properties"
     if suffix == ".md":
@@ -154,7 +248,7 @@ def build_records(file_paths: list[Path], repo_root: Path) -> list[FileRecord]:
     return records
 
 
-def render_markdown(records: list[FileRecord], dart_count: int, android_count: int, cloudfare_count: int) -> str:
+def render_markdown(records: list[FileRecord], counts: dict[str, int]) -> str:
     """Render the bundle as a Claude-friendly Markdown document."""
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     lines: list[str] = [
@@ -163,9 +257,13 @@ def render_markdown(records: list[FileRecord], dart_count: int, android_count: i
         f"Generated: {now}",
         "",
         "## Summary",
-        f"- Dart files: {dart_count}",
-        f"- Android files: {android_count}",
-        f"- Cloudfare files: {cloudfare_count}",
+        f"- Dart files (lib): {counts['dart']}",
+        f"- Dart test files: {counts['test']}",
+        f"- Android files: {counts['android']}",
+        f"- Cloudfare files: {counts['cloudfare']}",
+        f"- Functions files: {counts['functions']}",
+        f"- Root config/docs files: {counts['root']}",
+        f"- Assets files: {counts['assets']}",
         f"- Total files: {len(records)}",
         "",
         "## File Index",
@@ -204,8 +302,11 @@ def render_json(records: list[FileRecord]) -> str:
 def main() -> int:
     repo_root = Path(__file__).resolve().parent
     lib_dir = repo_root / "lib"
+    test_dir = repo_root / "test"
     android_dir = repo_root / "android"
     cloudfare_dir = repo_root / "cloudfare"
+    functions_dir = repo_root / "functions"
+    assets_dir = repo_root / "assets"
     markdown_output_path = repo_root / "consolidated-code.md"
     json_output_path = repo_root / "consolidated-code.json"
 
@@ -219,10 +320,22 @@ def main() -> int:
         raise FileNotFoundError(f"Missing cloudfare directory: {cloudfare_dir}")
 
     dart_files = collect_dart_files(lib_dir)
+    test_files = collect_test_files(test_dir)
     android_files = collect_android_files(android_dir)
     cloudfare_files = collect_cloudfare_files(cloudfare_dir)
+    functions_files = collect_functions_files(functions_dir)
+    root_files = collect_root_files(repo_root)
+    assets_files = collect_asset_files(assets_dir)
 
-    all_files = dart_files + android_files + cloudfare_files
+    all_files = sorted(set(
+        dart_files
+        + test_files
+        + android_files
+        + cloudfare_files
+        + functions_files
+        + root_files
+        + assets_files
+    ))
     if not all_files:
         print("Warning: No files found to consolidate")
         return 1
@@ -233,20 +346,39 @@ def main() -> int:
         return 1
 
     markdown_output_path.write_text(
-        render_markdown(records, len(dart_files), len(android_files), len(cloudfare_files)),
+        render_markdown(
+            records,
+            {
+                "dart": len(dart_files),
+                "test": len(test_files),
+                "android": len(android_files),
+                "cloudfare": len(cloudfare_files),
+                "functions": len(functions_files),
+                "root": len(root_files),
+                "assets": len(assets_files),
+            },
+        ),
         encoding="utf-8",
     )
     json_output_path.write_text(render_json(records), encoding="utf-8")
 
     dart_count = len(dart_files)
+    test_count = len(test_files)
     android_count = len(android_files)
     cloudfare_count = len(cloudfare_files)
+    functions_count = len(functions_files)
+    root_count = len(root_files)
+    assets_count = len(assets_files)
     total = len(records)
 
     print(f"✓ Consolidated {total} files:")
-    print(f"  • Dart files: {dart_count}")
+    print(f"  • Dart files (lib): {dart_count}")
+    print(f"  • Dart test files: {test_count}")
     print(f"  • Android files: {android_count}")
     print(f"  • Cloudfare files: {cloudfare_count}")
+    print(f"  • Functions files: {functions_count}")
+    print(f"  • Root config/docs files: {root_count}")
+    print(f"  • Assets files: {assets_count}")
 
     java_files = [path for path in android_files if path.suffix.lower() == ".java"]
     kotlin_files = [path for path in android_files if path.suffix.lower() in {".kt", ".kts"}]
@@ -271,6 +403,18 @@ def main() -> int:
         print("✓ Cloudfare files included:")
         for cloudfare_file in cloudfare_files:
             rel_path = cloudfare_file.relative_to(repo_root).as_posix()
+            print(f"  • {rel_path}")
+
+    if functions_files:
+        print("✓ Functions files included:")
+        for functions_file in functions_files:
+            rel_path = functions_file.relative_to(repo_root).as_posix()
+            print(f"  • {rel_path}")
+
+    if root_files:
+        print("✓ Root config/docs included:")
+        for root_file in root_files:
+            rel_path = root_file.relative_to(repo_root).as_posix()
             print(f"  • {rel_path}")
 
     print(f"✓ Markdown output: {markdown_output_path}")

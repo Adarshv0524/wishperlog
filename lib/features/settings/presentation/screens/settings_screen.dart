@@ -159,25 +159,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _openOverlayCustomiser() async {
-    final notifier = _overlayNotifier;
-    await showOverlayCustomisationSheet(
-      context,
-      notifier.overlaySettings,
-      (updated) => notifier.saveOverlaySettings(updated),
-    );
+  void _openOverlayCustomiser() {
+    showOverlayCustomisationSheet(context);
   }
 
   Future<void> _hydrateSpeechSettings() async {
     try {
       final values = await _overlayChannel.invokeMapMethod<String, dynamic>(
         'getSpeechSettings',
-      );
-      if (!mounted || values == null) return;
+      ) ?? <String, dynamic>{}; // Ensure non-null values
+      if (!mounted) return; // Validate mounted state
       setState(() {
         _speechLanguage = (values['language'] as String?) ?? 'en-US';
         _speechPreferOffline = (values['preferOffline'] as bool?) ?? false;
-      });
+      }); // Adjusted to handle actual return type of invokeMapMethod
     } catch (e) {
       debugPrint('[Settings] _hydrateSpeechSettings error: $e');
     }

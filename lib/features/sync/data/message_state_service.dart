@@ -284,63 +284,48 @@ class MessageStateService {
       'low': active.where((n) => n.priority == NotePriority.low).length,
     };
 
-    // ── v3 schema: root doc stays lean (config only) ──────────────────────────
+    // ── Root doc: config-only aggregates, NO channel content ─────────────────
+    // Intentionally omits display_name; that field is written once at sign-in
+    // by UserRepository and must not be overwritten here to avoid race conditions.
     await _firestore
         .collection('users')
         .doc(uid)
         .set({
-      'schema_version': 3,
-      'display_name': displayName ?? '',
-      'updated_at': FieldValue.serverTimestamp(),
+      'schema_version'   : 3,
+      'updated_at'       : FieldValue.serverTimestamp(),
       'active_note_count': active.length,
-      'category_counts': categoryCounts,
-      'priority_counts': priorityCounts,
+      'category_counts'  : categoryCounts,
+      'priority_counts'  : priorityCounts,
     }, SetOptions(merge: true));
 
-    final latestPayload = {
-      'computed_at': FieldValue.serverTimestamp(),
-      'active_note_count': active.length,
-      // Telegram channel messages
-      'telegram': messages['telegram'] ?? messages['telegram_digest'] ?? '',
-      'telegram_digest': messages['telegram_digest'] ?? '',
-      'telegram_summary': messages['telegram_summary'] ?? '',
-      'telegram_top': messages['telegram_top'] ?? '',
-      'telegram_tasks': messages['telegram_tasks'] ?? '',
+    // ── digest/latest: single source of truth for all channel messages ────────
+    // merge:false guarantees stale keys from prior schema versions are wiped
+    // clean on every recompute cycle.
+    final latestPayload = <String, dynamic>{
+      'computed_at'       : FieldValue.serverTimestamp(),
+      'active_note_count' : active.length,
+      'telegram'          : messages['telegram']           ?? messages['telegram_digest'] ?? '',
+      'telegram_digest'   : messages['telegram_digest']    ?? '',
+      'telegram_summary'  : messages['telegram_summary']   ?? '',
+      'telegram_top'      : messages['telegram_top']       ?? '',
+      'telegram_tasks'    : messages['telegram_tasks']     ?? '',
       'telegram_reminders': messages['telegram_reminders'] ?? '',
-      'telegram_ideas': messages['telegram_ideas'] ?? '',
-      'telegram_followup': messages['telegram_followup'] ?? '',
-      'telegram_journal': messages['telegram_journal'] ?? '',
-      'telegram_general': messages['telegram_general'] ?? '',
-      // Reserved for future channels
-      'whatsapp': null,
-      'email': null,
+      'telegram_ideas'    : messages['telegram_ideas']     ?? '',
+      'telegram_followup' : messages['telegram_followup']  ?? '',
+      'telegram_journal'  : messages['telegram_journal']   ?? '',
+      'telegram_general'  : messages['telegram_general']   ?? '',
     };
 
-    try {
-      // ── Write all message state to /digest/latest (Message Centre) ───────
-      await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('digest')
-          .doc('latest')
-          .set(latestPayload, SetOptions(merge: false)); // intentional overwrite
-    } on FirebaseException catch (e) {
-      // Some projects still enforce legacy rules that deny /digest writes.
-      if (e.code != 'permission-denied') rethrow;
-      debugPrint('[MessageStateService] /digest/latest denied; falling back to root message_state for $uid');
-      await _firestore.collection('users').doc(uid).set({
-        'message_state': messages,
-        'telegram_digest': messages['telegram_digest'] ?? messages['telegram'] ?? '',
-        'telegram_summary': messages['telegram_summary'] ?? '',
-        'telegram_top': messages['telegram_top'] ?? '',
-        'telegram_tasks': messages['telegram_tasks'] ?? '',
-        'telegram_reminders': messages['telegram_reminders'] ?? '',
-        'telegram_ideas': messages['telegram_ideas'] ?? '',
-        'telegram_followup': messages['telegram_followup'] ?? '',
-        'telegram_journal': messages['telegram_journal'] ?? '',
-        'telegram_general': messages['telegram_general'] ?? '',
-      }, SetOptions(merge: true));
-    }
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('digest')
+        .doc('latest')
+        .set(latestPayload, SetOptions(merge: false));
+    // If this throws permission-denied, add to firestore.rules:
+    //   match /users/{userId}/digest/{doc} {
+    //     allow read, write: if request.auth != null && request.auth.uid == userId;
+    //   }
   }
 }
 

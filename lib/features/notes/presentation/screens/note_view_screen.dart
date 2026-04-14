@@ -767,57 +767,83 @@ class _RawTranscriptSectionState extends State<_RawTranscriptSection> {
   bool _expanded = false;
 
   @override
-  Widget build(BuildContext context) => GlassPane(
-        level: 2,
-        radius: 24,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () => setState(() => _expanded = !_expanded),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: context.textSec.withValues(alpha: 0.10),
-                    ),
-                    child: Icon(Icons.mic_none_rounded, size: 14, color: context.textSec),
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: GlassPane(
+          level: 2,
+          radius: 24,
+          padding: EdgeInsets.zero,          // we control padding manually below
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Tap target covers the full header ───────────────────────
+              InkWell(
+                borderRadius: BorderRadius.vertical(
+                  top: const Radius.circular(24),
+                  bottom: Radius.circular(_expanded ? 0 : 24),
+                ),
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: context.textSec.withValues(alpha: 0.10),
+                        ),
+                        child: Icon(Icons.mic_none_rounded, size: 14, color: context.textSec),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Raw Transcript',
+                        style: TextStyle(
+                          color: context.textPri,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Spacer(),
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        child: Icon(
+                          Icons.expand_more_rounded,
+                          size: 20,
+                          color: context.textSec,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Raw Transcript',
-                    style: TextStyle(
-                      color: context.textPri,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 20,
-                    color: context.textSec,
-                  ),
-                ],
-              ),
-            ),
-            if (_expanded) ...[
-              const SizedBox(height: 12),
-              SelectableText(
-                widget.rawTranscript,
-                style: TextStyle(
-                  color: context.textSec,
-                  fontSize: 14,
-                  height: 1.65,
-                  fontStyle: FontStyle.italic,
                 ),
               ),
+              // ── Animated expand ─────────────────────────────────────────
+              AnimatedCrossFade(
+                firstChild: const SizedBox(width: double.infinity, height: 0),
+                secondChild: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: SelectableText(
+                    widget.rawTranscript,
+                    style: TextStyle(
+                      color: context.textSec,
+                      fontSize: 13.5,
+                      height: 1.65,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+                crossFadeState: _expanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                duration: const Duration(milliseconds: 220),
+                sizeCurve: Curves.easeOutCubic,
+              ),
             ],
-          ],
+          ),
         ),
       );
 }

@@ -575,9 +575,12 @@ class OverlayForegroundService : Service() {
         releaseAudioFocus()
 
         if (text.isNotEmpty()) {
-            showIsland("Classifying...", Color.parseColor("#7C3AED"), android.R.drawable.ic_popup_sync)
-            // Safety-net: island auto-dismisses if BackgroundNoteService never responds.
-            scheduleIslandDismiss(ISLAND_SAFETY_DISMISS_MS)
+            // Show a brief "Saving…" pill — not "Classifying…" which implies a long LLM wait.
+            // The island will be promoted to the full saved pill by notifyBackgroundSaved()
+            // once BackgroundNoteService (or OverlayNotifier) finishes.
+            // Use an 8 s safety-net for the happy path; the old 40 s was causing user confusion.
+            showIsland("Saving…", Color.parseColor("#7C3AED"), android.R.drawable.ic_popup_sync)
+            scheduleIslandDismiss(8_000L)
             broadcastCapture(text, SOURCE_VOICE)
             FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
         } else {

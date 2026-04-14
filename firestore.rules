@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -10,13 +11,23 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
+
+      // Base user document access
       allow read, write: if isOwner(uid);
 
-      match /{document=**} {
+      // Notes subcollection (explicit + safe)
+      match /notes/{noteId} {
         allow read, write: if isOwner(uid);
       }
 
-      match /notes/{noteId} {
+      // ✅ FIX: digest subcollection (prevents permission-denied + schema pollution)
+      match /digest/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Catch-all fallback for any other nested collections
+      // (kept LAST so specific rules above take precedence)
+      match /{document=**} {
         allow read, write: if isOwner(uid);
       }
     }

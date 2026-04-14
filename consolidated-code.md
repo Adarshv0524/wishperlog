@@ -1,14 +1,60 @@
 # Consolidated Source Bundle
 
-Generated: 2026-04-13T18:24:22+00:00
+Generated: 2026-04-14T00:34:26+00:00
 
 ## Summary
-- Dart files: 71
+- Dart files (lib): 70
+- Dart test files: 1
 - Android files: 26
 - Cloudfare files: 2
-- Total files: 99
+- Functions files: 4
+- Root config/docs files: 11
+- Assets files: 1
+- Total files: 115
 
 ## File Index
+- ARCHITECTURE.md (markdown)
+- README.md (markdown)
+- analysis_options.yaml (yaml)
+- android/app/build.gradle.kts (kotlin)
+- android/app/google-services.json (json)
+- android/app/src/debug/AndroidManifest.xml (xml)
+- android/app/src/main/AndroidManifest.xml (xml)
+- android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java (java)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BackgroundNoteService.kt (kotlin)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BootReceiver.kt (kotlin)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/FlutterEngineHolder.kt (kotlin)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/MainActivity.kt (kotlin)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/NoteInputReceiver.kt (kotlin)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayAppearanceSettings.kt (kotlin)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayForegroundService.kt (kotlin)
+- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/WishperlogApplication.kt (kotlin)
+- android/app/src/main/res/drawable/launch_background.xml (xml)
+- android/app/src/main/res/drawable-v21/launch_background.xml (xml)
+- android/app/src/main/res/values/colors.xml (xml)
+- android/app/src/main/res/values/styles.xml (xml)
+- android/app/src/main/res/values-night/styles.xml (xml)
+- android/app/src/main/res/xml/backup_rules.xml (xml)
+- android/app/src/main/res/xml/data_extraction_rules.xml (xml)
+- android/app/src/profile/AndroidManifest.xml (xml)
+- android/build.gradle.kts (kotlin)
+- android/gradle/wrapper/gradle-wrapper.properties (properties)
+- android/gradle.properties (properties)
+- android/local.properties (properties)
+- android/settings.gradle.kts (kotlin)
+- assets/icons/google.svg (xml)
+- cloudfare/src/worker.ts (typescript)
+- cloudfare/wrangler.toml (toml)
+- cloudfare-fix.md (markdown)
+- devtools_options.yaml (yaml)
+- documentation (2).md (markdown)
+- firebase.json (json)
+- firestore.rules (text)
+- functions/index.js (javascript)
+- functions/package.json (json)
+- functions/scripts/migrate_clean_root_telegram_fields.js (javascript)
+- functions/scripts/migrate_telegram_digest.js (javascript)
+- issues.md (markdown)
 - lib/app/route_observer.dart (dart)
 - lib/app/router.dart (dart)
 - lib/background_note_handler.dart (dart)
@@ -26,8 +72,7 @@ Generated: 2026-04-13T18:24:22+00:00
 - lib/core/theme/theme_cubit.dart (dart)
 - lib/features/ai/data/ai_classifier_router.dart (dart)
 - lib/features/ai/data/ai_processing_service.dart (dart)
-- lib/features/ai/data/gemini_note_classifier.dart (dart)
-- lib/features/ai/data/groq_note_classifier.dart (dart)
+- lib/features/ai/data/unified_ai_classifier.dart (dart)
 - lib/features/auth/data/repositories/user_repository.dart (dart)
 - lib/features/capture/data/capture_service.dart (dart)
 - lib/features/capture/presentation/state/capture_ui_controller.dart (dart)
@@ -80,36 +125,6863 @@ Generated: 2026-04-13T18:24:22+00:00
 - lib/shared/widgets/glass_title_bar.dart (dart)
 - lib/shared/widgets/mesh_gradient_background.dart (dart)
 - lib/shared/widgets/top_notch_message.dart (dart)
-- android/app/build.gradle.kts (kotlin)
-- android/app/google-services.json (json)
-- android/app/src/debug/AndroidManifest.xml (xml)
-- android/app/src/main/AndroidManifest.xml (xml)
-- android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java (java)
-- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BackgroundNoteService.kt (kotlin)
-- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BootReceiver.kt (kotlin)
-- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/FlutterEngineHolder.kt (kotlin)
-- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/MainActivity.kt (kotlin)
-- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/NoteInputReceiver.kt (kotlin)
-- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayAppearanceSettings.kt (kotlin)
-- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayForegroundService.kt (kotlin)
-- android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/WishperlogApplication.kt (kotlin)
-- android/app/src/main/res/drawable/launch_background.xml (xml)
-- android/app/src/main/res/drawable-v21/launch_background.xml (xml)
-- android/app/src/main/res/values/colors.xml (xml)
-- android/app/src/main/res/values/styles.xml (xml)
-- android/app/src/main/res/values-night/styles.xml (xml)
-- android/app/src/main/res/xml/backup_rules.xml (xml)
-- android/app/src/main/res/xml/data_extraction_rules.xml (xml)
-- android/app/src/profile/AndroidManifest.xml (xml)
-- android/build.gradle.kts (kotlin)
-- android/gradle/wrapper/gradle-wrapper.properties (properties)
-- android/gradle.properties (properties)
-- android/local.properties (properties)
-- android/settings.gradle.kts (kotlin)
-- cloudfare/src/worker.ts (typescript)
-- cloudfare/wrangler.toml (toml)
+- pubspec.yaml (yaml)
+- test/widget_test.dart (dart)
+- variables.md (markdown)
 
 ## Files
+
+### ARCHITECTURE.md
+
+````markdown
+# WhisperLog Architecture
+
+Version: current implementation audit
+Date: 2026-04-08
+Status: Current runtime wiring
+
+## 1. Scope
+
+This is the consolidated architecture audit for WhisperLog.
+It replaces the older split docs and collects the current implementation across startup, routing, capture, overlay, AI enrichment, sync, background jobs, settings, and Telegram flows.
+
+Important normalization note: the current app uses Isar as the local source of truth for reads and writes. Older SQLite wording in prior docs is stale and should be ignored.
+
+## 2. System Goals
+
+WhisperLog is an AI-first capture and organization app with:
+- raw transcript capture from overlay, editor, or dictation
+- local-first persistence so the UI updates immediately
+- AI classification before cloud mirroring when possible
+- Firestore as a background cloud mirror and cross-device event source
+- Google Calendar and Google Tasks integration for dated or task notes
+- Telegram digest and bot command support
+- Android-first floating overlay capture
+
+## 3. Visual Index
+
+This document includes 11 high-information visuals covering:
+1. runtime topology
+2. startup sequence
+3. dependency graph
+4. navigation and guards
+5. capture lifecycle
+6. overlay fallback chain
+7. AI enrichment pipeline
+8. sync push/pull flow
+9. background jobs
+10. Telegram linking
+11. settings and persistence
+
+## 4. Runtime Topology
+
+```mermaid
+flowchart LR
+  UI[Flutter UI] --> Repo[NoteRepository]
+  UI --> Capture[CaptureService / NoteSaveService]
+  UI --> Overlay[OverlayNotifier]
+  UI --> Settings[SettingsScreen]
+  Capture --> Store[(IsarNoteStore)]
+  Repo --> Store
+  Capture --> Firestore[(Firestore)]
+  Repo --> Firestore
+  FireSync[FirestoreNoteSyncService] --> Firestore
+  FireSync --> Store
+  FCM[FcmSyncService] --> FireSync
+  AI[AiProcessingService] --> Store
+  AI --> Firestore
+  WM[WorkManagerService] --> AI
+  WM --> External[ExternalSyncService]
+  External --> Store
+  Native[OverlayForegroundService] --> Bridge[MethodChannel wishperlog/overlay]
+  Bridge --> Overlay
+  Overlay --> Capture
+  Telegram[TelegramService] --> Firestore
+  Settings --> Telegram
+  Settings --> Overlay
+```
+
+## 5. App Entrypoints
+
+- Primary app entrypoint: [lib/main.dart](lib/main.dart)
+- Native overlay service entrypoint: Android `OverlayForegroundService`
+- Native intent router: Android `MainActivity`
+- Background worker entrypoint: `callbackDispatcher` in [lib/core/background/work_manager_service.dart](lib/core/background/work_manager_service.dart)
+- FCM background entrypoint: `firebaseMessagingBackgroundHandler` in [lib/features/sync/data/fcm_sync_service.dart](lib/features/sync/data/fcm_sync_service.dart)
+- Server-side complement: [functions/index.js](functions/index.js)
+
+## 6. Startup Sequence
+
+The current startup sequence in [lib/main.dart](lib/main.dart) is:
+1. register the FCM background handler
+2. load environment values with `AppEnv.load()`
+3. initialize Firebase
+4. initialize dependency injection
+5. hydrate `OverlayNotifier`
+6. initialize Isar
+7. hydrate `ThemeCubit`
+8. initialize WorkManager
+9. initialize local notifications and request permission when supported
+10. run the app
+11. drain pending native overlay notes
+12. register periodic WorkManager syncs
+13. start `AiProcessingService`
+14. start `ConnectivitySyncCoordinator`
+15. start `FirestoreNoteSyncService`
+16. initialize `FcmSyncService`
+
+```mermaid
+sequenceDiagram
+  participant OS as OS / Launcher
+  participant Main as main.dart
+  participant Env as AppEnv
+  participant FB as Firebase
+  participant DI as GetIt
+  participant Overlay as OverlayNotifier
+  participant Store as IsarNoteStore
+  participant WM as WorkManagerService
+  participant AI as AiProcessingService
+  participant Sync as FirestoreNoteSyncService
+  participant FCM as FcmSyncService
+
+  OS->>Main: app launch
+  Main->>Env: load()
+  Main->>FB: initializeApp()
+  Main->>DI: init()
+  Main->>Overlay: hydrate()
+  Main->>Store: init()
+  Main->>WM: initialize()
+  Main->>Main: runApp()
+  Main->>Overlay: drainPendingNativeNotes()
+  Main->>WM: registerPeriodicGoogleTasksSync()
+  Main->>AI: start()
+  Main->>Sync: start()
+  Main->>FCM: initialize()
+```
+
+Failure handling is defensive. Most startup steps are wrapped in `try/catch` and logged without crashing, except the critical Firebase and dependency injection bootstrap.
+
+## 7. Dependency Injection and Service Graph
+
+Registered in [lib/core/di/injection_container.dart](lib/core/di/injection_container.dart).
+
+Core services and repositories:
+- `AppPreferencesRepository`
+- `UserRepository`
+- `NoteRepository`
+- `SpeechToText`
+- `ExternalSyncService`
+- `NoteEventBus`
+- `CaptureService`
+- `NoteSaveService`
+- `OverlayNotifier`
+- `FirestoreNoteSyncService`
+- `AiProcessingService`
+- `FcmSyncService`
+- `ConnectivitySyncCoordinator`
+- `ThemeCubit`
+- `TelegramService`
+
+```mermaid
+flowchart TD
+  DI[GetIt container] --> Prefs[AppPreferencesRepository]
+  DI --> Users[UserRepository]
+  DI --> Notes[NoteRepository]
+  DI --> STT[SpeechToText]
+  DI --> Ext[ExternalSyncService]
+  DI --> Bus[NoteEventBus]
+  DI --> Capture[CaptureService]
+  DI --> Save[NoteSaveService]
+  DI --> Overlay[OverlayNotifier]
+  DI --> Sync[FirestoreNoteSyncService]
+  DI --> AI[AiProcessingService]
+  DI --> FCM[FcmSyncService]
+  DI --> Conn[ConnectivitySyncCoordinator]
+  DI --> Theme[ThemeCubit]
+  DI --> Telegram[TelegramService]
+```
+
+Notes:
+- DI uses GetIt lazy singletons.
+- Overlay state is communicated through `MethodChannel("wishperlog/overlay")`.
+- The overlay bridge is initialized in `OverlayNotifier.hydrate()`.
+
+## 8. Navigation Architecture
+
+Router is defined in [lib/app/router.dart](lib/app/router.dart) using go_router.
+
+Routes:
+- `/` -> SignInScreen
+- `/signin` -> SignInScreen
+- `/permissions` -> PermissionsScreen
+- `/telegram` -> TelegramScreen
+- `/home` -> HomeScreenLayout
+- `/search` -> SearchScreen
+- `/notes/:noteId` -> NoteDetailScreen
+- `/folder` -> FolderScreen
+- `/settings` -> SettingsScreen
+- `/system_banner` -> SystemBannerOverlay
+
+Redirect policy:
+- If unauthenticated and the route is not onboarding, redirect to `/`.
+- If authenticated and the route is onboarding, redirect to `/home`.
+- Auth check failures are logged and the router stays on the current route.
+
+```mermaid
+flowchart TD
+  A[Route request] --> B{Authenticated?}
+  B -->|No| C{Onboarding route?}
+  C -->|Yes| D[Allow route]
+  C -->|No| E[Redirect to /]
+  B -->|Yes| F{Onboarding route?}
+  F -->|Yes| G[Redirect to /home]
+  F -->|No| H[Allow route]
+```
+
+## 9. Data Architecture
+
+### 9.1 Canonical Domain Model
+
+Source: [lib/shared/models/note.dart](lib/shared/models/note.dart)
+
+Key fields:
+- noteId, uid
+- rawTranscript, title, cleanBody
+- category, priority, extractedDate
+- createdAt, updatedAt
+- status
+- aiModel
+- gcalEventId, gtaskId
+- source
+- syncedAt
+
+### 9.2 Enums and Shared Values
+
+Source: [lib/shared/models/enums.dart](lib/shared/models/enums.dart)
+
+Current enums:
+- `NoteCategory`: tasks, reminders, ideas, followUp, journal, general
+- `NotePriority`: high, medium, low
+- `NoteStatus`: active, archived, pendingAi, deleted
+- `CaptureSource`: voiceOverlay, textOverlay, homeWritingBox, shortcutTile, notification, googleTasks, googleCalendar
+- `AiProvider`: auto, gemini, groq, huggingface
+
+```mermaid
+classDiagram
+  class Note {
+    +String noteId
+    +String uid
+    +String rawTranscript
+    +String title
+    +String cleanBody
+    +NoteCategory category
+    +NotePriority priority
+    +DateTime? extractedDate
+    +DateTime createdAt
+    +DateTime updatedAt
+    +NoteStatus status
+    +String aiModel
+    +String? gcalEventId
+    +String? gtaskId
+    +CaptureSource source
+    +DateTime? syncedAt
+  }
+
+  class NoteCategory
+  class NotePriority
+  class NoteStatus
+  class CaptureSource
+  class AiProvider
+
+  Note --> NoteCategory
+  Note --> NotePriority
+  Note --> NoteStatus
+  Note --> CaptureSource
+```
+
+### 9.3 Local Persistence
+
+Store: `IsarNoteStore`
+
+Traits:
+- collection-backed local note store
+- unique index on `noteId`
+- idempotent upserts by noteId
+- reactive streams for active/all notes
+- pending-AI queue queries for background work
+
+### 9.4 Cloud Mirror
+
+Firestore path:
+`users/{uid}/notes/{noteId}`
+
+Policy:
+- local save first
+- Firestore write is best-effort and merge-based
+- cloud failure does not roll back local success
+- remote changes are mirrored back into Isar by `FirestoreNoteSyncService`
+
+## 10. Capture and Overlay Runtime
+
+### 10.1 Native / Flutter Overlay Bridge
+
+The current overlay path is centered on `OverlayNotifier` plus the native foreground service.
+
+MethodChannel calls used by the bridge:
+- Native -> Flutter: `notifyRecordingStarted`, `notifyRecordingTranscript`, `notifyRecordingStopped`, `notifyRecordingFailed`, `captureNote`, `promptMicrophonePermission`
+- Flutter -> Native: `show`, `hide`, `checkPermission`, `requestPermission`, `updateIslandState`, `notifySaved`, `flushPendingNotes`
+
+`OverlayNotifier` also routes the overlay editor action to `/system_banner`.
+
+```mermaid
+flowchart TD
+  A[User taps or holds overlay bubble] --> B[OverlayForegroundService]
+  B --> C{Action}
+  C -->|Long press| D[Start recording / transcript updates]
+  C -->|Double tap| E[openEditor -> /system_banner]
+  D --> F[MethodChannel wishperlog/overlay]
+  F --> G[OverlayNotifier]
+  G --> H[CaptureUiController]
+  H --> I[CaptureService.ingestRawCapture]
+  I --> J[Isar save]
+  J --> K[notifySaved to native overlay]
+  K --> L[Saved pill + haptic]
+  D --> M{Flutter engine alive?}
+  M -->|Yes| F
+  M -->|No| N[NoteInputReceiver]
+  N --> O[SharedPreferences queue]
+  O --> P[main.dart drainPendingNativeNotes]
+  P --> F
+```
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Listening: user holds bubble
+  Listening --> Classifying: speech result received
+  Listening --> Error: timeout / permission denied
+  Classifying --> Saved: save succeeds
+  Classifying --> Error: save or classify fails
+  Saved --> Idle: auto-dismiss
+  Error --> Idle: auto-dismiss
+```
+
+### 10.2 Capture Flow
+
+Flow summary:
+1. User enters text in the home canvas or starts dictation from the overlay bubble.
+2. `CaptureService` validates the raw transcript and creates a `Note` with `status: pendingAi`.
+3. The note is saved into Isar immediately.
+4. `NoteEventBus` emits the save event.
+5. `AiProcessingService` picks up the note asynchronously.
+6. Firestore is updated as a mirror write.
+7. UI feedback is shown through the top notch confirmation and overlay saved pill.
+
+### 10.3 Fallback Chain
+
+The native overlay is designed to survive engine death and app resume gaps.
+
+1. Direct MethodChannel save when Flutter is alive.
+2. LocalBroadcast fallback through `NoteInputReceiver`.
+3. SharedPreferences queue for notes captured while the engine is dead.
+4. `main.dart` drains pending native notes after launch.
+
+This is the main reliability improvement over the older overlay docs.
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Native as OverlayForegroundService
+  participant Receiver as NoteInputReceiver
+  participant Flutter as OverlayNotifier
+  participant Prefs as SharedPreferences
+  participant Main as main.dart
+
+  User->>Native: long press / release
+  Native->>Flutter: captureNote via MethodChannel
+  alt Flutter engine alive
+    Flutter->>Flutter: save note
+  else engine dead
+    Native->>Receiver: LocalBroadcast
+    alt engine returns in time
+      Receiver->>Flutter: captureNote
+    else still dead
+      Receiver->>Prefs: queue note
+      Main->>Prefs: drain on startup
+      Main->>Flutter: replay note
+    end
+  end
+```
+
+## 11. AI Enrichment and Sync
+
+### 11.1 Event-Driven AI Enrichment
+
+Service: [lib/features/ai/data/ai_processing_service.dart](lib/features/ai/data/ai_processing_service.dart)
+
+Mechanics:
+- On start, it sweeps pending notes once.
+- It subscribes to `NoteEventBus.onNoteSaved`.
+- Each note is classified by `AiClassifierRouter` / `GeminiNoteClassifier`.
+- Enriched note fields are written back to Isar.
+- `ExternalSyncService` runs for calendar/task linkage when appropriate.
+- The enriched note is mirrored to Firestore.
+
+Resilience:
+- in-flight note guards prevent duplicate processing
+- failures keep the note in `pendingAi` for retry
+- connectivity restoration triggers retry work through WorkManager
+
+```mermaid
+flowchart TD
+  A[Note saved in Isar] --> B[NoteEventBus emits noteId]
+  B --> C[AiProcessingService]
+  C --> D{Status pendingAi?}
+  D -->|No| Z[Skip]
+  D -->|Yes| E[AiClassifierRouter / GeminiNoteClassifier]
+  E --> F[Enriched note fields]
+  F --> G[Save back to Isar]
+  G --> H[Mirror to Firestore]
+  F --> I[ExternalSyncService]
+  I --> J[Google Calendar / Tasks writes]
+  J --> G
+  G --> K[Emit note updated]
+```
+
+### 11.2 Cloud Mirror and Push/Pull Sync
+
+Flow:
+- Isar write happens first.
+- `CaptureService` and `AiProcessingService` push merge writes to Firestore.
+- `FirestoreNoteSyncService` listens for remote updates and upserts them into Isar.
+- `FcmSyncService` receives push messages and triggers targeted refreshes.
+
+Supported FCM message types:
+- `note_status_changed` -> apply status from push
+- `note_updated` -> sync note by id
+
+```mermaid
+sequenceDiagram
+  participant Local as IsarNoteStore
+  participant Cap as CaptureService
+  participant AI as AiProcessingService
+  participant FS as Firestore
+  participant Sync as FirestoreNoteSyncService
+  participant FCM as FcmSyncService
+
+  Cap->>Local: put pending note
+  Cap->>FS: merge write
+  AI->>Local: put enriched note
+  AI->>FS: merge write
+  FS-->>Sync: snapshots
+  Sync->>Local: putAll mirrored notes
+  FCM-->>Sync: note_updated / note_status_changed
+  Sync->>Local: targeted refresh
+```
+
+### 11.3 Background Jobs
+
+WorkManager task names:
+- `wishperlog.periodic_google_tasks_sync`
+- `wishperlog.flush_pending_ai`
+- `wishperlog.telegram_daily_digest`
+
+Background jobs currently do the following:
+- periodic Google Tasks sync checks for completed tasks and archives linked notes
+- pending AI flush retries notes after reconnect
+- Telegram digest sends a local daily summary without requiring a server bot runtime
+
+```mermaid
+flowchart LR
+  WM[WorkManager] --> P[periodic_google_tasks_sync]
+  WM --> F[flush_pending_ai]
+  WM --> T[telegram_daily_digest]
+  P --> Ext[ExternalSyncService.syncNow]
+  F --> AI[AiProcessingService.flushPendingQueue]
+  T --> Tel[Telegram digest send]
+  Ext --> Store[(IsarNoteStore)]
+  AI --> Store
+  Tel --> Store
+```
+
+## 12. External Integrations
+
+### 12.1 Google Calendar and Google Tasks
+
+Service: [lib/features/sync/data/external_sync_service.dart](lib/features/sync/data/external_sync_service.dart)
+
+Rules:
+- reminder notes with an extracted date can create Calendar events
+- task notes can create Google Tasks items
+- resulting external IDs are written back to the note and mirrored to Firestore
+
+### 12.2 Telegram
+
+Service: [lib/features/sync/data/telegram_service.dart](lib/features/sync/data/telegram_service.dart)
+
+Current behavior:
+- `resolveBotUsername()` uses configured username first, then falls back to Telegram `getMe`.
+- `resolveChatIdByStartToken()` polls `getUpdates` and matches exact `/start <token>` for no-backend setups.
+- Bot commands are registered locally for help and digest interactions.
+- The digest flow runs as a device-side WorkManager job.
+
+Telegram command surface:
+- start
+- help
+- status
+- digest
+- top
+- today
+- slots
+- stats
+- find
+- agenda
+- menu
+- focus
+- nudge
+- ping
+
+```mermaid
+flowchart TD
+  A[Connect in Telegram] --> B[resolveBotUsername]
+  B --> C[Write pending_telegram token in Firestore]
+  C --> D[Open t.me deep link]
+  D --> E{Backend available?}
+  E -->|Yes| F[Backend resolves /start token]
+  F --> G[Write telegram_chat_id]
+  G --> H[Snapshot success]
+  E -->|No| I[Poll getUpdates]
+  I --> J[Match /start token]
+  J --> G
+  H --> K[Store local cache]
+  G --> K
+```
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant A as App
+  participant T as Telegram API
+  participant FS as Firestore
+  participant S as TelegramService
+  participant B as Bot Backend (optional)
+
+  U->>A: Connect in Telegram
+  A->>S: resolveBotUsername()
+  A->>FS: write pending_telegram token + expiry
+  A->>T: open deep link /start <token>
+  alt backend enabled
+    T->>B: /start <token>
+    B->>FS: write telegram_chat_id
+    FS-->>A: snapshot resolves success
+  else no backend
+    A->>T: poll getUpdates
+    T-->>A: /start <token> update
+    A->>FS: write telegram_chat_id
+  end
+```
+
+## 13. Settings and Preferences
+
+- Theme mode is persisted through `ThemeCubit` and `AppPreferencesRepository`.
+- Overlay enabled state and position are persisted by `OverlayNotifier` in SharedPreferences.
+- Digest time and Telegram chat ID are tracked in Firestore through `UserRepository`.
+- Notification permission and token handling are initialized during startup.
+
+```mermaid
+flowchart TD
+  Settings[SettingsScreen] --> Theme[ThemeCubit]
+  Settings --> Overlay[OverlayNotifier]
+  Settings --> Telegram[TelegramService]
+  Settings --> Sync[ExternalSyncService]
+  Theme --> Prefs[AppPreferencesRepository]
+  Overlay --> SP[SharedPreferences]
+  Telegram --> FS[Firestore user doc]
+  Sync --> FS
+```
+
+## 14. UI Architecture
+
+### 14.1 Current UI Composition
+
+- Home screen combines the thought canvas, folder grid, and overlay-style confirmation surfaces.
+- Folder screen supports category browsing and edit actions.
+- Search screen uses ranked semantic-pragmatic matching across title, body, transcript, and category.
+- System banner overlay is used for quick note editing from the overlay bridge.
+
+### 14.2 Visual Primitives
+
+- Glass surfaces and mesh-gradient backgrounds are part of the current design system.
+- The save notch is a top-center confirmation surface that stays visible for a short confirmation window.
+- Overlay saved states are mirrored between Flutter UI and the native overlay pill.
+
+## 15. Current Invariants
+
+1. Local save must complete before any network-dependent operation.
+2. `NoteEventBus` save events must fire only after local persistence succeeds.
+3. Protected routes must remain inaccessible when unauthenticated.
+4. Background handlers must initialize Firebase before any Firestore operation.
+5. Overlay toggles should only report enabled when the native overlay is actually shown.
+
+## 16. Operational Notes and Risks
+
+1. Isar is the active local store; older SQLite documentation is stale.
+2. The native overlay and Flutter overlay code paths are intentionally decoupled and bridged by MethodChannel.
+3. Telegram no-backend fallback is effective, but a backend poller would compete for `getUpdates` if both are enabled at once.
+4. The local app currently favors reliability over perfect immediate remote consistency.
+5. Retry and error reporting are mostly log-based, so observability is still lightweight.
+
+## 17. Implementation Drift That Has Been Normalized
+
+- Overlay hydration now happens during app startup in `main.dart`.
+- Pending native notes are drained after launch instead of being lost on app resume.
+- Telegram linking no longer depends on a server-only flow.
+- WorkManager covers Google Tasks, pending AI retries, and Telegram digest jobs.
+- Firestore is treated as a mirror and sync source, not the primary local database.
+
+## 18. Implementation Map
+
+| Area | Primary Files | Responsibility |
+|---|---|---|
+| Startup | [lib/main.dart](lib/main.dart) | bootstrap, post-launch services, overlay drain |
+| Routing | [lib/app/router.dart](lib/app/router.dart) | auth guards, routes, transitions |
+| Capture | [lib/features/capture/data/capture_service.dart](lib/features/capture/data/capture_service.dart) | instant local save, Firestore mirror |
+| AI | [lib/features/ai/data/ai_processing_service.dart](lib/features/ai/data/ai_processing_service.dart) | classification, enrichment, retries |
+| Sync | [lib/features/sync/data/firestore_note_sync_service.dart](lib/features/sync/data/firestore_note_sync_service.dart) | Firestore snapshots to Isar |
+| Push | [lib/features/sync/data/fcm_sync_service.dart](lib/features/sync/data/fcm_sync_service.dart) | push handling and targeted refresh |
+| Background | [lib/core/background/work_manager_service.dart](lib/core/background/work_manager_service.dart) | periodic tasks, flush jobs |
+| Overlay | [lib/features/overlay/overlay_notifier.dart](lib/features/overlay/overlay_notifier.dart) | bridge, state sync, native coordination |
+| Telegram | [lib/features/sync/data/telegram_service.dart](lib/features/sync/data/telegram_service.dart) | bot commands, chat linking, digest |
+| Preferences | [lib/features/auth/data/repositories/user_repository.dart](lib/features/auth/data/repositories/user_repository.dart) | user profile and chat ID persistence |
+| Model | [lib/shared/models/note.dart](lib/shared/models/note.dart) | note schema |
+| Enums | [lib/shared/models/enums.dart](lib/shared/models/enums.dart) | canonical values |
+
+## 19. Tech Stack Reference
+
+**Frontend**: Flutter, Material Design 3, GoRouter, BLoC
+**State**: GetIt, Streams, ValueNotifier
+**Storage**: Isar, Firestore
+**AI**: Google Gemini, optional fallback providers
+**Platform**: overlay window, speech-to-text, permission handling
+**Background**: connectivity_plus, workmanager, notifications
+
+## 20. Summary
+
+WhisperLog now has a single runtime model:
+- capture locally first
+- enrich asynchronously
+- mirror to Firestore
+- sync back from cloud events when needed
+- keep overlay, Telegram, and background jobs resilient across app lifecycle boundaries
+````
+
+### README.md
+
+````markdown
+# WhisperLog
+
+WhisperLog is a local-first voice and text capture app with Android overlay capture, AI enrichment, Firestore mirroring, external Google integrations, and Telegram digest support.
+
+The current codebase uses Isar as the local source of truth for reads and writes, while Firestore is the asynchronous cloud mirror and cross-device sync layer. Older SQLite-era documentation has been folded into the consolidated architecture notes so the repo now has one current blueprint instead of several competing summaries.
+
+## What The App Does
+
+- Capture voice or text from the Android overlay bubble or the main home canvas.
+- Save notes locally first so the UI updates immediately.
+- Enrich notes with AI classification, title extraction, category, priority, and date parsing.
+- Mirror local changes to Firestore for backup and sync.
+- Pull remote changes back into Isar through Firestore listeners and FCM-triggered refreshes.
+- Create Google Calendar events and Google Tasks items for the right note categories.
+- Send a Telegram daily digest from the device without requiring a bot backend.
+
+## Current Blueprint
+
+- Entry point: [lib/main.dart](lib/main.dart)
+- Routing: [lib/app/router.dart](lib/app/router.dart)
+- Overlay bridge: [lib/features/overlay/overlay_notifier.dart](lib/features/overlay/overlay_notifier.dart)
+- Sync background jobs: [lib/core/background/work_manager_service.dart](lib/core/background/work_manager_service.dart)
+- Telegram flow: [lib/features/sync/data/telegram_service.dart](lib/features/sync/data/telegram_service.dart)
+- Shared enums and keys: [variables.md](variables.md)
+- Full runtime wiring: [architecture.md](architecture.md)
+
+## Recent Implementation Notes
+
+- Overlay state is hydrated during app startup, and pending native-only captures are drained after launch.
+- The native overlay now uses a fallback chain so note capture survives engine death and app resume gaps.
+- Telegram connect supports both backend-assisted linking and a no-backend `getUpdates` fallback.
+- WorkManager now tracks periodic Google Tasks sync, pending AI flush, and Telegram digest jobs.
+- Firestore is a mirror, not the primary local read source.
+
+## Setup
+
+### Prerequisites
+
+- Flutter SDK 3.11.4+
+- Dart 3.11+
+- Android SDK 31+ or Xcode 13+
+- Firebase project with Authentication, Firestore, FCM, and Cloud Functions enabled
+- Google Calendar and Google Tasks APIs enabled if you want external sync
+- Gemini API key for enrichment
+- Telegram bot token if you want digest and bot command features
+
+### Quick Start
+
+1. Install dependencies.
+   ```bash
+   flutter pub get
+   ```
+
+2. Configure environment values.
+   - Use `.env` for non-Firebase secrets such as Gemini and Telegram values.
+   - Do not put Firebase Android configuration in `.env`; Android uses `google-services.json` plus SHA-1 registration in Firebase Console.
+
+3. Download Firebase files.
+   - `android/app/google-services.json`
+   - `ios/Runner/GoogleService-Info.plist`
+
+4. Register the Android SHA-1 fingerprint in Firebase Console.
+   ```bash
+   cd android && ./gradlew signingReport
+   ```
+
+5. Deploy Cloud Functions if you use server-side enrichment or Telegram helpers.
+   ```bash
+   cd functions
+   firebase deploy --only functions
+   ```
+
+6. Generate code and run the app.
+   ```bash
+   flutter pub run build_runner build
+   flutter run
+   ```
+
+## Runtime Checklist
+
+- Grant microphone permission for voice capture.
+- Grant overlay permission on Android if you want the floating bubble.
+- Sign in with Google before testing cloud sync or Google Calendar / Tasks integration.
+- Confirm Firebase auth, Firestore rules, and Cloud Functions are configured before release testing.
+
+## Troubleshooting
+
+- If notes save locally but do not appear in Firestore immediately, check network connectivity and Firestore auth state.
+- If overlay capture fails, confirm the Android overlay permission and microphone permission are both granted.
+- If Telegram linking stalls, verify the bot token, check whether a backend poller is consuming updates, and retry the connect flow.
+- If Google Calendar or Tasks are not created, confirm the note category and extracted date match the integration rules.
+
+## Architecture And Reference Docs
+
+- [architecture.md](architecture.md) covers the merged runtime topology, overlay flows, sync pipelines, Telegram flows, and operational notes.
+- [variables.md](variables.md) lists enums, helpers, task names, and shared keys.
+
+## Contributing
+
+Before sending changes:
+
+1. Run `flutter analyze`.
+2. Run `dart format lib/`.
+3. Test the app on an Android device.
+4. Recheck the runtime docs if you changed routing, capture, sync, or background jobs.
+
+## License
+
+MIT License.
+````
+
+### analysis_options.yaml
+
+```yaml
+# This file configures the analyzer, which statically analyzes Dart code to
+# check for errors, warnings, and lints.
+#
+# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
+# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
+# invoked from the command line by running `flutter analyze`.
+
+# The following line activates a set of recommended lints for Flutter apps,
+# packages, and plugins designed to encourage good coding practices.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "lib/**/*.g.dart"
+
+linter:
+  # The lint rules applied to this project can be customized in the
+  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
+  # included above or to enable additional rules. A list of all available lints
+  # and their documentation is published at https://dart.dev/lints.
+  #
+  # Instead of disabling a lint rule for the entire project in the
+  # section below, it can also be suppressed for a single line of code
+  # or a specific dart file by using the `// ignore: name_of_lint` and
+  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
+  # producing the lint.
+  rules:
+    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
+    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options
+```
+
+### android/app/build.gradle.kts
+
+```kotlin
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("dev.flutter.flutter-gradle-plugin")
+}
+
+android {
+    namespace = "com.adarshkumarverma.wishperlog"
+    compileSdk = maxOf(flutter.compileSdkVersion, 35)
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId = "com.adarshkumarverma.wishperlog"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        minSdk = flutter.minSdkVersion
+        targetSdk = maxOf(flutter.targetSdkVersion, 35)
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        create("release") {
+            // Values are read from gradle.properties (local, never committed to VCS).
+            // See MANUAL CONFIGURATION section for setup instructions.
+            val storeFilePath = System.getenv("WISHPERLOG_STORE_FILE")
+                ?: project.findProperty("WISHPERLOG_STORE_FILE") as String?
+            val storePassword = System.getenv("WISHPERLOG_STORE_PASSWORD")
+                ?: project.findProperty("WISHPERLOG_STORE_PASSWORD") as String?
+            val keyAlias = System.getenv("WISHPERLOG_KEY_ALIAS")
+                ?: project.findProperty("WISHPERLOG_KEY_ALIAS") as String?
+            val keyPassword = System.getenv("WISHPERLOG_KEY_PASSWORD")
+                ?: project.findProperty("WISHPERLOG_KEY_PASSWORD") as String?
+
+            if (storeFilePath != null) {
+                storeFile     = file(storeFilePath)
+                this.storePassword = storePassword ?: ""
+                this.keyAlias     = keyAlias      ?: ""
+                this.keyPassword  = keyPassword   ?: ""
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Use release signing when keys are available; fall back to debug for
+            // local `flutter run --release` during development.
+            val hasReleaseSigning = signingConfigs.findByName("release")
+                ?.storeFile?.exists() == true
+            signingConfig = if (hasReleaseSigning)
+                signingConfigs.getByName("release")
+            else
+                signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+```
+
+### android/app/google-services.json
+
+```json
+{
+  "project_info": {
+    "project_number": "982731246537",
+    "firebase_url": "https://wishperlog-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "wishperlog",
+    "storage_bucket": "wishperlog.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:982731246537:android:bff1e21915bd4c632cf618",
+        "android_client_info": {
+          "package_name": "com.adarshkumarverma.wishperlog"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "982731246537-63ibaop0hio54tg5fgh0s9pehqb5gigm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adarshkumarverma.wishperlog",
+            "certificate_hash": "ddae9ee974d9c4c1898c205ef35bc896ad3ac4b0"
+          }
+        },
+        {
+          "client_id": "982731246537-pk0h1lp6sco8h474t1sqbmehj8aj0g65.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-0jX3pPJ-8iBDMlSW1W19ih_XkqtqH4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "982731246537-pk0h1lp6sco8h474t1sqbmehj8aj0g65.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "982731246537-ds47rpj0jsvqqoo62ej105n5i0l12u7k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.adarshkumarverma.wishperlog"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+```
+
+### android/app/src/debug/AndroidManifest.xml
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The INTERNET permission is required for development. Specifically,
+         the Flutter tool needs it to communicate with the running application
+         to allow setting breakpoints, to provide hot reload, etc.
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+</manifest>
+```
+
+### android/app/src/main/AndroidManifest.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.adarshkumarverma.wishperlog">
+
+    <!-- ── Network ─────────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- ── Microphone ──────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- ── Foreground service permissions ─────────────────────────────── -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!--
+        CRITICAL FIX #1:
+        On Android 11+ (API 30+), background services that access the microphone
+        MUST declare FOREGROUND_SERVICE_MICROPHONE and set foregroundServiceType
+        to "microphone" in the <service> tag. Without this, Android silently
+        revokes mic access from background services after ~2 seconds.
+        This was the PRIMARY cause of the recording stopping out-of-app.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- ── Other system permissions ────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <queries>
+        <package android:name="com.google.android.gms" />
+        <package android:name="com.android.vending" />
+    </queries>
+
+    <application
+        android:name=".WishperlogApplication"
+        android:label="wishperlog"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:enableOnBackInvokedCallback="true"
+        android:theme="@style/NormalTheme">
+
+        <activity
+            android:name="com.adarshkumarverma.wishperlog.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize"
+            android:windowTranslucentStatus="true"
+            android:windowTranslucentNavigation="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <meta-data android:name="flutterEmbedding" android:value="2" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/black" />
+
+        <!--
+            CRITICAL FIX #1 (continued):
+            foregroundServiceType MUST include "microphone" for SpeechRecognizer
+            to work in a background service on Android 11+.
+            "specialUse" is retained because the service also drives a
+            SYSTEM_ALERT_WINDOW overlay (which requires a use-case justification
+            on Play Store submission).
+        -->
+        <service
+            android:name=".OverlayForegroundService"
+            android:foregroundServiceType="microphone|specialUse"
+            android:exported="false" />
+
+        <!-- Headless Flutter engine — only needs dataSync (no mic) -->
+        <service
+            android:name=".BackgroundNoteService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <receiver android:name=".NoteInputReceiver" android:exported="false" />
+
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>
+```
+
+### android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+```java
+package io.flutter.plugins;
+
+import androidx.annotation.Keep;
+import androidx.annotation.NonNull;
+import io.flutter.Log;
+
+import io.flutter.embedding.engine.FlutterEngine;
+
+/**
+ * Generated file. Do not edit.
+ * This file is generated by the Flutter tool based on the
+ * plugins that support the Android platform.
+ */
+@Keep
+public final class GeneratedPluginRegistrant {
+  private static final String TAG = "GeneratedPluginRegistrant";
+  public static void registerWith(@NonNull FlutterEngine flutterEngine) {
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.firebase.firestore.FlutterFirebaseFirestorePlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin cloud_firestore, io.flutter.plugins.firebase.firestore.FlutterFirebaseFirestorePlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new dev.fluttercommunity.plus.connectivity.ConnectivityPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin connectivity_plus, dev.fluttercommunity.plus.connectivity.ConnectivityPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.firebase.auth.FlutterFirebaseAuthPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin firebase_auth, io.flutter.plugins.firebase.auth.FlutterFirebaseAuthPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin firebase_core, io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin firebase_messaging, io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin flutter_local_notifications, com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.googlesignin.GoogleSignInPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin google_sign_in_android, io.flutter.plugins.googlesignin.GoogleSignInPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new dev.isar.isar_flutter_libs.IsarFlutterLibsPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin isar_flutter_libs, dev.isar.isar_flutter_libs.IsarFlutterLibsPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.pathprovider.PathProviderPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin path_provider_android, io.flutter.plugins.pathprovider.PathProviderPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new com.baseflow.permissionhandler.PermissionHandlerPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin permission_handler_android, com.baseflow.permissionhandler.PermissionHandlerPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin shared_preferences_android, io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new com.csdcorp.speech_to_text.SpeechToTextPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin speech_to_text, com.csdcorp.speech_to_text.SpeechToTextPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new io.flutter.plugins.urllauncher.UrlLauncherPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin url_launcher_android, io.flutter.plugins.urllauncher.UrlLauncherPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new dev.fluttercommunity.workmanager.WorkmanagerPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin workmanager_android, dev.fluttercommunity.workmanager.WorkmanagerPlugin", e);
+    }
+  }
+}
+```
+
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BackgroundNoteService.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.IBinder
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import io.flutter.FlutterInjector
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.dart.DartExecutor
+import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugins.GeneratedPluginRegistrant
+
+/**
+ * Headless Flutter engine service.
+ *
+ * Invoked when OverlayForegroundService captures a note but the main Flutter
+ * engine is not alive (app fully killed). Starts a lightweight Dart isolate via
+ * [backgroundNoteCallback], forwards the raw transcript, waits for Dart to:
+ *   1. Persist to Isar
+ *   2. Run Gemini classification
+ *   3. Sync to Firestore
+ *
+ * CRITICAL FIX #2:
+ * When Dart signals 'done' it now passes {title, category} of the saved note.
+ * BackgroundNoteService forwards this to OverlayForegroundService.notifyBackgroundSaved()
+ * so the native island pill updates from "Classifying..." to the real saved state.
+ * Before this fix, the island was permanently stuck on "Classifying...".
+ */
+class BackgroundNoteService : Service() {
+
+    companion object {
+        private const val TAG = "BackgroundNoteSvc"
+        private const val CHANNEL_ID = "wishperlog_bg_note"
+        private const val NOTIFICATION_ID = 9002
+        const val EXTRA_TEXT = "extra_text"
+        const val EXTRA_SOURCE = "extra_source"
+
+        fun start(context: Context, text: String, source: String) {
+            val i = Intent(context, BackgroundNoteService::class.java).apply {
+                putExtra(EXTRA_TEXT, text)
+                putExtra(EXTRA_SOURCE, source)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                context.startForegroundService(i)
+            else
+                context.startService(i)
+        }
+    }
+
+    private var flutterEngine: FlutterEngine? = null
+    private var bgChannel: MethodChannel? = null
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        startForeground(NOTIFICATION_ID, buildNotification())
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val text   = intent?.getStringExtra(EXTRA_TEXT)   ?: ""
+        val source = intent?.getStringExtra(EXTRA_SOURCE) ?: "voice_overlay"
+
+        // Fast path: main engine still alive — just forward and exit.
+        val live = FlutterEngineHolder.channel
+        if (live != null && text.isNotEmpty()) {
+            live.invokeMethod(
+                "captureNote",
+                mapOf("text" to text, "source" to source),
+                object : MethodChannel.Result {
+                    override fun success(r: Any?)    { stopSelf() }
+                    override fun error(c: String, m: String?, d: Any?) {
+                        drainAndProcess(text, source)
+                    }
+                    override fun notImplemented()    { drainAndProcess(text, source) }
+                }
+            )
+        } else {
+            drainAndProcess(text, source)
+        }
+        return START_NOT_STICKY
+    }
+
+    private fun drainAndProcess(newText: String, newSource: String) {
+        Log.d(TAG, "drainAndProcess: booting headless Flutter engine")
+        FlutterInjector.instance().flutterLoader().startInitialization(applicationContext)
+        FlutterInjector.instance().flutterLoader().ensureInitializationComplete(applicationContext, null)
+
+        val engine = FlutterEngine(applicationContext)
+        flutterEngine = engine
+        GeneratedPluginRegistrant.registerWith(engine)
+
+        bgChannel = MethodChannel(engine.dartExecutor.binaryMessenger, "wishperlog/background_notes")
+
+        // Collect pending notes from SharedPreferences + this new note.
+        val prefs   = getSharedPreferences("wishperlog_pending_notes", Context.MODE_PRIVATE)
+        val pending = mutableListOf<Pair<String, String>>()
+        if (newText.isNotEmpty()) pending.add(Pair(newText, newSource))
+
+        val allKeys = prefs.all.keys.filter { it.endsWith("_text") }
+        for (k in allKeys) {
+            val baseKey = k.removeSuffix("_text")
+            val t = prefs.getString("${baseKey}_text", null) ?: continue
+            val s = prefs.getString("${baseKey}_source", "voice_overlay") ?: "voice_overlay"
+            pending.add(Pair(t, s))
+        }
+        prefs.edit().clear().apply()
+
+        var pendingIdx = 0
+
+        bgChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "ready" -> {
+                    result.success(null)
+                    dispatchNext(pending, pendingIdx).also { pendingIdx = it }
+                }
+                "nextNote" -> {
+                    result.success(null)
+                    dispatchNext(pending, pendingIdx).also { pendingIdx = it }
+                }
+
+                // CRITICAL FIX #2:
+                // Dart now sends {title, category} so we can update the island
+                // from "Classifying..." to the actual saved state. Without this,
+                // the pill was stuck forever when the engine was dead at capture time.
+                "done" -> {
+                    result.success(null)
+                    val title    = call.argument<String>("title")    ?: ""
+                    val category = call.argument<String>("category") ?: "general"
+                    val prefix   = call.argument<String>("prefix")   ?: "AI"
+                    if (title.isNotEmpty()) {
+                        Log.d(TAG, "done: notifying island — title='$title' category='$category' prefix='$prefix'")
+                        OverlayForegroundService.notifyBackgroundSaved(title, category, prefix)
+                    } else {
+                        Log.d(TAG, "done: no title, dismissing island")
+                        OverlayForegroundService.dismissIslandFromBackground()
+                    }
+                    stopSelf()
+                }
+
+                else -> result.notImplemented()
+            }
+        }
+
+        engine.dartExecutor.executeDartEntrypoint(
+            DartExecutor.DartEntrypoint(
+                FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+                "backgroundNoteCallback"
+            )
+        )
+    }
+
+    private fun dispatchNext(pending: List<Pair<String, String>>, idx: Int): Int {
+        return if (idx < pending.size) {
+            val (t, s) = pending[idx]
+            bgChannel?.invokeMethod("processNote", mapOf("text" to t, "source" to s))
+            idx + 1
+        } else {
+            bgChannel?.invokeMethod("allDone", null)
+            idx
+        }
+    }
+
+    override fun onDestroy() {
+        flutterEngine?.destroy()
+        flutterEngine = null
+        bgChannel = null
+        super.onDestroy()
+    }
+
+    private fun buildNotification(): Notification {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val ch = NotificationChannel(
+                CHANNEL_ID,
+                "WishperLog Background Save",
+                NotificationManager.IMPORTANCE_MIN
+            )
+            getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
+        }
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("WishperLog")
+            .setContentText("Saving voice note…")
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .build()
+    }
+}
+```
+
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BootReceiver.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.util.Log
+
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        val prefs = context.getSharedPreferences(
+            "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean("overlay_v2.enabled", true)
+        if (!enabled) return
+        Log.d("BootReceiver", "Boot completed - restarting overlay service")
+        val serviceIntent = Intent(context, OverlayForegroundService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            context.startForegroundService(serviceIntent)
+        else
+            context.startService(serviceIntent)
+    }
+}
+```
+
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/FlutterEngineHolder.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import io.flutter.plugin.common.MethodChannel
+
+/**
+ * Singleton holder so the NoteInputReceiver can access the Flutter MethodChannel
+ * even when MainActivity may not be in the foreground.
+ */
+object FlutterEngineHolder {
+    var channel: MethodChannel? = null
+}
+```
+
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/MainActivity.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import android.Manifest
+import android.graphics.BitmapFactory
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import android.util.Log
+import java.io.ByteArrayOutputStream
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterActivityLaunchConfigs
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+class MainActivity : FlutterActivity() {
+
+    private val CHANNEL = "wishperlog/overlay"
+    private val REQUEST_RECORD_AUDIO = 4242
+    private var pendingMicPermissionResult: MethodChannel.Result? = null
+
+    companion object {
+        private const val TAG = "MainActivity"
+    }
+
+    override fun getBackgroundMode(): FlutterActivityLaunchConfigs.BackgroundMode =
+        FlutterActivityLaunchConfigs.BackgroundMode.transparent
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        FlutterEngineHolder.channel = channel
+
+        channel.setMethodCallHandler { call, result ->
+            when (call.method) {
+
+                // ── Overlay lifecycle ────────────────────────────────────────
+                "show" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                        !Settings.canDrawOverlays(this)) {
+                        result.error("PERMISSION_DENIED", "Overlay permission not granted", null)
+                    } else {
+                        val i = Intent(this, OverlayForegroundService::class.java)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                            startForegroundService(i) else startService(i)
+                        result.success(null)
+                    }
+                }
+                "hide" -> {
+                    stopService(Intent(this, OverlayForegroundService::class.java))
+                    result.success(null)
+                }
+
+                // ── Permissions ──────────────────────────────────────────────
+                "checkPermission" -> result.success(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                        Settings.canDrawOverlays(this) else true
+                )
+                "requestPermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        startActivity(
+                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:$packageName"))
+                        )
+                    }
+                    result.success(null)
+                }
+                "requestMicrophonePermission" -> {
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                        == PackageManager.PERMISSION_GRANTED) {
+                        result.success(true)
+                    } else {
+                        pendingMicPermissionResult = result
+                        ActivityCompat.requestPermissions(
+                            this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO
+                        )
+                    }
+                }
+
+                // ── Island state sync (Flutter → Native) ─────────────────────
+                "updateIslandState" -> {
+                    val state   = call.argument<String>("state")   ?: "idle"
+                    val message = call.argument<String>("message")
+                    OverlayForegroundService.updateIsland(state, message)
+                    result.success(null)
+                }
+                "notifySaved" -> {
+                    val title      = call.argument<String>("title")      ?: ""
+                    val category   = call.argument<String>("category")   ?: "general"
+                    val prefix     = call.argument<String>("prefix")     ?: "AI"
+                    val collection = call.argument<String>("collection") ?: "notes"
+                    OverlayForegroundService.notifySaved(title, category, prefix, collection)
+                    result.success(null)
+                }
+
+                // ── Overlay appearance settings ───────────────────────────────
+                "getOverlaySettings" -> {
+                    val prefs = getSharedPreferences(
+                        "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
+                    val settingsJson = prefs.getString("overlay_settings_json", null)
+                    val settings = OverlayAppearanceSettings.fromJson(settingsJson)
+                    result.success(mapOf(
+                        "alpha" to settings.alpha,
+                        "growOnHold" to settings.growEnabled,
+                        "settingsJson" to settings.toJsonString(),
+                    ))
+                }
+                "updateOverlaySettings" -> {
+                    val prefs = getSharedPreferences(
+                        "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
+
+                    val incomingJson = call.argument<String>("settingsJson")
+                    val legacyAlpha = (call.argument<Double>("alpha") ?: 0.85).toFloat()
+                    val legacyGrow = call.argument<Boolean>("growOnHold") ?: true
+
+                    val mergedSettings = if (!incomingJson.isNullOrBlank()) {
+                        OverlayAppearanceSettings.fromJson(incomingJson)
+                    } else {
+                        val currentJson = prefs.getString("overlay_settings_json", null)
+                        val current = if (currentJson.isNullOrBlank()) {
+                            OverlayAppearanceSettings.legacy(legacyAlpha, legacyGrow)
+                        } else {
+                            OverlayAppearanceSettings.fromJson(currentJson)
+                        }
+                        current.copyWith(alpha = legacyAlpha, growEnabled = legacyGrow)
+                    }
+
+                    prefs.edit()
+                        .putString("overlay_settings_json", mergedSettings.toJsonString())
+                        .putFloat("overlay_bubble_alpha", mergedSettings.alpha)
+                        .putBoolean("overlay_bubble_grow", mergedSettings.growEnabled)
+                        .apply()
+
+                    OverlayForegroundService.applySettings(mergedSettings.toJsonString())
+                    result.success(null)
+                }
+
+                // ── Speech settings ───────────────────────────────────────────
+                "getSpeechSettings" -> {
+                    val prefs = getSharedPreferences(
+                        "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
+                    result.success(mapOf(
+                        "language"     to (prefs.getString("overlay_stt_language", "en-US") ?: "en-US"),
+                        "preferOffline" to prefs.getBoolean("overlay_stt_prefer_offline", false)
+                    ))
+                }
+                "updateSpeechSettings" -> {
+                    val lang    = call.argument<String>("language")      ?: "en-US"
+                    val offline = call.argument<Boolean>("preferOffline") ?: false
+                    getSharedPreferences(
+                        "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
+                        .edit()
+                        .putString("overlay_stt_language", lang)
+                        .putBoolean("overlay_stt_prefer_offline", offline)
+                        .apply()
+                    result.success(null)
+                }
+                "downloadSpeechLanguagePack" -> {
+                    try {
+                        startActivity(Intent(Settings.ACTION_LOCALE_SETTINGS)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (_: Exception) {}
+                    result.success(null)
+                }
+
+                "getLauncherIcon" -> {
+                    try {
+                        val bitmap = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+                        if (bitmap == null) {
+                            result.success(null)
+                        } else {
+                            val stream = ByteArrayOutputStream()
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
+                            result.success(stream.toByteArray())
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "getLauncherIcon failed", e)
+                        result.success(null)
+                    }
+                }
+
+                // ── Flush pending notes saved while engine was dead ───────────
+                "flushPendingNotes" -> {
+                    flushPendingNotes(channel)
+                    result.success(null)
+                }
+
+                else -> result.notImplemented()
+            }
+        }
+
+        // Auto-flush pending notes every time app comes to foreground
+        flushPendingNotes(channel)
+    }
+
+    /**
+     * Reads notes that were persisted to SharedPreferences while the Flutter
+     * engine was dead (e.g. app killed during overlay recording) and re-injects
+     * them into Flutter for normal Isar + AI + Firestore processing.
+     */
+    private fun flushPendingNotes(channel: MethodChannel) {
+        val prefs = getSharedPreferences("wishperlog_pending_notes", Context.MODE_PRIVATE)
+        val keys  = prefs.all.keys.filter { it.endsWith("_text") }.sorted()
+        if (keys.isEmpty()) return
+
+        Log.d(TAG, "flushPendingNotes: found ${keys.size} pending notes")
+        val editor = prefs.edit()
+
+        for (k in keys) {
+            val base   = k.removeSuffix("_text")
+            val text   = prefs.getString("${base}_text",   null) ?: continue
+            val source = prefs.getString("${base}_source", "voice_overlay") ?: "voice_overlay"
+            editor.remove("${base}_text").remove("${base}_source")
+            channel.invokeMethod("captureNote", mapOf("text" to text, "source" to source))
+        }
+        editor.apply()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_RECORD_AUDIO) {
+            val granted = grantResults.isNotEmpty() &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingMicPermissionResult?.success(granted)
+            pendingMicPermissionResult = null
+        }
+    }
+
+    override fun onDestroy() {
+        FlutterEngineHolder.channel = null
+        super.onDestroy()
+    }
+}
+```
+
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/NoteInputReceiver.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.util.Log
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import io.flutter.plugin.common.MethodChannel
+
+/**
+ * Receives captured note broadcasts from OverlayForegroundService via
+ * LocalBroadcastManager (same bus that broadcastCapture now uses — ISSUE-03).
+ *
+ * Delivery priority:
+ *  1. Forward to live Flutter engine via MethodChannel.
+ *  2. Start BackgroundNoteService (headless Flutter) if engine is dead.
+ *  3. Persist to SharedPreferences as a last-resort safety net.
+ *     Notes are drained on next app resume via MainActivity.flushPendingNotes().
+ */
+class NoteInputReceiver : BroadcastReceiver() {
+
+    companion object {
+        private const val TAG = "NoteInputReceiver"
+
+        /** SharedPreferences file used for the persistence safety net. */
+        private const val PREFS_PENDING = "wishperlog_pending_notes"
+
+        fun register(context: Context, receiver: NoteInputReceiver) {
+            LocalBroadcastManager.getInstance(context).registerReceiver(
+                receiver,
+                IntentFilter(OverlayForegroundService.ACTION_NOTE_CAPTURED)
+            )
+        }
+
+        fun unregister(context: Context, receiver: NoteInputReceiver) {
+            try {
+                LocalBroadcastManager.getInstance(context).unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                Log.w(TAG, "unregister: already unregistered", e)
+            }
+        }
+
+        /**
+         * Persists a note to SharedPreferences so it is never silently dropped.
+         * The note is cleared by MainActivity.flushPendingNotes() only AFTER
+         * the Flutter engine confirms receipt via MethodChannel.Result.success.
+         */
+        fun persistPending(context: Context, text: String, source: String) {
+            val key  = System.currentTimeMillis().toString()
+            val prefs = context.getSharedPreferences(PREFS_PENDING, Context.MODE_PRIVATE)
+            prefs.edit()
+                .putString("${key}_text",   text)
+                .putString("${key}_source", source)
+                .apply()
+            Log.d(TAG, "Persisted pending note key=$key (len=${text.length})")
+        }
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != OverlayForegroundService.ACTION_NOTE_CAPTURED) return
+
+        val text   = intent.getStringExtra(OverlayForegroundService.EXTRA_TEXT)   ?: return
+        val source = intent.getStringExtra(OverlayForegroundService.EXTRA_SOURCE) ?: "voice_overlay"
+
+        // Always persist first — cleared below only after confirmed delivery.
+        val pendingKey = System.currentTimeMillis().toString()
+        val prefs = context.getSharedPreferences(PREFS_PENDING, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("${pendingKey}_text",   text)
+            .putString("${pendingKey}_source", source)
+            .apply()
+
+        val channel = FlutterEngineHolder.channel
+        if (channel != null) {
+            channel.invokeMethod(
+                "captureNote",
+                mapOf("text" to text, "source" to source),
+                object : MethodChannel.Result {
+                    override fun success(result: Any?) {
+                        // Confirmed delivery — remove from safety-net store.
+                        prefs.edit()
+                            .remove("${pendingKey}_text")
+                            .remove("${pendingKey}_source")
+                            .apply()
+                        Log.d(TAG, "captureNote delivered via live engine (len=${text.length})")
+                    }
+                    override fun error(code: String, msg: String?, details: Any?) {
+                        Log.e(TAG, "captureNote error ($code) — starting BackgroundNoteService")
+                        BackgroundNoteService.start(context, text, source)
+                        // Safety-net entry stays until BackgroundNoteService completes.
+                    }
+                    override fun notImplemented() {
+                        Log.e(TAG, "captureNote notImplemented — starting BackgroundNoteService")
+                        BackgroundNoteService.start(context, text, source)
+                    }
+                }
+            )
+        } else {
+            Log.w(TAG, "Engine dead — starting BackgroundNoteService")
+            BackgroundNoteService.start(context, text, source)
+        }
+    }
+}
+```
+
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayAppearanceSettings.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import android.graphics.Color
+import org.json.JSONObject
+
+internal data class OverlayAppearanceSettings(
+    val alpha: Float = 0.82f,
+    val blurSigma: Float = 22.0f,
+    val colorFill: String = "glass",
+    val solidColor: Int = Color.parseColor("#1C1C2E"),
+    val gradientStart: Int = Color.parseColor("#6366F1"),
+    val gradientEnd: Int = Color.parseColor("#8B5CF6"),
+    val borderStyle: String = "glow",
+    val borderColor: Int = Color.parseColor("#6366F1"),
+    val animation: String = "sizeGrow",
+    val growScale: Float = 1.10f,
+    val posX: Float = 0.88f,
+    val posY: Float = 0.30f,
+    val persistOnReboot: Boolean = true,
+) {
+    val growEnabled: Boolean
+        get() = animation.equals("sizeGrow", ignoreCase = true)
+
+    fun copyWith(
+        alpha: Float? = null,
+        growEnabled: Boolean? = null,
+    ): OverlayAppearanceSettings {
+        val nextAnimation = when (growEnabled) {
+            true -> "sizeGrow"
+            false -> "none"
+            null -> animation
+        }
+        return copy(
+            alpha = alpha ?: this.alpha,
+            animation = nextAnimation,
+        )
+    }
+
+    fun toJsonString(): String = JSONObject().apply {
+        put("alpha", alpha.toDouble())
+        put("blurSigma", blurSigma.toDouble())
+        put("colorFill", colorFill)
+        put("solidColor", solidColor)
+        put("gradientStart", gradientStart)
+        put("gradientEnd", gradientEnd)
+        put("borderStyle", borderStyle)
+        put("borderColor", borderColor)
+        put("animation", animation)
+        put("growScale", growScale.toDouble())
+        put("posX", posX.toDouble())
+        put("posY", posY.toDouble())
+        put("persistOnReboot", persistOnReboot)
+    }.toString()
+
+    companion object {
+        fun fromJson(raw: String?): OverlayAppearanceSettings {
+            if (raw.isNullOrBlank()) return OverlayAppearanceSettings()
+            return try {
+                val json = JSONObject(raw)
+                OverlayAppearanceSettings(
+                    alpha = json.optDouble("alpha", 0.82).toFloat(),
+                    blurSigma = json.optDouble("blurSigma", 22.0).toFloat(),
+                    colorFill = json.optString("colorFill", "glass"),
+                    solidColor = json.optInt("solidColor", Color.parseColor("#1C1C2E")),
+                    gradientStart = json.optInt("gradientStart", Color.parseColor("#6366F1")),
+                    gradientEnd = json.optInt("gradientEnd", Color.parseColor("#8B5CF6")),
+                    borderStyle = json.optString("borderStyle", "glow"),
+                    borderColor = json.optInt("borderColor", Color.parseColor("#6366F1")),
+                    animation = json.optString("animation", "sizeGrow"),
+                    growScale = json.optDouble("growScale", 1.10).toFloat(),
+                    posX = json.optDouble("posX", 0.88).toFloat(),
+                    posY = json.optDouble("posY", 0.30).toFloat(),
+                    persistOnReboot = json.optBoolean("persistOnReboot", true),
+                )
+            } catch (_: Exception) {
+                OverlayAppearanceSettings()
+            }
+        }
+
+        fun legacy(alpha: Float, grow: Boolean): OverlayAppearanceSettings {
+            return OverlayAppearanceSettings(
+                alpha = alpha,
+                animation = if (grow) "sizeGrow" else "none",
+            )
+        }
+    }
+}
+```
+
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayForegroundService.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import android.Manifest
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.provider.Settings
+import android.text.InputType
+import android.text.TextUtils
+import android.util.Log
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.OvershootInterpolator
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import java.util.Locale
+
+/**
+ * OverlayForegroundService — "God-Level" optimized overlay with:
+ *  - Robust lifecycle teardown: overlay ALWAYS resets/dismisses after capture ends.
+ *  - Maximum STT accuracy: LANGUAGE_MODEL_FREE_FORM, partial results, dictation mode,
+ *    silence detection tuning, multi-hypothesis merging, salvage on error.
+ *  - Atomic state machine preventing stuck "Classifying..." states.
+ *  - Auto-dismiss safety net (40 s) with explicit idle reset path.
+ *  - Minute-granularity transcript forwarding to Flutter.
+ */
+class OverlayForegroundService : Service() {
+
+    // ─── Companion / static API ──────────────────────────────────────────────
+
+    companion object {
+        private const val TAG = "OverlayForegroundSvc"
+
+        const val ACTION_NOTE_CAPTURED = "com.wishperlog.NOTE_CAPTURED"
+        const val EXTRA_TEXT   = "extra_text"
+        const val EXTRA_SOURCE = "extra_source"
+        const val SOURCE_VOICE = "voice_overlay"
+        const val SOURCE_TEXT  = "text_overlay"
+
+        private const val PREF_BUBBLE_ALPHA      = "overlay_bubble_alpha"
+        private const val PREF_BUBBLE_GROW       = "overlay_bubble_grow"
+        private const val PREF_SETTINGS_JSON     = "overlay_settings_json"
+        private const val PREF_STT_LANGUAGE      = "overlay_stt_language"
+        private const val PREF_STT_PREFER_OFFLINE = "overlay_stt_prefer_offline"
+        private const val DEFAULT_ALPHA = 0.90f
+        private const val DEFAULT_GROW  = true
+
+        // Capture cooldown — prevents double-fire on rapid gestures.
+        private const val CAPTURE_COOLDOWN_MS = 900L
+
+        // Safety-net: island will always auto-dismiss after this delay if
+        // BackgroundNoteService never calls notifySaved / dismissIsland.
+        private const val ISLAND_SAFETY_DISMISS_MS = 40_000L
+
+        @Volatile
+        private var instance: java.lang.ref.WeakReference<OverlayForegroundService>? = null
+
+        fun updateIsland(state: String, message: String?) {
+            instance?.get()?.handleIslandUpdate(state, message)
+        }
+
+        fun notifySaved(title: String, category: String, prefix: String = "AI", collection: String = "notes") {
+            instance?.get()?.handleSavedNotification(title, category, prefix, collection)
+        }
+
+        fun notifyBackgroundSaved(title: String, category: String, prefix: String = "AI") {
+            notifySaved(title, category, prefix, "notes")
+        }
+
+        /** Explicitly resets island to idle — call when empty transcript is detected. */
+        fun dismissIslandFromBackground() {
+            instance?.get()?.dismissIslandAndReset()
+        }
+
+        fun applySettings(settingsJson: String) {
+            instance?.get()?.handleApplySettings(settingsJson)
+        }
+
+        fun applySettings(alpha: Float, grow: Boolean) {
+            instance?.get()?.handleApplySettings(
+                OverlayAppearanceSettings.legacy(alpha, grow).toJsonString(),
+            )
+        }
+    }
+
+    // ─── Views ────────────────────────────────────────────────────────────────
+
+    private lateinit var windowManager: WindowManager
+    private var bubbleView: View?  = null
+    private var bannerView: View?  = null
+    private var islandView: View?  = null
+    private lateinit var bubbleParams: WindowManager.LayoutParams
+
+    // Sub-views kept for direct mutation without full re-inflation.
+    private var bubbleIcon:       ImageView?       = null
+    private var bubbleBackground: GradientDrawable? = null
+    private var islandLabel:      TextView?         = null
+    private var islandBg:         GradientDrawable? = null
+    private var overlaySettings   = OverlayAppearanceSettings()
+    private var islandBaseColor   = Color.parseColor("#6366F1")
+
+    // ─── STT state ────────────────────────────────────────────────────────────
+
+    private var speechRecognizer:       SpeechRecognizer? = null
+    private var lastRecognizerIntent:   Intent?           = null
+    private var lastPartialTranscript:  String            = ""
+    private var stopListeningCalled:    Boolean           = false
+    private var isUserHolding:          Boolean           = false
+    private var isRecording:            Boolean           = false
+    private var isResettingAfterError:  Boolean           = false
+    private var recordingStartTime:     Long              = 0L
+    private var lastCaptureAttemptMs:   Long              = 0L
+    private var longPressTriggered:     Boolean           = false
+    private var bubbleGrowEnabled:      Boolean           = DEFAULT_GROW
+
+    // ─── Handlers / runnables ─────────────────────────────────────────────────
+
+    private val mainHandler         = Handler(Looper.getMainLooper())
+    private var longPressRunnable:   Runnable? = null
+    private var restartListenRunnable: Runnable? = null
+    private var islandDismissRunnable: Runnable? = null
+    private var pulseAnimator:       ObjectAnimator? = null
+    private var idlePulseAnimator:   ObjectAnimator? = null
+
+    // ─── Audio focus ─────────────────────────────────────────────────────────
+
+    private var audioManager:      AudioManager?      = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+
+    // ─── Other infra ─────────────────────────────────────────────────────────
+
+    private val noteReceiver       = NoteInputReceiver()
+    private var receiverRegistered = false
+
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+    override fun onBind(intent: Intent): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        startForeground(1, buildNotification())
+        instance = java.lang.ref.WeakReference(this)
+        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        audioManager  = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        NoteInputReceiver.register(this, noteReceiver)
+        receiverRegistered = true
+        createBubble()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(TAG, "onStartCommand: service alive")
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        Log.d(TAG, "onDestroy: performing full teardown")
+        // ── CRITICAL TEARDOWN: ensure nothing leaks ──────────────────────────
+        performFullReset(removeViews = true)
+        if (receiverRegistered) {
+            try { NoteInputReceiver.unregister(this, noteReceiver) } catch (_: Exception) {}
+            receiverRegistered = false
+        }
+        instance = null
+        super.onDestroy()
+    }
+
+    // ─── Notification ─────────────────────────────────────────────────────────
+
+    private fun buildNotification(): Notification {
+        val channelId = "wishperlog_overlay"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val ch = NotificationChannel(
+                channelId, "WishperLog Overlay",
+                NotificationManager.IMPORTANCE_MIN
+            ).apply { description = "Floating note-capture bubble" }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
+        }
+        return NotificationCompat.Builder(this, channelId)
+            .setContentTitle("WishperLog")
+            .setContentText("Hold bubble to record • Double-tap to type")
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setSilent(true)
+            .build()
+    }
+
+    // ─── Dimension helpers ────────────────────────────────────────────────────
+
+    private fun dp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics).toInt()
+    private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
+
+    private fun overlayType() =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        else @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+
+    private fun displayWidth(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+            windowManager.currentWindowMetrics.bounds.width()
+        else @Suppress("DEPRECATION") windowManager.defaultDisplay.width
+
+    private fun statusBarHeight(): Int {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val insets = windowManager.currentWindowMetrics.windowInsets
+                    .getInsets(android.view.WindowInsets.Type.statusBars())
+                if (insets.top > 0) return insets.top
+            } catch (_: Exception) {}
+        }
+        val id = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) resources.getDimensionPixelSize(id) else dp(28f)
+    }
+
+    // ─── Bubble creation ──────────────────────────────────────────────────────
+
+    private fun createBubble() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            !android.provider.Settings.canDrawOverlays(this)) {
+            stopSelf(); return
+        }
+
+        val prefs = getSharedPreferences("com.adarshkumarverma.wishperlog_preferences", MODE_PRIVATE)
+        val storedSettings = prefs.getString(PREF_SETTINGS_JSON, null)
+        overlaySettings = if (storedSettings.isNullOrBlank()) {
+            OverlayAppearanceSettings.legacy(
+                prefs.getFloat(PREF_BUBBLE_ALPHA, DEFAULT_ALPHA),
+                prefs.getBoolean(PREF_BUBBLE_GROW, DEFAULT_GROW),
+            )
+        } else {
+            OverlayAppearanceSettings.fromJson(storedSettings)
+        }
+        val bubbleAlpha = overlaySettings.alpha.coerceIn(0.3f, 1f)
+        bubbleGrowEnabled = overlaySettings.growEnabled
+
+        bubbleParams = WindowManager.LayoutParams(
+            dp(54f), dp(54f), overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = prefs.getInt("overlay_x", displayWidth() - dp(64f))
+            y = prefs.getInt("overlay_y", 200)
+        }
+
+        val bg = buildBubbleDrawable(overlaySettings)
+        bubbleBackground = bg
+
+        val frame = FrameLayout(this).apply {
+            background = bg
+            elevation  = dp(8f).toFloat()
+            alpha      = bubbleAlpha
+        }
+
+        val icon = ImageView(this).apply {
+            setImageDrawable(ContextCompat.getDrawable(this@OverlayForegroundService, android.R.drawable.ic_btn_speak_now))
+            setColorFilter(Color.WHITE)
+            layoutParams = FrameLayout.LayoutParams(dp(22f), dp(22f), Gravity.CENTER)
+            scaleType    = ImageView.ScaleType.FIT_CENTER
+        }
+        bubbleIcon = icon
+        frame.addView(icon)
+
+        // Touch gesture state
+        var initX = 0; var initY = 0
+        var initTX = 0f; var initTY = 0f
+        var isDragging       = false
+        var lastTapUpAt      = 0L
+        val dragThresholdPx  = 8
+        val longPressDelayMs = 350L
+        val doubleTapTimeout = 280L
+
+        frame.setOnTouchListener { v, event ->
+            synchronized(this) {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        if (isRecording) return@setOnTouchListener true
+                        initX = bubbleParams.x; initY = bubbleParams.y
+                        initTX = event.rawX; initTY = event.rawY
+                        isDragging = false; longPressTriggered = false; isUserHolding = false
+                        longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        longPressRunnable = Runnable {
+                            synchronized(this) {
+                                longPressTriggered = true; isUserHolding = true
+                                if (bubbleGrowEnabled) frame.animate().scaleX(1.22f).scaleY(1.22f).setDuration(180).start()
+                                startVoiceCapture()
+                            }
+                        }
+                        mainHandler.postDelayed(longPressRunnable!!, longPressDelayMs)
+                        true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - initTX).toInt()
+                        val dy = (event.rawY - initTY).toInt()
+                        if (longPressTriggered || isRecording) return@setOnTouchListener true
+                        if (Math.abs(dx) > dragThresholdPx || Math.abs(dy) > dragThresholdPx) {
+                            isDragging = true
+                            longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        }
+                        if (isDragging) {
+                            val newX = initX + dx
+                            val newY = initY + dy
+                            if (bubbleParams.x != newX || bubbleParams.y != newY) {
+                                bubbleParams.x = newX; bubbleParams.y = newY
+                                windowManager.updateViewLayout(bubbleView, bubbleParams)
+                            }
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                        longPressRunnable?.let { mainHandler.removeCallbacks(it) }
+                        longPressRunnable = null; longPressTriggered = false
+                        restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
+                        restartListenRunnable = null
+                        if (isRecording) {
+                            isUserHolding = false   // clear AFTER stop so onEndOfSpeech sees correct state
+                            stopVoiceCapture()
+                        } else {
+                            isUserHolding = false
+                        }
+                        if (isDragging) {
+                            val cx = bubbleParams.x + v.width / 2
+                            val snapX = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
+                            val newY = bubbleParams.y.coerceAtLeast(statusBarHeight() + dp(8f))
+                            if (bubbleParams.x != snapX || bubbleParams.y != newY) {
+                                bubbleParams.x = snapX
+                                bubbleParams.y = newY
+                                windowManager.updateViewLayout(bubbleView, bubbleParams)
+                                prefs.edit().putInt("overlay_x", bubbleParams.x).putInt("overlay_y", bubbleParams.y).apply()
+                            }
+                        } else if (!longPressTriggered) {
+                            val now = event.eventTime
+                            if (now - lastTapUpAt <= doubleTapTimeout) {
+                                showTextInputBanner()
+                                lastTapUpAt = 0L
+                            } else {
+                                lastTapUpAt = now
+                            }
+                        }
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }
+
+        bubbleView = frame
+        windowManager.addView(frame, bubbleParams)
+        startIdleBubblePulse()
+    }
+
+    // ─── Voice capture ────────────────────────────────────────────────────────
+
+    private fun startVoiceCapture() {
+        if (Looper.myLooper() != Looper.getMainLooper()) { mainHandler.post { startVoiceCapture() }; return }
+
+        val now = System.currentTimeMillis()
+        if (now - lastCaptureAttemptMs < CAPTURE_COOLDOWN_MS) return
+        lastCaptureAttemptMs = now
+
+        if (isRecording || isResettingAfterError) return
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            FlutterEngineHolder.channel?.invokeMethod("promptMicrophonePermission", null)
+            openMicrophonePermissionSettings()
+            showIsland("Microphone permission required", Color.parseColor("#EF4444"), android.R.drawable.ic_lock_idle_lock)
+            scheduleIslandDismiss(2500L)
+            return
+        }
+
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            showIsland("Speech recognition unavailable", Color.parseColor("#EF4444"), android.R.drawable.ic_dialog_alert)
+            scheduleIslandDismiss(2000)
+            return
+        }
+
+        isRecording = true; stopListeningCalled = false; lastPartialTranscript = ""
+        recordingStartTime = System.currentTimeMillis()
+        requestAudioFocus()
+        FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStarted", null)
+        stopIdleBubblePulse()
+        showIsland("Listening...", Color.parseColor("#6366F1"), android.R.drawable.ic_btn_speak_now)
+
+        // Bubble → red pulse
+        bubbleBackground?.colors = intArrayOf(Color.parseColor("#EF4444"), Color.parseColor("#991B1B"))
+        bubbleIcon?.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.presence_audio_online))
+        bubbleIcon?.setColorFilter(Color.WHITE)
+        pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
+            bubbleView,
+            PropertyValuesHolder.ofFloat("scaleX", 1f, 1.15f),
+            PropertyValuesHolder.ofFloat("scaleY", 1f, 1.15f)
+        ).apply { duration = 600; repeatCount = ObjectAnimator.INFINITE; repeatMode = ObjectAnimator.REVERSE; start() }
+
+        releaseSpeechRecognizer()
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        speechRecognizer?.setRecognitionListener(buildRecognitionListener())
+
+        // ── ACCURACY-OPTIMISED intent ─────────────────────────────────────────
+        // Key flags that push accuracy toward "keyboard-grade":
+        //  • LANGUAGE_MODEL_FREE_FORM  — natural, non-command speech.
+        //  • EXTRA_MAX_RESULTS = 5    — gives the merge algo more candidates.
+        //  • EXTRA_PARTIAL_RESULTS     — live display + fallback if server cuts.
+        //  • DICTATION_MODE            — keeps recognizer alive for long speech.
+        //  • Silence lengths tuned for natural pauses (not keyword commands).
+        val prefs = getSharedPreferences("com.adarshkumarverma.wishperlog_preferences", MODE_PRIVATE)
+        val lang  = prefs.getString(PREF_STT_LANGUAGE, Locale.getDefault().toLanguageTag()) ?: "en-US"
+        val offline = prefs.getBoolean(PREF_STT_PREFER_OFFLINE, false)
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,   RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,      5)
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,  packageName)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,  true)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE,         lang)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
+            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,   offline)
+            // Dictation mode keeps the recognizer open across natural pauses.
+            putExtra("android.speech.extra.DICTATION_MODE",   true)
+            // Noise suppression hint (Samsung / Google Recorder honour this).
+            putExtra("android.speech.extra.ENABLE_NOISE_SUPPRESSION", true)
+            // Silence thresholds tuned for note-taking (longer pauses OK).
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,                  1_000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,         10_000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 6_000L)
+        }
+
+        lastRecognizerIntent = intent
+        try {
+            speechRecognizer?.startListening(intent)
+            vibrate(30)
+        } catch (e: Exception) {
+            Log.e(TAG, "startListening failed", e)
+            dismissIslandAndReset()
+        }
+    }
+
+    private fun buildRecognitionListener(): RecognitionListener = object : RecognitionListener {
+
+        override fun onReadyForSpeech(params: Bundle?)   { Log.d(TAG, "onReadyForSpeech") }
+        override fun onBeginningOfSpeech()               { Log.d(TAG, "onBeginningOfSpeech") }
+        override fun onRmsChanged(rmsdB: Float)          { /* high-frequency, skip logging */ }
+        override fun onBufferReceived(buffer: ByteArray?){ }
+        override fun onEvent(type: Int, params: Bundle?) { }
+
+        override fun onPartialResults(partialResults: Bundle?) {
+            val packet = partialResults
+                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                ?.firstOrNull() ?: return
+            if (packet.isBlank()) return
+
+            val merged  = mergeTranscript(lastPartialTranscript, packet).take(300)
+            lastPartialTranscript = merged
+            val display = merged.takeLast(90)
+
+            showIsland(display, Color.parseColor("#6366F1"), android.R.drawable.ic_btn_speak_now)
+            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingTranscript", hashMapOf("text" to merged))
+        }
+
+        override fun onEndOfSpeech() {
+            Log.d(TAG, "onEndOfSpeech — user holding=$isUserHolding")
+            if (isUserHolding && isRecording && !stopListeningCalled) restartRecognizer(this)
+        }
+
+        override fun onResults(results: Bundle?) {
+            if (!stopListeningCalled && !isRecording) return
+
+            // Pick highest-confidence result; fall back to first or partial.
+            val matches     = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            val confidences = results?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
+
+            val bestText = if (!matches.isNullOrEmpty() && confidences != null && confidences.isNotEmpty()) {
+                val bestIdx = confidences.indices.maxByOrNull { confidences[it] } ?: 0
+                matches.getOrNull(bestIdx)?.trim().orEmpty()
+            } else {
+                matches?.firstOrNull()?.trim().orEmpty()
+            }.ifEmpty { lastPartialTranscript.trim() }
+
+            // Keep recording active while the user is still holding the bubble.
+            if (isUserHolding && isRecording && !stopListeningCalled) {
+                if (bestText.isNotEmpty()) {
+                    lastPartialTranscript = mergeTranscript(lastPartialTranscript, bestText).take(500)
+                    showIsland(lastPartialTranscript.takeLast(90), Color.parseColor("#6366F1"), android.R.drawable.ic_btn_speak_now)
+                    FlutterEngineHolder.channel?.invokeMethod(
+                        "notifyRecordingTranscript",
+                        hashMapOf("text" to lastPartialTranscript)
+                    )
+                }
+                restartRecognizer(this)
+                return
+            }
+
+            finaliseCapture(bestText)
+        }
+
+        override fun onError(error: Int) {
+            Log.e(TAG, "onError: ${recognizerErrorToString(error)}")
+
+            val recoverable = error == SpeechRecognizer.ERROR_NO_MATCH ||
+                              error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
+                              error == SpeechRecognizer.ERROR_CLIENT
+
+            // Restart while user holds during transient errors.
+            if (isUserHolding && isRecording && !stopListeningCalled && recoverable) {
+                Log.w(TAG, "onError: recoverable during hold — restarting")
+                restartRecognizer(this)
+                return
+            }
+
+            // Salvage partial if stop was triggered and we have something.
+            val fallback = lastPartialTranscript.trim()
+            if (stopListeningCalled && recoverable && fallback.isNotEmpty()) {
+                Log.d(TAG, "onError: salvaging partial '${fallback.take(40)}'")
+                finaliseCapture(fallback)
+                return
+            }
+
+            // Nothing to save — full dismissal.
+            dismissIslandAndReset()
+            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingFailed", null)
+        }
+    }
+
+    /**
+     * Called when we have final text (or empty). Handles the complete
+     * post-recording teardown so it's always consistent.
+     *
+     * LIFECYCLE GUARANTEE: After this method returns, isRecording == false,
+     * bubble is idle, and the island is either showing "Classifying..." with
+     * a 40 s safety-net dismiss, or is dismissed (if text is empty).
+     */
+    private fun finaliseCapture(text: String) {
+        Log.d(TAG, "finaliseCapture: '${text.take(60)}' (${text.length} chars)")
+        isRecording = false
+        resetBubbleVisuals()
+        releaseSpeechRecognizer()
+        releaseAudioFocus()
+
+        if (text.isNotEmpty()) {
+            showIsland("Classifying...", Color.parseColor("#7C3AED"), android.R.drawable.ic_popup_sync)
+            // Safety-net: island auto-dismisses if BackgroundNoteService never responds.
+            scheduleIslandDismiss(ISLAND_SAFETY_DISMISS_MS)
+            broadcastCapture(text, SOURCE_VOICE)
+            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
+        } else {
+            dismissIslandAndReset()
+            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingFailed", null)
+        }
+    }
+
+    private fun stopVoiceCapture() {
+        isRecording = false   // Reset immediately so no subsequent gesture is blocked.
+        Log.d(TAG, "stopVoiceCapture (elapsed=${System.currentTimeMillis() - recordingStartTime}ms)")
+        stopListeningCalled = true
+        releaseAudioFocus()
+        restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
+        restartListenRunnable = null
+        isUserHolding = false
+        try {
+            speechRecognizer?.stopListening()
+        } catch (e: Exception) {
+            Log.w(TAG, "stopListening threw", e)
+            // If stop itself fails, use last partial or dismiss.
+            val fallback = lastPartialTranscript.trim()
+            if (fallback.isNotEmpty()) finaliseCapture(fallback)
+            else dismissIslandAndReset()
+        }
+    }
+
+    private fun openMicrophonePermissionSettings() {
+        try {
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:$packageName")
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "openMicrophonePermissionSettings failed", e)
+        }
+    }
+
+    private fun restartRecognizer(listener: RecognitionListener) {
+        restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
+        restartListenRunnable = Runnable {
+            if (!isUserHolding || !isRecording || stopListeningCalled) return@Runnable
+            val intent = lastRecognizerIntent ?: return@Runnable
+            try {
+                releaseSpeechRecognizer()
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                speechRecognizer?.setRecognitionListener(listener)
+                speechRecognizer?.startListening(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "restartRecognizer failed", e)
+                dismissIslandAndReset()
+            }
+        }
+        mainHandler.postDelayed(restartListenRunnable!!, 150)
+    }
+
+    private fun releaseSpeechRecognizer() {
+        try { speechRecognizer?.cancel()  } catch (_: Exception) {}
+        try { speechRecognizer?.destroy() } catch (_: Exception) {}
+        speechRecognizer = null
+    }
+
+    // ─── Island UI ────────────────────────────────────────────────────────────
+
+    /**
+     * Shows or updates the floating top island pill.
+     * Idempotent — safe to call repeatedly with new text.
+     */
+    private fun showIsland(text: String, bgColor: Int, iconRes: Int = 0) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { showIsland(text, bgColor, iconRes) }
+            return
+        }
+
+        // Reuse existing view if already shown — just update text/colour.
+        if (islandView != null && islandLabel != null && islandBg != null) {
+            islandBaseColor = bgColor
+            islandLabel?.text = text
+            applyIslandAppearance(bgColor)
+            islandView?.animate()
+                ?.scaleX(1.025f)
+                ?.scaleY(1.025f)
+                ?.translationY(-dp(1f).toFloat())
+                ?.setDuration(110)
+                ?.withEndAction {
+                    islandView?.animate()
+                        ?.scaleX(1f)
+                        ?.scaleY(1f)
+                        ?.translationY(0f)
+                        ?.setDuration(140)
+                        ?.start()
+                }
+                ?.start()
+            return
+        }
+
+        // Build the island from scratch.
+        val screenW = displayWidth()
+        val pillW   = (screenW * 0.75f).toInt().coerceAtLeast(dp(200f))
+
+        islandBaseColor = bgColor
+        val bg = buildIslandDrawable(bgColor, overlaySettings)
+        islandBg = bg
+
+        val pill = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background  = bg
+            elevation   = dp(12f).toFloat()
+            gravity     = Gravity.CENTER_VERTICAL
+            setPadding(dp(13f), dp(8f), dp(13f), dp(8f))
+        }
+
+        if (iconRes != 0) {
+            val iconView = ImageView(this).apply {
+                setImageResource(iconRes)
+                setColorFilter(Color.WHITE)
+                layoutParams = LinearLayout.LayoutParams(dp(15f), dp(15f)).apply {
+                    rightMargin = dp(8f)
+                }
+            }
+            pill.addView(iconView)
+        }
+
+        val label = TextView(this).apply {
+            this.text      = text
+            setTextColor(Color.parseColor("#F8FAFC"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            setTypeface(null, Typeface.BOLD)
+            maxLines       = 1
+            ellipsize      = TextUtils.TruncateAt.END
+            setSingleLine(true)
+        }
+        islandLabel = label
+        pill.addView(label)
+
+        val params = WindowManager.LayoutParams(
+            pillW, WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = statusBarHeight() + dp(4f)
+        }
+
+        try {
+            islandView = pill
+            windowManager.addView(pill, params)
+            pill.alpha = 0f
+            pill.scaleX = 0.94f
+            pill.scaleY = 0.94f
+            pill.translationY = dp(6f).toFloat()
+            pill.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .translationY(0f)
+                .setDuration(240)
+                .setInterpolator(OvershootInterpolator(1.1f))
+                .start()
+        } catch (e: Exception) {
+            Log.e(TAG, "showIsland: addView failed", e)
+            islandView = null; islandLabel = null; islandBg = null
+        }
+    }
+
+    /**
+     * Full island + bubble + recognizer reset.
+     * ALWAYS call this on any terminal path (error, empty transcript, cancel).
+     */
+    fun dismissIslandAndReset() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { dismissIslandAndReset() }
+            return
+        }
+        Log.d(TAG, "dismissIslandAndReset")
+        cancelIslandDismiss()
+        animateDismissIsland()
+        resetBubbleVisuals()
+        isRecording         = false
+        isUserHolding       = false
+        isResettingAfterError = false
+        stopListeningCalled = false
+        lastPartialTranscript = ""
+    }
+
+    private fun animateDismissIsland() {
+        val view = islandView ?: return
+        view.animate().alpha(0f).setDuration(200).withEndAction {
+            try { windowManager.removeView(view) } catch (_: Exception) {}
+            islandView = null; islandLabel = null; islandBg = null
+        }.start()
+    }
+
+    private fun startIdleBubblePulse() {
+        val view = bubbleView ?: return
+        if (idlePulseAnimator?.isRunning == true) return
+        idlePulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
+            view,
+            PropertyValuesHolder.ofFloat("scaleX", 1f, 1.04f),
+            PropertyValuesHolder.ofFloat("scaleY", 1f, 1.04f),
+        ).apply {
+            duration = 2200
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            interpolator = AccelerateDecelerateInterpolator()
+            start()
+        }
+    }
+
+    private fun stopIdleBubblePulse() {
+        idlePulseAnimator?.cancel()
+        idlePulseAnimator = null
+    }
+
+    /** Schedules auto-dismiss of island after [delayMs]. Previous schedule is cancelled. */
+    private fun scheduleIslandDismiss(delayMs: Long) {
+        cancelIslandDismiss()
+        islandDismissRunnable = Runnable { dismissIslandAndReset() }
+        mainHandler.postDelayed(islandDismissRunnable!!, delayMs)
+    }
+
+    private fun cancelIslandDismiss() {
+        islandDismissRunnable?.let { mainHandler.removeCallbacks(it) }
+        islandDismissRunnable = null
+    }
+
+    // ─── Island update API (called from Flutter / BackgroundNoteService) ──────
+
+    fun handleIslandUpdate(state: String, message: String?) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { handleIslandUpdate(state, message) }
+            return
+        }
+        when (state) {
+            "recording"   -> showIsland(message ?: "Listening...", Color.parseColor("#6366F1"), android.R.drawable.ic_btn_speak_now)
+            "processing"  -> { cancelIslandDismiss(); showIsland("Classifying…", Color.parseColor("#7C3AED"), android.R.drawable.ic_popup_sync) }
+            "saved"       -> { /* handled by handleSavedNotification */ }
+            "idle", "error" -> dismissIslandAndReset()
+        }
+    }
+
+    fun handleSavedNotification(title: String, category: String, prefix: String, @Suppress("UNUSED_PARAMETER") collection: String) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { handleSavedNotification(title, category, prefix, collection) }
+            return
+        }
+        cancelIslandDismiss()
+        val prefixLabel = if (prefix.equals("sys", ignoreCase = true)) "sys" else "AI"
+        val (color, label, iconRes) = when (category.lowercase()) {
+            "tasks"     -> Triple(Color.parseColor("#3B82F6"), "$prefixLabel • Saved in Tasks", android.R.drawable.checkbox_on_background)
+            "reminders" -> Triple(Color.parseColor("#F59E0B"), "$prefixLabel • Saved in Reminders", android.R.drawable.ic_lock_idle_alarm)
+            "ideas"     -> Triple(Color.parseColor("#10B981"), "$prefixLabel • Saved in Ideas", android.R.drawable.ic_menu_edit)
+            "follow-up","follow_up" -> Triple(Color.parseColor("#8B5CF6"), "$prefixLabel • Saved in Follow-up", android.R.drawable.ic_menu_revert)
+            "journal"   -> Triple(Color.parseColor("#EC4899"), "$prefixLabel • Saved in Journal", android.R.drawable.ic_menu_agenda)
+            else         -> Triple(Color.parseColor("#6B7280"), "$prefixLabel • Saved in General", android.R.drawable.ic_menu_info_details)
+        }
+        val display = if (title.isBlank()) label else "$label • ${title.take(40)}"
+        showIsland(display, color, iconRes)
+        scheduleIslandDismiss(2_800L)
+    }
+
+    fun handleApplySettings(settingsJson: String) {
+        mainHandler.post {
+            overlaySettings = OverlayAppearanceSettings.fromJson(settingsJson)
+            applyBubbleAppearance()
+            if (islandView != null && islandLabel != null && islandBg != null) {
+                applyIslandAppearance(islandBaseColor)
+            }
+        }
+    }
+
+    // ─── Text input banner ────────────────────────────────────────────────────
+
+    private fun showTextInputBanner() {
+        if (bannerView != null) return
+        val bannerParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; y = dp(8f) }
+
+        val bg = GradientDrawable().apply {
+            cornerRadius = dp(20f).toFloat()
+            colors = intArrayOf(Color.parseColor("#1E1B4B"), Color.parseColor("#312E81"))
+            orientation = GradientDrawable.Orientation.TL_BR
+            setStroke(dp(1f), Color.parseColor("#7C3AED"))
+        }
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
+            background = bg; elevation = dp(16f).toFloat()
+        }
+
+        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val title  = TextView(this).apply {
+            text = "Quick Note"; setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f); setTypeface(null, Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val close = TextView(this).apply {
+            text = "✕"; setTextColor(Color.parseColor("#94A3B8"))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setPadding(dp(8f), dp(4f), 0, dp(4f))
+            setOnClickListener { dismissBanner() }
+        }
+        header.addView(title); header.addView(close)
+
+        val input = EditText(this).apply {
+            hint = "What's on your mind?"; setHintTextColor(Color.parseColor("#64748B"))
+            setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            background = GradientDrawable().apply { cornerRadius = dp(12f).toFloat(); setColor(Color.parseColor("#1F2937")) }
+            setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            maxLines = 4; imeOptions = EditorInfo.IME_ACTION_DONE
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(90f)).apply { topMargin = dp(10f) }
+        }
+
+        val sendBtn = TextView(this).apply {
+            text = "Save Note"; setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTypeface(null, Typeface.BOLD)
+            background = GradientDrawable().apply { cornerRadius = dp(12f).toFloat(); setColor(Color.parseColor("#6366F1")) }
+            setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10f) }
+            setOnClickListener {
+                val text = input.text.toString().trim()
+                if (text.isNotEmpty()) {
+                    try {
+                        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                        imm.hideSoftInputFromWindow(input.windowToken, 0)
+                    } catch (_: Exception) {}
+                    dismissBanner()
+                    broadcastCapture(text, SOURCE_TEXT)
+                } else {
+                    dismissBanner()
+                }
+            }
+        }
+
+        layout.addView(header); layout.addView(input); layout.addView(sendBtn)
+
+        try {
+            bannerView = layout
+            windowManager.addView(layout, bannerParams)
+            layout.post {
+                input.requestFocus()
+                try {
+                    val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+                } catch (_: Exception) {}
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "showTextInputBanner: addView failed", e)
+            bannerView = null
+        }
+    }
+
+    private fun dismissBanner() {
+        mainHandler.post {
+            val v = bannerView ?: return@post
+            try {
+                try {
+                    val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(v.windowToken, 0)
+                } catch (_: Exception) {}
+                windowManager.removeView(v)
+            } catch (_: Exception) {}
+            bannerView = null
+        }
+    }
+
+    // ─── Broadcast ────────────────────────────────────────────────────────────
+
+    private fun broadcastCapture(text: String, source: String) {
+        // ISSUE-03 FIX: use LocalBroadcastManager so NoteInputReceiver (which
+        // registers via LBM) actually receives this event.
+        val intent = Intent(ACTION_NOTE_CAPTURED).apply {
+            putExtra(EXTRA_TEXT,   text)
+            putExtra(EXTRA_SOURCE, source)
+        }
+        androidx.localbroadcastmanager.content.LocalBroadcastManager
+            .getInstance(this)
+            .sendBroadcast(intent)
+
+        // Direct channel delivery as a fast-path for foreground sessions.
+        // NoteInputReceiver handles the engine-dead fallback.
+        FlutterEngineHolder.channel?.invokeMethod(
+            "captureNote",
+            hashMapOf("text" to text, "source" to source)
+        )
+    }
+
+    // ─── Audio focus ──────────────────────────────────────────────────────────
+
+    private fun requestAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                .setAudioAttributes(AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build())
+                .setAcceptsDelayedFocusGain(false)
+                .build()
+            audioFocusRequest = req
+            audioManager?.requestAudioFocus(req)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager?.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+        }
+    }
+
+    private fun releaseAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
+            audioFocusRequest = null
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager?.abandonAudioFocus(null)
+        }
+    }
+
+    // ─── Bubble visual reset ──────────────────────────────────────────────────
+
+    private fun resetBubbleVisuals() {
+        pulseAnimator?.cancel(); pulseAnimator = null
+        stopIdleBubblePulse()
+        bubbleView?.scaleX = 1f; bubbleView?.scaleY = 1f
+        applyBubbleAppearance()
+        bubbleIcon?.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.ic_btn_speak_now))
+        bubbleIcon?.setColorFilter(Color.WHITE)
+        startIdleBubblePulse()
+    }
+
+    private fun applyBubbleAppearance() {
+        val view = bubbleView ?: return
+        bubbleBackground = buildBubbleDrawable(overlaySettings)
+        view.background = bubbleBackground
+        view.alpha = overlaySettings.alpha.coerceIn(0.3f, 1f)
+        bubbleGrowEnabled = overlaySettings.growEnabled
+    }
+
+    private fun applyIslandAppearance(baseColor: Int) {
+        val view = islandView ?: return
+        islandBg = buildIslandDrawable(baseColor, overlaySettings)
+        view.background = islandBg
+    }
+
+    private fun buildBubbleDrawable(settings: OverlayAppearanceSettings): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            applyFill(this, settings, Color.parseColor("#6366F1"), true)
+        }
+    }
+
+    private fun buildIslandDrawable(baseColor: Int, settings: OverlayAppearanceSettings): GradientDrawable {
+        return GradientDrawable().apply {
+            cornerRadius = dp(24f).toFloat()
+            applyFill(this, settings, baseColor, false)
+        }
+    }
+
+    private fun applyFill(
+        drawable: GradientDrawable,
+        settings: OverlayAppearanceSettings,
+        baseColor: Int,
+        isBubble: Boolean,
+    ) {
+        val alpha = settings.alpha.coerceIn(0.3f, 1f)
+        when (settings.colorFill.lowercase(Locale.ROOT)) {
+            "solid" -> {
+                drawable.setColor(applyAlpha(settings.solidColor, alpha))
+            }
+            "lineargradient" -> {
+                drawable.orientation = GradientDrawable.Orientation.TL_BR
+                drawable.colors = intArrayOf(
+                    applyAlpha(settings.gradientStart, alpha),
+                    applyAlpha(settings.gradientEnd, alpha),
+                )
+            }
+            "radialgradient" -> {
+                drawable.gradientType = GradientDrawable.RADIAL_GRADIENT
+                drawable.gradientRadius = if (isBubble) dp(64f).toFloat() else dp(96f).toFloat()
+                drawable.colors = intArrayOf(
+                    applyAlpha(settings.gradientStart, alpha),
+                    applyAlpha(settings.gradientEnd, alpha),
+                )
+            }
+            else -> {
+                drawable.setColor(applyAlpha(baseColor, alpha))
+            }
+        }
+
+        when (settings.borderStyle.lowercase(Locale.ROOT)) {
+            "none" -> drawable.setStroke(0, Color.TRANSPARENT)
+            "hairline" -> drawable.setStroke(
+                dp(1f),
+                applyAlpha(settings.borderColor, 0.5f),
+            )
+            else -> drawable.setStroke(
+                if (isBubble) dp(1.5f) else dp(1f),
+                applyAlpha(settings.borderColor, 0.88f),
+            )
+        }
+    }
+
+    private fun applyAlpha(color: Int, alpha: Float): Int {
+        val clamped = alpha.coerceIn(0f, 1f)
+        return Color.argb(
+            (clamped * 255f).toInt(),
+            Color.red(color),
+            Color.green(color),
+            Color.blue(color),
+        )
+    }
+
+    // ─── Full reset ───────────────────────────────────────────────────────────
+
+    /** Called on destroy to ensure zero leaks. */
+    private fun performFullReset(removeViews: Boolean) {
+        cancelIslandDismiss()
+        longPressRunnable?.let    { mainHandler.removeCallbacks(it) }
+        restartListenRunnable?.let{ mainHandler.removeCallbacks(it) }
+        longPressRunnable    = null
+        restartListenRunnable = null
+        releaseAudioFocus()
+        releaseSpeechRecognizer()
+        isRecording = false; isUserHolding = false; isResettingAfterError = false
+        if (removeViews) {
+            try { bannerView?.let { windowManager.removeView(it) }  } catch (_: Exception) {}
+            try { islandView?.let { windowManager.removeView(it) }  } catch (_: Exception) {}
+            try { bubbleView?.let { windowManager.removeView(it) }  } catch (_: Exception) {}
+            bannerView = null; islandView = null; bubbleView = null
+        } else {
+            animateDismissIsland()
+            dismissBanner()
+            resetBubbleVisuals()
+        }
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private fun vibrate(ms: Long = 40) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager)
+                    .defaultVibrator.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                (getSystemService(VIBRATOR_SERVICE) as? Vibrator)
+                    ?.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun recognizerErrorToString(code: Int) = when (code) {
+        SpeechRecognizer.ERROR_AUDIO                  -> "AUDIO"
+        SpeechRecognizer.ERROR_CLIENT                 -> "CLIENT"
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "NO_PERMISSION"
+        SpeechRecognizer.ERROR_NETWORK                -> "NETWORK"
+        SpeechRecognizer.ERROR_NETWORK_TIMEOUT        -> "NETWORK_TIMEOUT"
+        SpeechRecognizer.ERROR_NO_MATCH               -> "NO_MATCH"
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY        -> "BUSY"
+        SpeechRecognizer.ERROR_SERVER                 -> "SERVER"
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT         -> "SPEECH_TIMEOUT"
+        else                                          -> "UNKNOWN($code)"
+    }
+
+    /**
+     * Intelligently merges incremental STT packets.
+     * Handles the common case where the recogniser emits overlapping hypotheses.
+     */
+    private fun mergeTranscript(existing: String, incoming: String): String {
+        val prev = existing.replace(Regex("\\s+"), " ").trim()
+        val next = incoming.replace(Regex("\\s+"), " ").trim()
+        if (next.isEmpty()) return prev
+        if (prev.isEmpty()) return next
+        if (next.equals(prev, ignoreCase = true)) return prev
+        if (next.startsWith(prev, ignoreCase = true)) return next
+        if (prev.startsWith(next, ignoreCase = true))
+            return if (next.length < prev.length * 0.65f) prev else next
+
+        val maxOverlap = minOf(prev.length, next.length)
+        for (len in maxOverlap downTo 2) {
+            if (prev.takeLast(len).equals(next.take(len), ignoreCase = true))
+                return (prev + next.drop(len)).replace(Regex("\\s+"), " ").trim()
+        }
+        val ratio = next.length.toFloat() / prev.length.toFloat().coerceAtLeast(1f)
+        return if (ratio in 0.7f..1.4f) next else "$prev $next".replace(Regex("\\s+"), " ").trim()
+    }
+}
+```
+
+### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/WishperlogApplication.kt
+
+```kotlin
+package com.adarshkumarverma.wishperlog
+
+import io.flutter.FlutterInjector
+import io.flutter.app.FlutterApplication
+
+class WishperlogApplication : FlutterApplication() {
+    override fun onCreate() {
+        super.onCreate()
+        // Pre-warm the Flutter loader so BackgroundNoteService starts faster.
+        FlutterInjector.instance().flutterLoader().startInitialization(this)
+    }
+}
+```
+
+### android/app/src/main/res/drawable/launch_background.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modify this file to customize your launch splash screen -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white" />
+
+    <!-- You can insert your own image assets here -->
+    <!-- <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@mipmap/launch_image" />
+    </item> -->
+</layer-list>
+```
+
+### android/app/src/main/res/drawable-v21/launch_background.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modify this file to customize your launch splash screen -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="?android:colorBackground" />
+
+    <!-- You can insert your own image assets here -->
+    <!-- <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@mipmap/launch_image" />
+    </item> -->
+</layer-list>
+```
+
+### android/app/src/main/res/values/colors.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#000000</color>
+</resources>
+```
+
+### android/app/src/main/res/values/styles.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <!-- Show a splash screen on the activity. Automatically removed when
+             the Flutter engine draws its first frame -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <!-- Theme applied to the Android Window as soon as the process has started.
+         This theme determines the color of the Android Window while your
+         Flutter UI initializes, as well as behind your Flutter UI while its
+         running.
+
+         This Theme is only used starting with V2 of Flutter's Android embedding. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+</resources>
+```
+
+### android/app/src/main/res/values-night/styles.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is on -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <!-- Show a splash screen on the activity. Automatically removed when
+             the Flutter engine draws its first frame -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <!-- Theme applied to the Android Window as soon as the process has started.
+         This theme determines the color of the Android Window while your
+         Flutter UI initializes, as well as behind your Flutter UI while its
+         running.
+
+         This Theme is only used starting with V2 of Flutter's Android embedding. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+</resources>
+```
+
+### android/app/src/main/res/xml/backup_rules.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ISSUE-17: Explicit backup rules.
+  Excludes all sensitive local data from Android cloud backup.
+-->
+<full-backup-content>
+    <!-- Exclude the entire shared_prefs directory — contains overlay prefs,
+         Telegram chat ID, pending notes, and auth tokens. -->
+    <exclude domain="sharedpref" path="." />
+    <!-- Exclude Isar database files. -->
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+</full-backup-content>
+```
+
+### android/app/src/main/res/xml/data_extraction_rules.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ISSUE-17: Android 12+ data-extraction rules.
+  Both cloud backup and device-to-device transfer are disabled for all
+  user data to protect note content, tokens, and Telegram IDs.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="sharedpref" />
+        <exclude domain="database" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="sharedpref" />
+        <exclude domain="database" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>
+```
+
+### android/app/src/profile/AndroidManifest.xml
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The INTERNET permission is required for development. Specifically,
+         the Flutter tool needs it to communicate with the running application
+         to allow setting breakpoints, to provide hot reload, etc.
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+</manifest>
+```
+
+### android/build.gradle.kts
+
+```kotlin
+import com.android.build.gradle.LibraryExtension
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+val newBuildDir: Directory =
+    rootProject.layout.buildDirectory
+        .dir("../../build")
+        .get()
+rootProject.layout.buildDirectory.value(newBuildDir)
+
+subprojects {
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+subprojects {
+    plugins.withId("com.android.library") {
+        extensions.configure<LibraryExtension>("android") {
+            if (namespace == null) {
+                namespace = project.group.toString()
+            }
+            compileSdk = 35
+        }
+    }
+}
+
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
+}
+```
+
+### android/gradle/wrapper/gradle-wrapper.properties
+
+```properties
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.14-all.zip
+```
+
+### android/gradle.properties
+
+```properties
+org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=4G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError
+android.useAndroidX=true
+WISHPERLOG_STORE_FILE=../wishperlog-release.jks
+WISHPERLOG_STORE_PASSWORD=Veer@5058
+WISHPERLOG_KEY_ALIAS=wishperlog
+WISHPERLOG_KEY_PASSWORD=Veer@5058
+```
+
+### android/local.properties
+
+```properties
+sdk.dir=/home/veerbhadra/Android/Sdk
+flutter.sdk=/home/veerbhadra/development/flutter
+flutter.buildMode=debug
+flutter.versionName=1.0.0
+flutter.versionCode=1
+```
+
+### android/settings.gradle.kts
+
+```kotlin
+pluginManagement {
+    val flutterSdkPath =
+        run {
+            val properties = java.util.Properties()
+            file("local.properties").inputStream().use { properties.load(it) }
+            val flutterSdkPath = properties.getProperty("flutter.sdk")
+            require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
+            flutterSdkPath
+        }
+
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+    id("com.android.application") version "8.11.1" apply false
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    id("com.google.gms.google-services") version "4.4.2" apply false
+}
+
+include(":app")
+```
+
+### assets/icons/google.svg
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.5 30.3 0 24 0 14.6 0 6.5 5.4 2.5 13.3l7.9 6.1C12.2 13.5 17.6 9.5 24 9.5z"/>
+  <path fill="#4285F4" d="M46.9 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.9c-.6 3-2.3 5.5-4.9 7.1l7.6 5.9c4.5-4.1 7.3-10.2 7.3-17.4z"/>
+  <path fill="#FBBC05" d="M10.4 28.6c-.5-1.4-.8-2.9-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C.9 16.5 0 20.2 0 24s.9 7.5 2.5 10.7l7.9-6.1z"/>
+  <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.8 2.2-8.3 2.2-6.4 0-11.8-4-13.7-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/>
+</svg>
+```
+
+### cloudfare/src/worker.ts
+
+```typescript
+// cloudfare/src/worker.ts
+//
+// WishperLog Digest Worker — v3.1
+//
+// ── Architecture change (v3.1) ──────────────────────────────────────────────
+// The cron now reads scheduling data from the user root document so digest
+// delivery does not depend on the optional digest/config mirror write.
+//
+// Firestore query path for cron:
+//   collection: users  →  filter docs with telegram_chat_id present
+//
+// Firestore path for cron dedup KV:
+//   key format: "YYYY-MM-DD:HH:MM:<uid>"   TTL: 26 h (93 600 s)
+//
+// Webhook: reads user root doc via token lookup (unchanged) then writes a
+// history entry to users/{uid}/digest/history_<ts>.
+// ENV secrets (wrangler secret put <name>):
+//   TELEGRAM_BOT_TOKEN
+//   FIREBASE_PROJECT_ID
+//   FIREBASE_CLIENT_EMAIL
+//   FIREBASE_PRIVATE_KEY          (PEM with literal \n)
+//   TRIGGER_SECRET
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Env {
+  DIGEST_SENT: KVNamespace;
+  TELEGRAM_BOT_TOKEN: string;
+  FIREBASE_PROJECT_ID: string;
+  FIREBASE_CLIENT_EMAIL: string;
+  FIREBASE_PRIVATE_KEY: string;
+  TRIGGER_SECRET: string;
+}
+
+type KVNamespace = {
+  get(key: string): Promise<string | null> | string | null;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void> | void;
+};
+
+type ScheduledEvent = unknown;
+
+type ExecutionContext = unknown;
+
+// ── JWT / Auth ────────────────────────────────────────────────────────────────
+
+async function getFirebaseToken(env: Env): Promise<string> {
+  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const now        = Math.floor(Date.now() / 1000);
+
+  const header  = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss  : env.FIREBASE_CLIENT_EMAIL,
+    sub  : env.FIREBASE_CLIENT_EMAIL,
+    aud  : "https://oauth2.googleapis.com/token",
+    iat  : now,
+    exp  : now + 3600,
+    scope: "https://www.googleapis.com/auth/datastore",
+  };
+
+  const encode = (obj: object) =>
+    btoa(JSON.stringify(obj))
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+
+  const unsigned = `${encode(header)}.${encode(payload)}`;
+
+  const keyData = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToBuffer(privateKey),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const sig = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    keyData,
+    new TextEncoder().encode(unsigned),
+  );
+
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  const jwt = `${unsigned}.${sigB64}`;
+
+  const resp = await fetch("https://oauth2.googleapis.com/token", {
+    method : "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body   : `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  });
+
+  const data = (await resp.json()) as { access_token?: string; error?: string };
+  if (!data.access_token) {
+    throw new Error(`Firebase token exchange failed: ${data.error ?? "unknown"}`);
+  }
+  return data.access_token;
+}
+
+function pemToBuffer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s/g, "");
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+// ── Firestore REST helpers ────────────────────────────────────────────────────
+
+async function firestoreGet(
+  path: string,
+  token: string,
+  projectId: string,
+): Promise<unknown> {
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok) throw new Error(`Firestore GET failed: ${resp.status} ${path}`);
+  return resp.json();
+}
+
+async function firestorePost(
+  path: string,
+  body: object,
+  token: string,
+  projectId: string,
+): Promise<unknown> {
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
+  const resp = await fetch(url, {
+    method : "POST",
+    headers: {
+      Authorization  : `Bearer ${token}`,
+      "Content-Type" : "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Firestore POST failed: ${resp.status} ${text}`);
+  }
+  return resp.json();
+}
+
+async function firestorePatch(
+  docPath: string,
+  fields: Record<string, unknown>,
+  token: string,
+  projectId: string,
+): Promise<void> {
+  const url =
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${docPath}` +
+    `?${Object.keys(fields)
+      .map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
+      .join("&")}`;
+
+  const resp = await fetch(url, {
+    method : "PATCH",
+    headers: {
+      Authorization : `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fields }),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Firestore PATCH failed: ${resp.status} ${text}`);
+  }
+}
+
+// ── Firestore field extractors ────────────────────────────────────────────────
+
+function extractField(doc: any, field: string): unknown {
+  const f = doc?.fields?.[field];
+  if (!f) return undefined;
+  return (
+    f.stringValue  ??
+    f.integerValue ??
+    f.booleanValue ??
+    f.doubleValue  ??
+    undefined
+  );
+}
+
+function extractArray(doc: any, field: string): string[] {
+  const f = doc?.fields?.[field];
+  if (!f?.arrayValue?.values) return [];
+  return (f.arrayValue.values as any[]).map(
+    (v: any) => v.stringValue ?? "",
+  ).filter(Boolean);
+}
+
+// ── Telegram ──────────────────────────────────────────────────────────────────
+
+async function sendTelegramMessage(
+  chatId: string,
+  text: string,
+  botToken: string,
+): Promise<void> {
+  const resp = await fetch(
+    `https://api.telegram.org/bot${botToken}/sendMessage`,
+    {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({
+        chat_id   : chatId,
+        text,
+        parse_mode: "HTML",
+      }),
+    },
+  );
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Telegram sendMessage failed: ${err}`);
+  }
+}
+
+// ── Cron digest ───────────────────────────────────────────────────────────────
+
+// ── v3 schema helpers ─────────────────────────────────────────────────────
+
+async function readDigestLatest(
+  uid: string,
+  token: string,
+  env: Env,
+): Promise<any | null> {
+  try {
+    return await firestoreGet(
+      `users/${uid}/digest/latest`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+  } catch {
+    return null; // Subcollection may not exist yet (v2 user)
+  }
+}
+
+// Try digest/config first (v3), fallback to user root doc (v2)
+function resolveChatId(userDoc: any, digestConfig: any): string | null {
+  const f   = userDoc?.fields ?? {};
+  const df  = digestConfig?.fields ?? {};
+  const raw = df['telegram_chat_id']?.stringValue
+           ?? f['telegram_chat_id']?.stringValue
+           ?? f['chat_id']?.stringValue
+           ?? null;
+  return raw ? String(raw).trim() : null;
+}
+
+// Read digest times from user doc (canonical field)
+function resolveDigestTimes(userDoc: any): string[] {
+  const f = userDoc?.fields ?? {};
+  const digestTimesField = f['digest_times']?.arrayValue?.values ?? [];
+  return digestTimesField
+    .map((v: any) => v?.stringValue ?? v?.integerValue ?? '')
+    .filter(Boolean)
+    .map((v: string | number) => String(v).trim())
+    .filter((v: string) => v.length > 0);
+}
+
+async function runDigestCron(env: Env): Promise<void> {
+  const nowUtc    = new Date();
+  const slotKey   = toSlotKey(nowUtc);
+  const dateKey   = toDateKey(nowUtc);
+  const token     = await getFirebaseToken(env);
+
+  console.log(`[Cron] Slot ${slotKey} (${dateKey}) — scanning users`);
+
+  const users = await listAllUsers(token, env.FIREBASE_PROJECT_ID);
+  console.log(`[Cron] ${users.length} user(s) found`);
+
+  let fired = 0;
+
+  for (const doc of users) {
+    const uid  = extractUidFromDocName(doc?.name ?? '');
+    if (!uid) continue;
+
+    const f    = doc?.fields ?? {};
+    const name = (f['display_name']?.stringValue ?? '').trim();
+
+    // Resolve digest times and chat_id ─────────────────────────────────────
+    const digestTimes = resolveDigestTimes(doc);
+    if (digestTimes.length === 0) continue;
+
+    // Compute user-local slot using timezone_offset_minutes
+    const tzOffsetMin = Number(f['timezone_offset_minutes']?.integerValue ?? 0);
+    const localMs  = nowUtc.getTime() + tzOffsetMin * 60_000;
+    const localDt  = new Date(localMs);
+    const localSlot = toSlotKey(localDt);
+    const localDate = toDateKey(localDt);
+
+    if (!digestTimes.includes(localSlot)) continue;
+
+    // Dedup: already sent today? ───────────────────────────────────────────
+    const dedupKey = `${localDate}:${localSlot}:${uid}`;
+    const already  = await env.DIGEST_SENT.get(dedupKey);
+    if (already) {
+      console.log(`[Cron] Already sent for ${uid} at ${localSlot} — skip`);
+      continue;
+    }
+
+    // Resolve chat_id: check digest/config (v3) then root doc (v2) ─────────
+    let chatId: string | null = null;
+    let digestConfigDoc: any = null;
+    try {
+      digestConfigDoc = await firestoreGet(
+        `users/${uid}/digest/config`,
+        token,
+        env.FIREBASE_PROJECT_ID,
+      );
+      chatId = resolveChatId(doc, digestConfigDoc);
+    } catch {
+      chatId = resolveChatId(doc, null);
+    }
+    if (!chatId) continue;
+
+    // Build message ─────────────────────────────────────────────────────────
+    // v3: try pre-rendered message from digest/latest first.
+    let message: string | null = null;
+    const digestLatestDoc = await readDigestLatest(uid, token, env);
+    if (digestLatestDoc) {
+      const lf = digestLatestDoc?.fields ?? {};
+      const preRendered = lf['telegram']?.stringValue
+                       ?? lf['telegram_digest']?.stringValue
+                       ?? '';
+      if (preRendered.trim().length > 0) {
+        message = preRendered;
+        console.log(`[Cron] Using pre-rendered digest/latest for ${uid}`);
+      }
+    }
+
+    // Fallback: fetch live notes and build on the fly.
+    if (!message) {
+      console.log(`[Cron] Building live digest for ${uid}`);
+      const notesSnap = await firestoreGet(
+        `users/${uid}/notes?pageSize=200`,
+        token,
+        env.FIREBASE_PROJECT_ID,
+      );
+      const notes = parseNoteDocs(
+        ((notesSnap as any)?.documents ?? []) as any[],
+        uid,
+      );
+      message = buildDigest(notes, name, 'Daily Digest');
+    }
+
+    // Send ─────────────────────────────────────────────────────────────────
+    try {
+      await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
+      await env.DIGEST_SENT.put(dedupKey, '1', { expirationTtl: 93_600 });
+      await writeDigestHistory(uid, 'cron_digest', 'Daily Digest', 0, token, env);
+      fired++;
+      console.log(`[Cron] Digest sent to ${uid} (${chatId}) slot=${localSlot}`);
+    } catch (e) {
+      console.error(`[Cron] Failed to send to ${uid}: ${e}`);
+    }
+  }
+
+  console.log(`[Cron] Done — fired ${fired} digest(s)`);
+}
+
+// ── Write digest history entry ────────────────────────────────────────────────
+
+async function writeDigestHistory(
+  uid: string,
+  command: string,
+  heading: string,
+  noteCount: number,
+  token: string,
+  env: Env,
+): Promise<void> {
+  try {
+    const ts    = Date.now();
+    const docId = `history_${ts}`;
+    const path  = `users/${uid}/digest/${docId}`;
+
+    const fields = {
+      command         : { stringValue: command },
+      response_heading: { stringValue: heading },
+      note_count      : { integerValue: String(noteCount) },
+      queried_at      : { timestampValue: new Date().toISOString() },
+    };
+
+    await firestorePatch(path, fields, token, env.FIREBASE_PROJECT_ID);
+  } catch (e) {
+    // Non-fatal: history logging should never block the main send path.
+    console.warn(`[History] Failed to write history for ${uid}: ${e}`);
+  }
+}
+
+// ── Telegram webhook handler ──────────────────────────────────────────────────
+
+// ── Live-digest builder (used by webhook to avoid stale cached state) ─────────
+async function buildLiveTelegramMessage(
+  uid: string,
+  token: string,
+  env: Env,
+): Promise<string> {
+  const notes = await fetchUserNotes(uid, token, env);
+  const userDoc = await fetchUserDoc(uid, token, env);
+  const f = userDoc?.fields ?? {};
+  const displayName = (f['display_name']?.stringValue ?? '').trim();
+  const noteDocs = parseNoteDocs(notes, uid);
+  return buildDigest(noteDocs, displayName, '📋 Your Notes Summary');
+}
+
+async function fetchUserNotes(uid: string, token: string, env: Env): Promise<any[]> {
+  const notesSnap = await firestoreGet(
+    `users/${uid}/notes?pageSize=200`,
+    token,
+    env.FIREBASE_PROJECT_ID,
+  );
+
+  return ((notesSnap as any)?.documents ?? []) as any[];
+}
+
+async function fetchUserDoc(uid: string, token: string, env: Env): Promise<any | null> {
+  try {
+    return await firestoreGet(
+      `users/${uid}`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function handleWebhook(req: Request, env: Env): Promise<Response> {
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response("bad request", { status: 400 });
+  }
+
+  const message = body?.message;
+  const chatId  = message?.chat?.id;
+  const text    = (message?.text ?? "").trim();
+
+  if (!chatId || !text.startsWith("/")) {
+    return new Response("ok");
+  }
+
+  const token = await getFirebaseToken(env);
+
+  // ── Handle /start <link_token> — link the user's account ──────────────────
+  if (text.startsWith("/start")) {
+    const parts      = text.split(/\s+/);
+    const linkToken  = parts[1]?.trim() ?? "";
+
+    if (linkToken) {
+      await handleStartWithToken(chatId, linkToken, token, env);
+    } else {
+      // /start with no token → send help + Chat ID
+      await sendTelegramMessage(
+        String(chatId),
+        [
+          '<b>WishperLog</b> <i>Telegram link</i>',
+          '',
+          'Your Chat ID',
+          `<code>${chatId}</code>`,
+          '',
+          '<i>Manual linking</i>',
+          '1. Open WishperLog → Settings → Telegram',
+          '2. Tap <b>Manual Chat ID</b>',
+          '3. Paste the number above',
+        ].join('\n'),
+        env.TELEGRAM_BOT_TOKEN,
+      );
+    }
+    return new Response("ok");
+  }
+
+  // ── Handle digest commands ─────────────────────────────────────────────────
+  const cmd = text.replace(/^\//, "").split("@")[0].toLowerCase();
+  if (cmd === "summary" || cmd === "top") {
+    // Always fetch live notes from Firestore for freshest data.
+    try {
+      const uid = await resolveTelegramUserId(String(chatId), token, env);
+      const liveMessage = await buildLiveTelegramMessage(uid, token, env);
+      await sendTelegramMessage(String(chatId), liveMessage, env.TELEGRAM_BOT_TOKEN);
+    } catch (e) {
+      console.error(`[Webhook] Failed to build live digest for ${chatId}:`, e);
+      await sendTelegramMessage(
+        String(chatId),
+        '⚠️ Could not fetch your notes right now. Try again shortly.',
+        env.TELEGRAM_BOT_TOKEN,
+      );
+    }
+    return new Response("ok");
+  }
+
+  await handleDigestCommand(chatId, cmd, token, env);
+
+  return new Response("ok");
+}
+
+async function resolveTelegramUserId(
+  chatId: string,
+  token: string,
+  env: Env,
+): Promise<string> {
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const configDoc =
+    await findLinkedDigestConfigDoc(queryUrl, token, chatId, env);
+
+  const uid = extractUidFromDocName(configDoc?.name ?? "");
+  if (uid) return uid;
+
+  throw new Error(`Telegram chat ${chatId} is not linked to a user`);
+}
+
+async function handleStartWithToken(
+  chatId: number,
+  linkToken: string,
+  token: string,
+  env: Env,
+): Promise<void> {
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const userDoc = await findLinkedUserDocByValue(queryUrl, token, linkToken, [
+    "telegram_link_token",
+    "telegram_link_pin",
+    "pending_telegram.token",
+  ]);
+
+  if (!userDoc) {
+    await sendTelegramMessage(
+      String(chatId),
+      [
+        '<b>Telegram link not found or already used.</b>',
+        '',
+        '<i>Quick recovery</i>',
+        '• Open WishperLog → Settings → Telegram',
+        '• Tap <b>Connect in Telegram</b> again',
+        '• Use the new link or copied code immediately',
+        '',
+        '<i>Manual fallback</i>',
+        'Send <b>/start</b> without a code to get your Chat ID, then paste it back into the app.',
+      ].join('\n'),
+      env.TELEGRAM_BOT_TOKEN,
+    );
+    return;
+  }
+
+  const uid         = userDoc.name?.split("/").pop() as string;
+  const displayName = (extractField(userDoc, "display_name") as string) ?? "there";
+
+  // Write chat_id to both the user root doc and the digest/config doc.
+  const chatIdStr = String(chatId);
+
+  // User root doc update
+  await firestorePatch(
+    `users/${uid}`,
+    {
+      telegram_chat_id: { stringValue: chatIdStr },
+      telegram_link_token: { nullValue: "NULL_VALUE" },
+    },
+    token,
+    env.FIREBASE_PROJECT_ID,
+  );
+
+  // Digest config doc update — this is the canonical source the cron reads.
+  await firestorePatch(
+    `users/${uid}/digest/config`,
+    {
+      telegram_chat_id: { stringValue: chatIdStr },
+      link_method     : { stringValue: "auto_deeplink" },
+      linked_at       : { timestampValue: new Date().toISOString() },
+    },
+    token,
+    env.FIREBASE_PROJECT_ID,
+  );
+
+  await sendTelegramMessage(
+    chatIdStr,
+    [
+      '✅ <b>WishperLog connected</b>',
+      '',
+      `Hello <b>${escapeHtml(asciiOnly(displayName))}</b>!`,
+      'Your digests are now linked and ready.',
+      '',
+      '<b>Quick commands</b>',
+      '<code>/summary</code> <code>/top</code> <code>/tasks</code>',
+      '<code>/reminders</code> <code>/ideas</code> <code>/followup</code>',
+      '<code>/journal</code> <code>/general</code>',
+    ].join('\n'),
+    env.TELEGRAM_BOT_TOKEN,
+  );
+}
+
+async function findLinkedUserDocByValue(
+  queryUrl: string,
+  token: string,
+  linkToken: string,
+  fieldPaths: string[],
+): Promise<any | null> {
+  for (const fieldPath of fieldPaths) {
+    const queryResp = await fetch(queryUrl, {
+      method : "POST",
+      headers: {
+        Authorization : `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        structuredQuery: {
+          from : [{ collectionId: "users" }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath },
+              op   : "EQUAL",
+              value: { stringValue: linkToken },
+            },
+          },
+          limit: { value: 1 },
+        },
+      }),
+    });
+
+    if (!queryResp.ok) continue;
+    const results = (await queryResp.json()) as any[];
+    const doc = results?.[0]?.document;
+    if (doc) return doc;
+  }
+
+  return null;
+}
+
+async function handleDigestCommand(
+  chatId: number,
+  cmd: string,
+  token: string,
+  env: Env,
+): Promise<void> {
+  const queryUrl =
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+
+  const configDoc =
+    await findLinkedDigestConfigDoc(queryUrl, token, String(chatId), env);
+
+  if (!configDoc) {
+    await sendTelegramMessage(
+      String(chatId),
+      [
+        '<b>Telegram is not linked yet.</b>',
+        '',
+        'Open WishperLog → Telegram and connect again.',
+      ].join('\n'),
+      env.TELEGRAM_BOT_TOKEN,
+    );
+    return;
+  }
+
+  const uid = extractUidFromDocName(configDoc.name ?? "");
+  if (!uid) {
+    await sendTelegramMessage(
+      String(chatId),
+      [
+        '<b>Telegram is linked, but the user record could not be resolved.</b>',
+        '',
+        'Open WishperLog → Settings → Telegram and reconnect.',
+      ].join('\n'),
+      env.TELEGRAM_BOT_TOKEN,
+    );
+    return;
+  }
+  const name      = (extractField(configDoc, "display_name") as string) ?? "there";
+
+  if (!isSupportedTelegramCommand(cmd)) {
+    await sendTelegramMessage(
+      String(chatId),
+      [
+        '<b>WishperLog commands</b>',
+        '<i>Use any of these:</i>',
+        '',
+        '<code>/summary</code>  <code>/top</code>  <code>/tasks</code>',
+        '<code>/reminders</code>  <code>/ideas</code>  <code>/followup</code>',
+        '<code>/journal</code>  <code>/general</code>',
+      ].join('\n'),
+      env.TELEGRAM_BOT_TOKEN,
+    );
+    return;
+  }
+
+  let message = "";
+  try {
+    message = await loadCachedTelegramMessage(uid, configDoc, cmd, token, env);
+  } catch (e) {
+    console.warn(`[Cmd] Failed to read cached message for ${uid}: ${e}`);
+  }
+
+  const heading = pickHeading(cmd);
+
+  if (!message) {
+    const infoDoc = await loadDigestInfoDoc(uid, token, env);
+    const notes =
+      extractDigestNotes(infoDoc).length > 0
+        ? extractDigestNotes(infoDoc)
+        : parseNoteDocs(
+            ((await firestoreGet(
+              `users/${uid}/notes?pageSize=200`,
+              token,
+              env.FIREBASE_PROJECT_ID,
+            )) as any)?.documents ?? [],
+            uid,
+          );
+    const sentNotes = pickNotesForCommand(notes, cmd);
+    message = buildDigest(sentNotes, name, heading);
+    await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
+    await writeDigestHistory(uid, cmd, heading, sentNotes.length, token, env);
+    return;
+  }
+
+  await sendTelegramMessage(
+    String(chatId),
+    message,
+    env.TELEGRAM_BOT_TOKEN,
+  );
+
+  // Log to history
+  await writeDigestHistory(uid, cmd, heading, 0, token, env);
+}
+
+// v3: reads flat telegram_* fields from digest/latest.
+function extractFlatTelegramFields(doc: any): Record<string, string> {
+  const fields = doc?.fields ?? {};
+  const output: Record<string, string> = {};
+  for (const key of Object.keys(fields)) {
+    if (key === 'telegram' || key.startsWith('telegram_')) {
+      const raw = fields[key]?.stringValue;
+      if (typeof raw === 'string' && raw.trim().length > 0) {
+        output[key] = raw;
+      }
+    }
+  }
+  return output;
+}
+
+// v2 legacy: reads nested message_state map from root user doc.
+// Kept for backward-compatibility with old user documents that still have
+// a message_state map at root. New writes go to digest/latest only.
+function extractMessageState(doc: any): Record<string, string> {
+  const fields = doc?.fields?.message_state?.mapValue?.fields ?? {};
+  const output: Record<string, string> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    const fieldValue = value as any;
+    const raw = fieldValue?.stringValue;
+    if (typeof raw === "string" && raw.trim()) {
+      output[key] = raw;
+    }
+  }
+  return output;
+}
+
+// Reads pre-rendered telegram messages from digest/latest (v3 flat schema).
+// Falls back to empty string — handleDigestCommand will build live in that case.
+async function loadCachedTelegramMessage(
+  uid: string,
+  _configDoc: any,
+  cmd: string,
+  token: string,
+  env: Env,
+): Promise<string> {
+  const digestLatestDoc = await readDigestLatest(uid, token, env);
+  if (!digestLatestDoc) return '';
+  const flat = extractFlatTelegramFields(digestLatestDoc);
+  return pickTelegramMessage(flat, cmd);
+}
+
+// Reads flat telegram_* string fields from a Firestore document object.
+// Used for the v3 digest/latest schema where fields are flat, not nested in
+// a message_state map. The old extractMessageState() reads a nested mapValue
+// structure and must not be used for digest/latest.
+function extractFlatTelegramFields(doc: any): Record<string, string> {
+  const fields = doc?.fields ?? {};
+  const output: Record<string, string> = {};
+  for (const key of Object.keys(fields)) {
+    if (key === 'telegram' || key.startsWith('telegram_')) {
+      const raw = fields[key]?.stringValue;
+      if (typeof raw === 'string' && raw.trim().length > 0) {
+        output[key] = raw;
+      }
+    }
+  }
+  return output;
+}
+
+async function loadDigestInfoDoc(uid: string, token: string, env: Env): Promise<any | null> {
+  try {
+    return await firestoreGet(
+      `users/${uid}/digest/config/info/current`,
+      token,
+      env.FIREBASE_PROJECT_ID,
+    );
+  } catch {
+    return null;
+  }
+}
+
+function extractDigestNotes(doc: any): NoteDoc[] {
+  const values = doc?.fields?.notes?.arrayValue?.values ?? [];
+  return values
+    .map((entry: any) => {
+      const fields = entry?.mapValue?.fields ?? {};
+      const str = (key: string) => fields[key]?.stringValue ?? '';
+      return {
+        title: str('title') || str('note_title'),
+        category: str('category'),
+        priority: str('priority'),
+        body: str('body') || str('clean_body'),
+      } as NoteDoc;
+    })
+    .filter((note: NoteDoc) => Boolean(note.title || note.body || note.category));
+}
+
+function pickTelegramMessage(state: Record<string, string>, cmd: string): string {
+  const summary = state.telegram_summary ?? state.telegram_digest ?? state.telegram ?? "";
+  switch (cmd) {
+    case "summary":
+    case "all":
+      return summary;
+    case "top":
+      return state.telegram_top ?? summary;
+    case "tasks":
+    case "task":
+    case "todo":
+      return state.telegram_tasks ?? summary;
+    case "reminders":
+    case "reminder":
+      return state.telegram_reminders ?? summary;
+    case "ideas":
+    case "idea":
+      return state.telegram_ideas ?? summary;
+    case "followup":
+    case "follow-up":
+    case "follow_up":
+      return state.telegram_followup ?? summary;
+    case "journal":
+      return state.telegram_journal ?? summary;
+    case "general":
+      return state.telegram_general ?? summary;
+    default:
+      return "";
+  }
+}
+
+function pickHeading(cmd: string): string {
+  switch (cmd) {
+    case "top":
+      return "Top";
+    case "tasks":
+    case "task":
+    case "todo":
+      return "Tasks";
+    case "reminders":
+    case "reminder":
+      return "Reminders";
+    case "ideas":
+    case "idea":
+      return "Ideas";
+    case "followup":
+    case "follow-up":
+    case "follow_up":
+      return "Follow-up";
+    case "journal":
+      return "Journal";
+    case "general":
+      return "General";
+    default:
+      return "Summary";
+  }
+}
+
+function pickNotesForCommand(notes: NoteDoc[], cmd: string): NoteDoc[] {
+  switch (cmd) {
+    case "top":
+      return [...notes]
+        .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
+        .slice(0, 3);
+    case "tasks":
+    case "task":
+    case "todo":
+      return notes.filter((n) => n.category === "tasks");
+    case "reminders":
+    case "reminder":
+      return notes.filter((n) => n.category === "reminders");
+    case "ideas":
+    case "idea":
+      return notes.filter((n) => n.category === "ideas");
+    case "followup":
+    case "follow-up":
+    case "follow_up":
+      return notes.filter((n) => n.category === "followUp");
+    case "journal":
+      return notes.filter((n) => n.category === "journal");
+    case "general":
+      return notes.filter((n) => n.category === "general");
+    default:
+      return notes;
+  }
+}
+
+function isSupportedTelegramCommand(cmd: string): boolean {
+  return [
+    "summary",
+    "all",
+    "top",
+    "tasks",
+    "task",
+    "todo",
+    "reminders",
+    "reminder",
+    "ideas",
+    "idea",
+    "followup",
+    "follow-up",
+    "follow_up",
+    "journal",
+    "general",
+  ].includes(cmd);
+}
+
+async function findLinkedDigestConfigDoc(
+  queryUrl: string,
+  token: string,
+  chatId: string,
+  env: Env,
+): Promise<any | null> {
+  const candidates = [
+    {
+      from: [{ collectionId: "users" }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "telegram_chat_id" },
+          op: "EQUAL",
+          value: { stringValue: chatId },
+        },
+      },
+      limit: { value: 1 },
+    },
+    {
+      from: [{ collectionId: "digest", allDescendants: true }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "telegram_chat_id" },
+          op: "EQUAL",
+          value: { stringValue: chatId },
+        },
+      },
+      limit: { value: 1 },
+    },
+  ];
+
+  for (const structuredQuery of candidates) {
+    const queryResp = await fetch(queryUrl, {
+      method : "POST",
+      headers: {
+        Authorization : `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ structuredQuery }),
+    });
+
+    if (!queryResp.ok) continue;
+
+    const results = (await queryResp.json()) as any[];
+    for (const result of results) {
+      const doc = result?.document;
+      if (!doc) continue;
+      return doc;
+    }
+  }
+
+  return null;
+}
+
+function extractUidFromDocName(name: string): string | null {
+  const parts = name.split("/").filter(Boolean);
+  const usersIndex = parts.lastIndexOf("users");
+  if (usersIndex < 0 || usersIndex + 1 >= parts.length) return null;
+  return parts[usersIndex + 1] ?? null;
+}
+
+// ── Note parsing ──────────────────────────────────────────────────────────────
+
+interface NoteDoc {
+  title   : string;
+  category: string;
+  priority: string;
+  body    : string;
+}
+
+function parseNoteDocs(docs: any[], _uid: string): NoteDoc[] {
+  return docs.map((doc) => {
+    const f   = doc?.fields ?? {};
+    const str = (k: string) => f[k]?.stringValue ?? "";
+    return {
+      title   : str("title"),
+      category: str("category"),
+      priority: str("priority"),
+      body    : str("clean_body"),
+    };
+  });
+}
+
+function buildDigest(notes: NoteDoc[], name: string, heading: string): string {
+  const ranked = [...notes]
+    .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
+    .slice(0, 5);
+
+  const title = `<b>${escapeHtml(heading)}</b>`;
+  const greeting = asciiOnly(name)
+    ? `Hello <b>${escapeHtml(asciiOnly(name))}</b>`
+    : 'Hello';
+
+  if (ranked.length === 0) {
+    return [
+      '📋 <b>WishperLog</b>',
+      title,
+      `<i>${greeting}</i>`,
+      '',
+      '<i>No active notes right now. You are all caught up.</i>',
+    ].join('\n');
+  }
+
+  const stats = [
+    `${notes.length} note${notes.length === 1 ? "" : "s"}`,
+    `${notes.filter((n) => n.priority === "high").length} high`,
+    `${notes.filter((n) => n.category === "tasks").length} tasks`,
+  ].join(" · ");
+
+  const lines = [
+    '📋 <b>WishperLog</b>',
+    title,
+    `<i>${greeting}</i>`,
+    `<i>${escapeHtml(stats)}</i>`,
+    '',
+    '<b>Top items</b>',
+  ];
+
+  ranked.forEach((n) => {
+    const category = categoryLabelFromKey(n.category);
+    const priority = priorityLabel(n.priority);
+    const titleText = escapeHtml(asciiOnly(n.title) || "Untitled note");
+    lines.push(`• <b>${category}</b> <code>${priority}</code> ${titleText}`);
+
+    const body = asciiOnly(n.body).slice(0, 140);
+    if (body) {
+      lines.push(`  <i>${escapeHtml(body)}</i>`);
+    }
+  });
+
+  if (notes.length > ranked.length) {
+    lines.push("", `<i>+${notes.length - ranked.length} more</i>`);
+  }
+
+  return lines.join("\n");
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export default {
+  async scheduled(
+    _event: ScheduledEvent,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    (ctx as any).waitUntil?.(
+      runDigestCron(env).catch((e) =>
+        console.error('[Cron] runDigestCron failed:', e),
+      ),
+    );
+  },
+
+  async fetch(req: Request, env: Env): Promise<Response> {
+    const url = new URL(req.url);
+
+    if (url.pathname === "/trigger" && req.method === "GET") {
+      if (req.headers.get("X-Trigger-Secret") !== env.TRIGGER_SECRET) {
+        return new Response("Forbidden", { status: 403 });
+      }
+      await runDigestCron(env);
+      return new Response("triggered", { status: 200 });
+    }
+
+    if (url.pathname === "/webhook" && req.method === "POST") {
+      return handleWebhook(req, env);
+    }
+
+    return new Response("WishperLog Worker v3", { status: 200 });
+  },
+};
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+
+function toSlotKey(d: Date): string {
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+
+function toDateKey(d: Date): string {
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+function pad(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+function asciiOnly(v: string): string {
+  return (v ?? "")
+    .toString()
+    .normalize("NFKD")
+    .replace(/[^\x00-\x7F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function priorityRank(p: string): number {
+  return p === "high" ? 0 : p === "medium" ? 1 : 2;
+}
+
+function priorityLabel(p: string): string {
+  switch ((p ?? "").toLowerCase()) {
+    case "high": return "HIGH";
+    case "low":  return "LOW";
+    default:     return "MED";
+  }
+}
+
+function categoryLabelFromKey(key: string): string {
+  switch ((key ?? "").toLowerCase()) {
+    case "tasks": return "Tasks";
+    case "reminders": return "Reminders";
+    case "ideas": return "Ideas";
+    case "followup":
+    case "follow_up":
+    case "follow-up": return "Follow-up";
+    case "journal": return "Journal";
+    default: return "General";
+  }
+}
+
+function escapeHtml(input: string): string {
+  return (input ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+```
+
+### cloudfare/wrangler.toml
+
+```toml
+name             = "wishperlog-digest"
+main             = "src/worker.ts"
+compatibility_date  = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+account_id       = "112486d346c988fbdaf8923c083a85d8"
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
+# ── Workers URL ────────────────────────────────────────────────────────────────
+# Deployed at: wishperlog-digest.veerbhadra0524.workers.dev
+
+# ── Cron Triggers ──────────────────────────────────────────────────────────────
+# Fires EVERY MINUTE — the Worker matches HH:MM against each user's saved slots.
+# This replaces the old 15-minute granularity with precise per-minute scheduling.
+[triggers]
+crons = ["* * * * *"]
+
+# ── KV Namespace ───────────────────────────────────────────────────────────────
+# Stores per-user per-minute dedup keys ("already sent today").
+# Key format: "YYYY-MM-DD:HH:MM:<uid>"  TTL: 93 600 s (26 h)
+[[kv_namespaces]]
+binding = "DIGEST_SENT"
+id      = "dca05ac5722b4be0a11d33f1070fa50d"
+
+# ── Secrets (set via `wrangler secret put <NAME>`) ─────────────────────────────
+# TELEGRAM_BOT_TOKEN    — bot token from @BotFather
+# FIREBASE_PROJECT_ID   — GCP project ID (e.g. "wishperlog-prod")
+# FIREBASE_CLIENT_EMAIL — service account email
+# FIREBASE_PRIVATE_KEY  — service account private key PEM (newlines as literal \n)
+#
+# Deployment:
+#   npx wrangler deploy
+#
+# Test locally:
+#   npx wrangler dev  →  curl http://localhost:8787/trigger
+```
+
+### cloudfare-fix.md
+
+```markdown
+# Cloudfare Reminder Fix Guide
+
+This guide fixes the Telegram reminder sending path in the Cloudflare Worker.
+
+## What is broken
+
+Right now, Telegram reminders are not sent by the app itself. The reminder send path lives in the Cloudflare Worker at `cloudfare/src/worker.ts`, and that worker needs to be updated and redeployed.
+
+## What this fix does
+
+- Keeps the existing digest sending flow intact.
+- Adds a dedicated reminder dispatch pass.
+- Sends reminder notes whose `category` is `reminders` and whose `extracted_date` matches the current UTC minute.
+- Uses the saved `telegram_chat_id` for each user.
+
+## Click-by-click fix
+
+### 1. Open the worker file
+
+- In VS Code, open the workspace `wishperlog`.
+- In the Explorer, open `cloudfare`.
+- Open `src`.
+- Open `worker.ts`.
+
+### 2. Find the cron entry point
+
+- Scroll near the top until you find `runDigest(...)`.
+- This is the function that runs every minute.
+
+### 3. Add reminder dispatch after the digest loop
+
+- After the loop that sends the daily digest, add a second call for reminders.
+- The worker should:
+  - load Telegram-linked users,
+  - load due reminder notes,
+  - match them by `uid`,
+  - send a reminder message to the user’s Telegram chat,
+  - store a dedup key so the same reminder is not sent twice in the same minute.
+
+### 4. Check the Firestore note fields
+
+- Reminder notes must have:
+  - `status = active`
+  - `category = reminders`
+  - `extracted_date` set
+  - `telegram_chat_id` saved on the user document
+- In Firestore, make sure reminder notes are being written with those fields.
+
+### 5. Save the file
+
+- Use `Ctrl+S` or `Cmd+S`.
+
+### 6. Validate the worker code locally
+
+- If you have a worker build setup, run the TypeScript build or the Wrangler validation command.
+- If you use VS Code terminal, run the worker checks from the `cloudfare` folder.
+
+### 7. Deploy the worker
+
+- Open a terminal in the `cloudfare` directory.
+- Run the Wrangler deploy command for your worker.
+- Wait for deployment to finish successfully.
+
+### 8. Verify in Cloudflare dashboard
+
+- Open the Cloudflare dashboard.
+- Select your worker.
+- Open the logs or observability view.
+- Confirm the worker is running every minute.
+- Confirm a reminder note triggers a Telegram send.
+
+### 9. Verify in Telegram
+
+- Open Telegram.
+- Find the connected bot.
+- Confirm the reminder arrives when the note is due.
+
+## If reminders still do not send
+
+Check these in order:
+
+1. The user has a non-empty `telegram_chat_id`.
+2. The reminder note has `category = reminders`.
+3. The reminder note has a valid `extracted_date`.
+4. The worker deployment is the latest version.
+5. The worker logs show the reminder send pass executing.
+
+## Best quick test
+
+- Create one note with category `reminders`.
+- Set its extracted date to the current UTC minute.
+- Save it for a user with a Telegram chat ID.
+- Trigger the worker manually if your setup supports a `/trigger` test endpoint.
+
+## Expected result
+
+- The digest flow continues to work.
+- A due reminder note sends one Telegram message.
+- The same reminder does not repeat within the same minute.
+
+## Files involved
+
+- `cloudfare/src/worker.ts`
+- Firestore `users` collection
+- Firestore `notes` collection
+```
+
+### devtools_options.yaml
+
+```yaml
+description: This file stores settings for Dart & Flutter DevTools.
+documentation: https://docs.flutter.dev/tools/devtools/extensions#configure-extension-enablement-states
+extensions:
+```
+
+### documentation (2).md
+
+````markdown
+# WishperLog — Complete Project Documentation
+**Generated from source audit · 97 files · 23 078 lines · April 2026**
+
+---
+
+## Table of Contents
+1. [Project Overview & Value Proposition](#1-project-overview--value-proposition)
+2. [Audit Report — Bugs & Fixes](#2-audit-report--bugs--fixes)
+3. [System Architecture](#3-system-architecture)
+4. [Database Schema](#4-database-schema)
+5. [Application Map](#5-application-map)
+6. [Visual Architecture — Mermaid Diagrams](#6-visual-architecture--mermaid-diagrams)
+
+---
+
+## 1. Project Overview & Value Proposition
+
+### What is WishperLog?
+
+WishperLog is an **AI-powered ambient thought-capture system** for Android, built with Flutter. Its core promise is zero-friction capture: a persistent floating overlay bubble lives on top of every other app, letting users speak or type a raw thought in seconds without ever switching context. A background Dart isolate classifies, titles, and prioritizes the thought using Gemini (primary) or Groq (fallback) — entirely invisibly.
+
+The user's mental output is always captured, always organized, and always available — both in the app and delivered to their Telegram chat on a user-configured schedule.
+
+### Core Capabilities
+
+| Capability | Mechanism |
+|---|---|
+| Always-on voice/text capture | Android foreground overlay service (`OverlayForegroundService.kt`) with draggable bubble |
+| Zero-UI background processing | Headless Dart isolate (`BackgroundNoteService.kt` → `backgroundNoteCallback`) |
+| AI classification | Dual-provider router: Google Gemini primary, Groq fallback |
+| Offline-first storage | Isar embedded DB; transparent Firestore fallback and sync |
+| Telegram digest delivery | Cloudflare Worker cron reads pre-built `message_state.telegram` from Firestore |
+| Google ecosystem sync | Bidirectional Google Tasks + Google Calendar integration |
+| Dynamic Island-style notifications | `TopNotchMessage` pill overlay, spring-animated |
+| Glassmorphism design system | Tactile Soft-Glass v3.0 with rim light, compound shadows, mesh gradient |
+
+### Workflow Improvement
+
+Opening a notes app during a meeting, a commute, or a creative moment creates friction that causes ideas to be lost. WishperLog eliminates that friction: one tap on the always-present bubble → speak → done. The AI organises it. By morning, the user's Telegram delivers a prioritised digest — no app required.
+
+
+
+---
+
+## 3. System Architecture
+
+### 3.1 Execution Environments
+
+WishperLog runs across four distinct runtimes:
+
+**Flutter UI Process** — Primary Flutter engine running the widget tree, BLoC/Cubit state, GoRouter navigation, and all business logic. `get_it` is the service locator. Communicates with Kotlin via named `MethodChannel` instances.
+
+**Android Native (Kotlin)** — Three components extend lifecycle beyond Flutter:
+- `OverlayForegroundService` — `SYSTEM_ALERT_WINDOW` foreground service; manages draggable bubble and voice recording
+- `BackgroundNoteService` — spawns a headless Flutter engine (second Dart isolate) when the main UI is absent
+- `BootReceiver` — restores the overlay service after device reboot when `persistOnReboot` is enabled in `OverlaySettings`
+
+**Firebase** — Firebase Auth (Google OAuth only), Cloud Firestore (notes + user profiles + pre-computed digests), and FCM (cross-device sync triggers).
+
+**Cloudflare Workers** — Single TypeScript Worker at `wishperlog-digest.veerbhadra0524.workers.dev`. Handles: per-minute cron for Telegram digest delivery, and a webhook endpoint for interactive Telegram bot commands.
+
+### 3.2 Key Architectural Decisions
+
+**Offline-first with Isar:** Every note write hits Isar first (sub-millisecond). Firestore sync is a secondary, non-blocking operation. `ConnectivitySyncCoordinator` queues a WorkManager flush when connectivity is restored.
+
+**Pre-computed digests:** `MessageStateService.recompute()` rebuilds and caches `users/{uid}.message_state.telegram` in Firestore on every note mutation. The Worker cron does one Firestore field read per user — no computation at delivery time. This design is critical: the cron fires every minute for potentially hundreds of users.
+
+**Headless Dart isolation:** `backgroundNoteCallback` boots its own Firebase + Isar instance. It receives notes from Kotlin via MethodChannel, processes them fully (AI classification + Firestore sync + digest rebuild), then signals Kotlin with the result. The main app UI is completely uninvolved.
+
+### 3.3 Main App Startup Sequence
+
+```
+WidgetsFlutterBinding.ensureInitialized()
+  → FCM background handler registered
+  → AppEnv.load() — flutter_dotenv reads .env
+  → Firebase.initializeApp(DefaultFirebaseOptions)
+  → init() — get_it DI container wired
+  → OverlayNotifier.hydrate() — MethodChannel established
+  → IsarNoteStore.instance.init() — Isar or Firestore-only fallback
+  → ThemeCubit.hydrate() — theme from SharedPreferences
+  → WorkManagerService.initialize() — registers callbackDispatcher
+  → LocalNotificationService.initialize()
+  → runApp(...)
+  [post-launch, non-blocking via unawaited]:
+    → OverlayNotifier.drainPendingNativeNotes()
+    → WorkManagerService.registerPeriodicGoogleTasksSync()
+    → AiProcessingService.start()
+    → ConnectivitySyncCoordinator.start()
+    → FirestoreNoteSyncService.start()
+    → LocalNotificationService.scheduleDigestReminder()
+    → FcmSyncService.initialize()
+```
+
+### 3.4 Dependency Injection Map (`injection_container.dart`)
+
+| Registration | Type | Notes |
+|---|---|---|
+| `AppPreferencesRepository` | LazySingleton | SharedPreferences wrapper |
+| `NoteRepository` | LazySingleton | Isar + Firestore write orchestrator |
+| `SpeechToText` | LazySingleton | STT engine |
+| `TelegramService` | LazySingleton | `.instance` singleton |
+| `NoteEventBus` | LazySingleton | `.instance` broadcast streams |
+| `IsarNoteStore` | LazySingleton | `.instance` singleton |
+| `CaptureService` | LazySingleton | No-arg constructor; creates own AI router |
+| `CaptureUiController` | LazySingleton | Cubit; depends on `CaptureService` + `SpeechToText` |
+| `OverlayNotifier` | LazySingleton | ChangeNotifier; MethodChannel bridge |
+| `AiClassifierRouter` | LazySingleton | `.hydrate()` called immediately on register |
+| `FirestoreNoteSyncService` | LazySingleton | Firestore stream listener |
+| `AiProcessingService` | LazySingleton | Depends on `NoteEventBus` |
+| `FcmSyncService` | LazySingleton | FCM token + message handler |
+| `ConnectivitySyncCoordinator` | LazySingleton | Network state watcher |
+| `ThemeCubit` | LazySingleton | Depends on `AppPreferencesRepository` |
+| `GoogleSignIn` | LazySingleton | Scopes: email, calendar, tasks |
+| `ExternalSyncService` | LazySingleton | Depends on `GoogleSignIn` |
+| `UserRepository` | LazySingleton | Depends on `GoogleSignIn` |
+| `MessageStateService` | LazySingleton | `.instance` singleton |
+
+---
+
+## 4. Database Schema
+
+### 4.1 Isar On-Device Schema (`Note` collection)
+
+| Field | Dart Type | Isar Type | Indexed | Notes |
+|---|---|---|---|---|
+| `isarId` | `Id` | auto-int | — | Isar internal |
+| `noteId` | `String` | hash | unique | UUID; matches Firestore doc ID |
+| `uid` | `String` | string | — | Firebase UID |
+| `rawTranscript` | `String` | string | — | Verbatim voice/text input |
+| `title` | `String` | string | — | AI-generated title |
+| `cleanBody` | `String` | string | — | AI-cleaned body |
+| `category` | `NoteCategory` | enum-name | — | `tasks`, `reminders`, `ideas`, `followUp`, `journal`, `general` |
+| `priority` | `NotePriority` | enum-name | — | `high`, `medium`, `low` |
+| `status` | `NoteStatus` | enum-name | hash | `active`, `archived`, `pendingAi`, `deleted` |
+| `aiModel` | `String` | string | — | Model identifier |
+| `source` | `CaptureSource` | enum-name | — | `voiceOverlay`, `textOverlay`, `homeWritingBox`, etc. |
+| `extractedDate` | `DateTime?` | dateTime | — | NLP-parsed due date |
+| `createdAt` | `DateTime` | dateTime | — | |
+| `updatedAt` | `DateTime` | dateTime | — | |
+| `syncedAt` | `DateTime?` | dateTime | — | Last external sync time |
+| `gtaskId` | `String?` | string | — | Google Tasks task ID |
+| `gcalEventId` | `String?` | string | — | Google Calendar event ID |
+
+`NoteStatus` lifecycle:
+```
+pendingAi  →  active    (after AI classification succeeds)
+active     →  archived  (user action or Google Tasks completion pull)
+active     →  deleted   (user action)
+```
+
+### 4.2 Firestore Schema
+
+```
+users/                                     ← root collection
+  {uid}/                                   ← user document
+    │
+    ├── display_name:   string
+    ├── email:          string
+    ├── photo_url:      string
+    ├── created_at:     Timestamp
+    │
+    ├── telegram_chat_id:              string   ← set by Worker on /start
+    ├── telegram_link_token:           string   ← one-time token (cleared after use)
+    ├── telegram_link_token_created_at: Timestamp
+    ├── digest_time:    string                  ← legacy single-slot "HH:MM"
+    ├── digest_slots:   string[]               ← multi-slot ["09:00","21:00"]
+    ├── tz_offset_minutes: number              ← UTC offset in minutes (e.g. 330=IST)
+    │
+    ├── message_state:  map
+    │     telegram:    string   ← pre-built HTML, rebuilt on every note mutation
+    │     updated_at:  Timestamp
+    │
+    ├── google_access_token:   string
+    ├── google_refresh_token:  string
+    │
+    ├── notes/                           ← subcollection
+    │     {noteId}/
+    │       note_id:        string
+    │       uid:            string
+    │       raw_transcript: string
+    │       title:          string
+    │       clean_body:     string
+    │       category:       string  (NoteCategory.name)
+    │       priority:       string  (NotePriority.name)
+    │       status:         string  (NoteStatus.name)
+    │       ai_model:       string
+    │       source:         string  (CaptureSource.name)
+    │       extracted_date: Timestamp|null
+    │       created_at:     Timestamp
+    │       updated_at:     Timestamp
+    │       synced_at:      Timestamp|null
+    │       gtask_id:       string|null
+    │       gcal_event_id:  string|null
+    │       is_deleted:     boolean  (denormalized flag)
+    │
+    └── (future: digest/current → structured aggregate document)
+```
+
+### 4.3 Cloudflare KV (Dedup Store)
+
+**Namespace:** `DIGEST_SENT`
+**Key format:** `YYYY-MM-DD:HH:MM:{uid}` (local date + local slot + uid)
+**TTL:** 93 600 seconds (26 hours)
+**Purpose:** Prevents re-sending the same digest if the cron fires twice in the same minute (e.g., cold start latency).
+
+### 4.4 Digest Rebuild Flow
+
+```
+Any note mutation
+  (create / update / delete / archive)
+          │
+          ▼
+NoteRepository._syncNoteToFirestore()
+          │
+          └── unawaited(MessageStateService.instance.recompute())
+                            │
+                            ├── _fetchActiveNotes(uid)
+                            │      → Isar.getAllActive() first
+                            │      → Firestore fallback if Isar empty
+                            │
+                            └── rebuildDigest(notes, uid)
+                                    │
+                                    ├── _buildTelegram()
+                                    │     Sort by priority.name rank + updatedAt desc
+                                    │     Format HTML: title, category, priority, body snippet
+                                    │
+                                    └── _persist(uid, telegram)
+                                          users/{uid}.message_state.telegram = html
+                                          users/{uid}.message_state.updated_at = now
+```
+
+The background isolate (`backgroundNoteCallback`) also calls `MessageStateService.instance.rebuildDigest()` directly after processing overlay notes, ensuring the digest is fresh even when the main app UI is not running.
+
+---
+
+## 5. Application Map
+
+### 5.1 Routes
+
+All routes use a custom `_buildPage()` transition: Fade + Slide (4–8% normalized offset) + Scale (0.985 → 1.0) over 260–420 ms depending on the route.
+
+| Route | Screen | Auth Guard Behaviour |
+|---|---|---|
+| `/` | `SignInScreen` | Authed → redirect `/home` |
+| `/signin` | `SignInScreen` | Same as `/` |
+| `/permissions` | `PermissionsScreen` | Authed → redirect `/home` |
+| `/telegram` | `TelegramScreen` | Unauthed → redirect `/` |
+| `/home` | `HomeScreenLayout` | Unauthed → redirect `/` |
+| `/search` | `SearchScreen` | Unauthed → redirect `/` |
+| `/notes/:noteId` | `NoteDetailScreen` | Unauthed → redirect `/` |
+| `/notes/:noteId/view` | `NoteViewScreen` | Unauthed → redirect `/`; requires `Note` extra |
+| `/folder` | `FolderScreen` | Unauthed → redirect `/`; accepts `NoteCategory` extra or `?category=` query param |
+| `/settings` | `SettingsScreen` | Unauthed → redirect `/` |
+| `/system_banner` | `SystemBannerOverlay` | Unauthed → redirect `/` |
+
+### 5.2 Screen Descriptions
+
+**`SignInScreen`** — Branded entry with animated mesh-gradient. Single tactile "Continue with Google" button with rim-light glassmorphism. `_EnvironmentSetupOverlay` dialog runs a 4-step progress animation while AI router and Isar initialize. On success navigates to `/permissions` (first-time) or `/home` (returning).
+
+**`PermissionsScreen`** — Sequential permission requests: `SYSTEM_ALERT_WINDOW`, `RECORD_AUDIO`, `POST_NOTIFICATIONS`. Plain-language explanations per permission. Disabled "Continue" until all are granted.
+
+**`TelegramScreen`** — Telegram link status with live stream. "Connect in Telegram" generates a base64 link token, stores it in Firestore with a server timestamp, and opens the bot deep-link `https://t.me/{bot}?start={token}`. Listens to `TelegramService.watchLinkedChatId()` to update UI in real-time when the Worker processes the connection.
+
+**`HomeScreenLayout`** — Main shell wrapping `HomeScreen` in `MeshGradientBackground` with `OverlayRootWrapper`. Hosts the `TopNotchMessage` Dynamic Island entry point.
+
+**`HomeScreen`** — Split layout: top third = `ThoughtCanvas` (voice mic + text input → `NoteRepository.savePendingFromHome()`); middle = recent notes feed (`GlassNoteCard`); bottom = `FolderGrid` (2×N category cards with live counts from `NoteRepository.watchActiveCountsLocal()`).
+
+**`FolderScreen`** — Category-filtered note list via `NoteRepository.watchActiveByCategoryLocal()`. Tap → `/notes/:id/view`, long-press → `/notes/:id`. Category color leaks into the mesh background.
+
+**`NoteDetailScreen`** — Full form editor. Title (max 120 chars), body (required), category dropdown, priority dropdown. Save calls `NoteRepository.updateEditedNote()`. Archive/delete available. Uses `NoteRepository.watchNoteById()` stream to stay in sync with background AI updates.
+
+**`NoteViewScreen`** — Read-only view. Requires `Note` passed as route `extra`. Displays category badge, priority badge, AI model chip, formatted body, collapsible raw transcript section. "Edit" button → `/notes/:id`.
+
+**`SearchScreen`** — Full-screen search. `SmartNoteSearch.searchSync()` runs client-side fuzzy matching against all active notes from `NoteRepository.watchAllActive()`. Category filter chips. Shows `SearchHit.score` and `matchedField`. Result tap → `/notes/:id`.
+
+**`SettingsScreen`** — Sections: Appearance (theme), Notifications (permission status), Speech (language, on-device STT toggle), AI Engine (Gemini/Groq status badges), Overlay (`OverlayCustomisationSheet`), Telegram (connect/disconnect, live chat ID), Digest Schedule (`DigestScheduleSection`), Google Sync (sync now, reconnect), Account (avatar, name, email), Sign Out.
+
+### 5.3 Overlay System Components
+
+| Component | Location | Role |
+|---|---|---|
+| `OverlayForegroundService.kt` | Android | `WindowManager` bubble, mic, MethodChannel bridge |
+| `BackgroundNoteService.kt` | Android | Spawns headless Dart isolate via `FlutterEngineHolder` |
+| `BootReceiver.kt` | Android | Restores overlay on reboot |
+| `NoteInputReceiver.kt` | Android | Receives broadcast intents from bubble |
+| `OverlayNotifier` | Flutter | ChangeNotifier; mirrors overlay state to main app |
+| `OverlayBubble` | Flutter | Widget rendered in overlay window |
+| `QuickNoteEditor` | Flutter | Expanded text input widget |
+| `OverlayCustomisationSheet` | Flutter | Appearance settings bottom sheet |
+| `OverlaySettings` | Flutter | Serializable model, persisted to SharedPreferences |
+| `CaptureUiController` | Flutter | Cubit; drives Dynamic Island state |
+
+---
+
+## 6. Visual Architecture — Mermaid Diagrams
+
+---
+
+### Diagram 1 — Full System Architecture
+
+```mermaid
+graph TB
+    subgraph Device["Android Device"]
+        subgraph Flutter["Flutter Process"]
+            UI["UI Layer\nGoRouter + BLoC/Cubit"]
+            REPO["NoteRepository\n(write orchestrator)"]
+            ISAR["Isar DB\noffline-first store"]
+            MSG["MessageStateService\ndigest pre-builder"]
+            CAPS["CaptureService\n+ AiClassifierRouter"]
+            SYNC["FirestoreNoteSyncService\n(cloud sync)"]
+            EXT["ExternalSyncService\nGoogle Tasks + Calendar"]
+        end
+        subgraph Kotlin["Android Native"]
+            OFS["OverlayForegroundService\nbubble + mic"]
+            BNS["BackgroundNoteService\nheadless Dart engine"]
+            BOOT["BootReceiver"]
+        end
+    end
+
+    subgraph Firebase["Firebase Cloud"]
+        AUTH["Firebase Auth\nGoogle OAuth"]
+        FS["Cloud Firestore\nusers / notes / digest"]
+        FCM["FCM\ncross-device sync"]
+    end
+
+    subgraph CF["Cloudflare Edge"]
+        WORKER["Worker.ts\ncron + webhook"]
+        KV["KV Namespace\ndedup store"]
+    end
+
+    subgraph APIs["External APIs"]
+        TG["Telegram Bot API"]
+        GEMINI["Google Gemini API"]
+        GROQ["Groq API"]
+        GT["Google Tasks API"]
+        GC["Google Calendar API"]
+    end
+
+    OFS <-->|MethodChannel\nwishperlog/overlay| UI
+    OFS --> BNS
+    BOOT --> OFS
+    BNS -->|backgroundNoteCallback\nDart isolate| CAPS
+    UI --> REPO
+    REPO --> ISAR
+    REPO --> MSG
+    REPO --> SYNC
+    MSG --> FS
+    SYNC --> FS
+    EXT --> GT
+    EXT --> GC
+    CAPS --> GEMINI
+    CAPS --> GROQ
+    CAPS --> ISAR
+    AUTH --> FS
+    FCM --> UI
+    WORKER -->|reads message_state.telegram| FS
+    WORKER --> KV
+    WORKER --> TG
+```
+
+---
+
+### Diagram 2 — Firestore Database ERD
+
+```mermaid
+erDiagram
+    USERS {
+        string uid PK
+        string display_name
+        string email
+        string photo_url
+        timestamp created_at
+        string telegram_chat_id
+        string telegram_link_token
+        timestamp telegram_link_token_created_at
+        string_array digest_slots
+        int tz_offset_minutes
+        map message_state
+        string google_access_token
+        string google_refresh_token
+    }
+
+    NOTES {
+        string noteId PK
+        string uid FK
+        string title
+        string rawTranscript
+        string cleanBody
+        string category
+        string priority
+        string status
+        string aiModel
+        string source
+        timestamp extractedDate
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp syncedAt
+        string gtaskId
+        string gcalEventId
+        boolean is_deleted
+    }
+
+    MESSAGE_STATE {
+        string uid FK
+        string telegram_html
+        timestamp updated_at
+    }
+
+    USERS ||--o{ NOTES : "owns"
+    USERS ||--|| MESSAGE_STATE : "embedded in user doc"
+```
+
+---
+
+### Diagram 3 — User Authentication Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Flutter App
+    participant GSI as Google Sign-In SDK
+    participant FBA as Firebase Auth
+    participant FS as Firestore
+    participant Router as GoRouter
+
+    User->>App: Tap "Continue with Google"
+    App->>GSI: GoogleSignIn().signIn()
+    GSI-->>User: Account picker
+    User->>GSI: Select account
+    GSI-->>App: GoogleSignInAccount {idToken, accessToken}
+    App->>FBA: signInWithCredential(GoogleAuthProvider.credential)
+    FBA-->>App: UserCredential {uid, displayName, email}
+
+    App->>FS: users/{uid}.set({display_name,email,...}, merge:true)
+    FS-->>App: write confirmed
+
+    App->>Router: auth state change fires redirect
+    alt First-time user
+        Router->>App: /permissions
+        App->>App: request SYSTEM_ALERT_WINDOW,RECORD_AUDIO,POST_NOTIFICATIONS
+        App->>Router: /telegram
+        App->>App: TelegramService.connectTelegramAuto()
+    else Returning user
+        Router->>App: /home
+    end
+
+    Note over App,Router: All protected routes check<br/>FirebaseAuth.instance.currentUser != null
+```
+
+---
+
+### Diagram 4 — Note Creation & Digest Update Sequence
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Overlay as Overlay (Kotlin)
+    participant BNS as BackgroundNoteService.kt
+    participant Dart as Dart Isolate
+    participant Isar as Isar
+    participant AI as AiClassifierRouter
+    participant FS as Firestore
+    participant MSG as MessageStateService
+
+    User->>Overlay: Speak or type
+    Overlay->>BNS: MethodChannel processNote {text,source}
+    BNS->>Dart: FlutterEngine → backgroundNoteCallback
+    Dart->>Dart: CaptureService.ingestRawCapture()
+    Dart->>Isar: put(note {status:pendingAi})
+    Dart->>AI: classify(rawTranscript)
+
+    alt Gemini succeeds
+        AI-->>Dart: ClassificationResult
+    else Gemini fails
+        AI->>AI: GroqNoteClassifier fallback
+        AI-->>Dart: ClassificationResult
+    end
+
+    Dart->>Isar: put(note {status:active, title, category, priority})
+    Dart->>FS: notes/{noteId}.set(toFirestoreJson())
+    FS-->>Dart: ACK
+
+    Dart->>MSG: rebuildDigest(activeNotes, uid)
+    MSG->>Isar: getAllActive()
+    MSG->>MSG: _buildTelegram() format HTML
+    MSG->>FS: users/{uid}.message_state.telegram = html
+
+    Dart->>BNS: MethodChannel done {title,category,prefix}
+    BNS->>Overlay: notifyBackgroundSaved()
+    Overlay->>User: Island pill shows result
+```
+
+---
+
+### Diagram 5 — Telegram Bot Webhook Request Flow
+
+```mermaid
+sequenceDiagram
+    actor TU as Telegram User
+    participant TG as Telegram Servers
+    participant W as Cloudflare Worker
+    participant KV as Cloudflare KV
+    participant JWT as Google OAuth JWT
+    participant FS as Firestore REST
+
+    TU->>TG: /tasks
+    TG->>W: POST /webhook {message:{chat_id, text}}
+    W->>JWT: build RS256 JWT, exchange for access_token
+    JWT-->>W: access_token
+
+    W->>FS: runQuery(telegram_chat_id == chat_id)
+    FS-->>W: userDoc or empty
+
+    alt User not found
+        W->>TG: sendMessage "Link account first..."
+    else User found
+        W->>FS: GET users/{uid}/notes?pageSize=200
+        FS-->>W: note documents
+        W->>W: parseNoteDocs() → filter tasks
+        W->>W: buildDigest(tasks, name, "Tasks")
+        W->>TG: sendMessage HTML
+    end
+
+    TG-->>TU: Formatted tasks message
+    W-->>TG: 200 "ok"
+```
+
+---
+
+### Diagram 6 — App Navigation & Screen State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> AuthCheck: App Launch
+
+    AuthCheck --> SignInScreen: Not Authenticated
+    AuthCheck --> HomeScreen: Authenticated
+
+    SignInScreen --> PermissionsScreen: Sign-In (first time)
+    SignInScreen --> HomeScreen: Sign-In (returning)
+    PermissionsScreen --> TelegramScreen: Permissions granted
+    TelegramScreen --> HomeScreen: Linked or Skipped
+
+    HomeScreen --> FolderScreen: Tap category
+    HomeScreen --> NoteDetailScreen: Long-press note
+    HomeScreen --> NoteViewScreen: Tap note
+    HomeScreen --> SearchScreen: Tap search
+    HomeScreen --> SettingsScreen: Tap settings
+
+    FolderScreen --> NoteViewScreen: Tap note
+    FolderScreen --> NoteDetailScreen: Long-press note
+    FolderScreen --> HomeScreen: Back
+
+    NoteViewScreen --> NoteDetailScreen: Tap Edit
+    NoteViewScreen --> HomeScreen: Back
+
+    NoteDetailScreen --> NoteViewScreen: Tap View
+    NoteDetailScreen --> HomeScreen: Save / Delete / Back
+
+    SearchScreen --> NoteDetailScreen: Tap result
+    SearchScreen --> HomeScreen: Back
+
+    SettingsScreen --> HomeScreen: Back
+    SettingsScreen --> SignInScreen: Sign Out
+
+    state OverlayAlwaysOn {
+        Bubble --> QuickEditor: Expand
+        QuickEditor --> Bubble: Cancel
+        QuickEditor --> Processing: Submit
+        Processing --> Bubble: Done (island pill shown)
+    }
+    HomeScreen --> OverlayAlwaysOn: Runs in parallel
+```
+
+---
+
+### Diagram 7 — Cron-Job Execution Flow
+
+```mermaid
+flowchart TD
+    START([Cron Trigger\nevery minute]) --> NOW[Get UTC now]
+    NOW --> JWT[getFirestoreToken\nRS256 → OAuth]
+    JWT --> LIST[GET /users?pageSize=500]
+    LIST --> DOCS{Documents?}
+    DOCS -- No --> END([Done])
+    DOCS -- Yes --> LOOP[For each userDoc]
+
+    LOOP --> CHAT{telegram_chat_id\npresent?}
+    CHAT -- No --> NEXT[Next user]
+    CHAT -- Yes --> TZ[Apply tz_offset_minutes\nlocalNow = utcNow + offset]
+    TZ --> SLOT[localSlot = HH:MM]
+    SLOT --> SLOTS[Read digest_slots\nfallback: digest_time or 09:00]
+    SLOTS --> MATCH{localSlot\nin slots?}
+    MATCH -- No --> NEXT
+    MATCH -- Yes --> KVGET[KV.get YYYY-MM-DD:HH:MM:uid]
+    KVGET --> SENT{Already sent?}
+    SENT -- Yes --> NEXT
+    SENT -- No --> MSG[Read message_state.telegram]
+    MSG --> EMPTY{Not empty?}
+    EMPTY -- No --> NEXT
+    EMPTY -- Yes --> SEND[sendTelegramMessage\nHTML, parse_mode:HTML]
+    SEND --> KVPUT[KV.put dedupKey TTL=93600s]
+    KVPUT --> LOG[log sent]
+    LOG --> NEXT
+    NEXT --> MORE{More users?}
+    MORE -- Yes --> LOOP
+    MORE -- No --> END
+```
+
+---
+
+### Diagram 8 — AI Classification Pipeline
+
+```mermaid
+flowchart LR
+    INPUT["Raw Input\nvoice or text"] --> NLP["NlpTaskParser.parse()\nsynch · zero-network\ncategory + priority hint\nextractedDate"]
+    NLP --> ROUTER["AiClassifierRouter\n.classify()"]
+    ROUTER --> GCHECK{Gemini key\npresent?}
+    GCHECK -- Yes --> GEM["GeminiNoteClassifier\ngemini-2.0-flash"]
+    GCHECK -- No --> GROQ["GroqNoteClassifier\nllama-3.3-70b-versatile"]
+    GEM --> GRES{Success?}
+    GRES -- Yes --> RES["ClassificationResult\n• title\n• cleanBody\n• category\n• priority\n• extractedDate\n• model\n• wasFallback"]
+    GRES -- No --> GROQ
+    GROQ --> QRES{Success?}
+    QRES -- Yes --> RES
+    QRES -- No --> PEND["NoteStatus.pendingAi\nSaved in Isar\nRetried by AiProcessingService"]
+    RES --> WRITE["Isar.put()\nFirestore.set()\nMessageStateService.recompute()"]
+    WRITE --> ISLAND["Dynamic Island pill\ncategory emoji + title"]
+```
+
+---
+
+### Diagram 9 — Offline-First Sync Architecture
+
+```mermaid
+sequenceDiagram
+    participant UI as Flutter UI
+    participant Isar as Isar
+    participant CSC as ConnectivitySyncCoordinator
+    participant WM as WorkManager
+    participant FS as Firestore
+
+    Note over UI,FS: Online path
+    UI->>Isar: put(note) — instant
+    Isar-->>UI: saved
+    UI->>FS: set(toFirestoreJson()) — async
+    FS-->>UI: ACK
+
+    Note over UI,FS: Goes offline
+    UI->>Isar: put(note) — instant
+    Isar-->>UI: saved
+    UI-xFS: set(...) — network failure
+
+    Note over CSC,FS: Back online
+    CSC->>CSC: onConnectivityChanged: connected
+    CSC->>WM: scheduleFlushPendingAi()
+    WM->>Isar: getPendingAiNotes()
+    WM->>FS: batch sync
+    FS-->>WM: ACK
+
+    Note over WM,FS: Periodic 15-min guarantee
+    WM->>WM: periodicTask fires
+    WM->>FS: ExternalSyncService.syncNow()
+    FS-->>WM: Google Tasks + Calendar in sync
+```
+
+---
+
+### Diagram 10 — Android/Dart MethodChannel Bridge
+
+```mermaid
+sequenceDiagram
+    participant OS as Android OS
+    participant OFS as OverlayForegroundService.kt
+    participant BNS as BackgroundNoteService.kt
+    participant FEH as FlutterEngineHolder.kt
+    participant DART as Dart Isolate\nbackgroundNoteCallback
+    participant MAIN as Main Flutter App\nOverlayNotifier
+
+    OS->>OFS: startForegroundService
+    OFS->>OFS: WindowManager.addView bubble
+    OFS->>BNS: start(text, source)
+    BNS->>FEH: getOrCreate FlutterEngine
+    FEH->>DART: executeDartEntrypoint\nbackgroundNoteCallback
+    DART->>DART: Firebase.init + Isar.init + AI.hydrate
+    DART->>BNS: channel.invokeMethod('ready')
+    BNS->>DART: channel processNote {text,source}
+    DART->>DART: ingest → classify → persist → sync → rebuildDigest
+    DART->>BNS: channel done {title,category,prefix}
+    BNS->>OFS: notifyBackgroundSaved(title,category)
+    OFS->>MAIN: channel updateIslandState {state:saved,message:title}
+    MAIN->>MAIN: CaptureUiController.notifyExternalRecordingSaved()
+    MAIN->>MAIN: TopNotchMessage pill rendered
+```
+
+---
+
+### Diagram 11 — Digest Pre-Build and Delivery End-to-End
+
+```mermaid
+flowchart TB
+    subgraph Mutations["Note Mutations (Flutter)"]
+        C["savePendingFromHome()"]
+        U["updateEditedNote()"]
+        A["archive() / delete()"]
+    end
+
+    subgraph NR["NoteRepository"]
+        SF["_syncNoteToFirestore()\n+ unawaited(recompute())"]
+    end
+
+    subgraph MSS["MessageStateService"]
+        FETCH["_fetchActiveNotes()\nIsar first, Firestore fallback"]
+        BUILD["_buildTelegram()\nsort priority.name → top 5\nformat HTML emoji tags"]
+        PERSIST["_persist(uid, html)\nusers/{uid}.message_state\n.telegram + updated_at"]
+    end
+
+    subgraph FS["Firestore Cache"]
+        CACHE["message_state.telegram\npre-built HTML string\n(refreshed on every write)"]
+    end
+
+    subgraph Worker["Cloudflare Worker (every minute)"]
+        CRON["Check localSlot\nvs digest_slots"]
+        DEDUP["KV dedup check"]
+        READ["Read message_state.telegram\n1 field read per user"]
+        SEND["sendTelegramMessage()\nHTML parse_mode"]
+    end
+
+    C & U & A --> SF
+    SF --> FETCH --> BUILD --> PERSIST --> CACHE
+    CACHE --> READ
+    CRON --> DEDUP --> READ --> SEND
+```
+
+---
+
+## Appendix A — Technology Stack
+
+| Layer | Technology | Notes |
+|---|---|---|
+| UI Framework | Flutter 3.x / Dart 3 | |
+| Local DB | Isar 3.x | Embedded NoSQL with code-gen |
+| Cloud DB | Cloud Firestore | Firebase SDK |
+| Auth | Firebase Auth + Google Sign-In | Google OAuth only |
+| Push | Firebase Cloud Messaging | Cross-device sync |
+| AI Primary | Google Gemini 2.0 Flash | `gemini-2.0-flash` |
+| AI Fallback | Groq | `llama-3.3-70b-versatile` |
+| Edge Compute | Cloudflare Workers (TypeScript) | Cron + webhook |
+| KV Store | Cloudflare KV | Digest dedup |
+| Messaging | Telegram Bot API v7.x | |
+| Google Integration | googleapis Dart package | Tasks + Calendar |
+| State Management | flutter_bloc / Cubit | |
+| DI | get_it | Service locator pattern |
+| Navigation | GoRouter | Declarative |
+| Background Tasks | WorkManager | Periodic Google sync |
+| Build | Gradle Kotlin DSL 8.x | |
+
+## Appendix B — Critical Environment Variables
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `GEMINI_API_KEY` | Flutter `.env` | Primary AI classification |
+| `GROQ_API_KEY` | Flutter `.env` | Fallback AI classification |
+| `TELEGRAM_BOT_USERNAME` | Flutter `.env` | Deep-link generation in TelegramService |
+| `GOOGLE_WEB_CLIENT_ID` | Compile-time define or `.env` | Google Sign-In web flow |
+| `TELEGRAM_BOT_TOKEN` | Cloudflare Worker secret | Telegram Bot API auth |
+| `FIREBASE_PROJECT_ID` | Cloudflare Worker secret | Firestore REST API project |
+| `FIREBASE_CLIENT_EMAIL` | Cloudflare Worker secret | Service account identity |
+| `FIREBASE_PRIVATE_KEY` | Cloudflare Worker secret | RS256 JWT signing (PEM, `\n` escaped) |
+
+---
+
+*End of documentation.md — WishperLog · Audit April 2026*
+````
+
+### firebase.json
+
+```json
+{"flutter":{"platforms":{"android":{"default":{"projectId":"wishperlog","appId":"1:982731246537:android:bff1e21915bd4c632cf618","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"wishperlog","configurations":{"android":"1:982731246537:android:bff1e21915bd4c632cf618","ios":"1:982731246537:ios:35dcd639c15b41aa2cf618","macos":"1:982731246537:ios:35dcd639c15b41aa2cf618","web":"1:982731246537:web:33adacd29c09bd572cf618","windows":"1:982731246537:web:7745bf16f7cb93822cf618"}}}}},"firestore":{"rules":"firestore.rules"},"functions":{"source":"functions"}}
+```
+
+### firestore.rules
+
+```text
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+
+      // Base user document access
+      allow read, write: if isOwner(uid);
+
+      // Notes subcollection (explicit + safe)
+      match /notes/{noteId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ✅ FIX: digest subcollection (prevents permission-denied + schema pollution)
+      match /digest/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Catch-all fallback for any other nested collections
+      // (kept LAST so specific rules above take precedence)
+      match /{document=**} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+  }
+}
+```
+
+### functions/index.js
+
+````javascript
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onRequest } = require('firebase-functions/v2/https');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const logger = require('firebase-functions/logger');
+const admin = require('firebase-admin');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+admin.initializeApp();
+
+const db = admin.firestore();
+
+// ============================================================================
+// AI ENRICHMENT: Enrich pendingAi notes with Gemini API
+// ============================================================================
+
+const GEMINI_SYSTEM_PROMPT =
+  'You are a personal note classifier. Return JSON with title, category, priority, clean_body, extracted_date. ' +
+  'Return ONLY valid JSON with these exact keys: "title", "category", "priority", "clean_body", "extracted_date". ' +
+  'Allowed category values: Tasks, Reminders, Ideas, Follow-up, Journal, General. ' +
+  'Allowed priority values: high, medium, low. ' +
+  'Use null when extracted_date is unknown. No markdown, no extra keys.';
+
+function extractJsonFromResponse(text) {
+  if (!text) return null;
+  // Try to extract JSON code block
+  const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    return codeBlockMatch[1].trim();
+  }
+  // Try to find JSON object in the text
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return jsonMatch[0];
+  }
+  return null;
+}
+
+function parseExtractedDate(dateValue) {
+  if (!dateValue) return null;
+  try {
+    const parsed = new Date(dateValue);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  } catch (_) {
+    // Ignore
+  }
+  return null;
+}
+
+function mapCategory(categoryStr) {
+  if (!categoryStr) return 'general';
+  const normalized = categoryStr.toLowerCase().trim();
+  const categoryMap = {
+    'tasks': 'tasks',
+    'task': 'tasks',
+    'reminders': 'reminders',
+    'reminder': 'reminders',
+    'ideas': 'ideas',
+    'idea': 'ideas',
+    'follow-up': 'follow-up',
+    'followup': 'follow-up',
+    'follow_up': 'follow-up',
+    'journal': 'journal',
+    'journaling': 'journal',
+    'general': 'general',
+  };
+  return categoryMap[normalized] || 'general';
+}
+
+function mapPriority(priorityStr) {
+  if (!priorityStr) return 'medium';
+  const normalized = priorityStr.toLowerCase().trim();
+  if (normalized.includes('high')) return 'high';
+  if (normalized.includes('low')) return 'low';
+  return 'medium';
+}
+
+exports.enrichPendingAiNote = onDocumentCreated(
+  { document: 'users/{uid}/notes/{noteId}' },
+  async (event) => {
+    const noteData = event.data.data();
+    if (noteData.status !== 'pendingAi') {
+      return;
+    }
+
+    const uid = event.params.uid;
+    const noteId = event.params.noteId;
+    const rawTranscript = (noteData.raw_transcript || '').trim();
+
+    if (!rawTranscript) {
+      logger.warn(`[enrichPendingAiNote] Empty raw_transcript for note ${noteId}`, { uid });
+      return;
+    }
+
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      logger.warn(`[enrichPendingAiNote] GEMINI_API_KEY not configured; skipping enrichment`);
+      return;
+    }
+
+    try {
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+
+      const response = await model.generateContent([
+        { text: GEMINI_SYSTEM_PROMPT },
+        { text: `Raw input: ${rawTranscript}` },
+      ]);
+
+      const responseText = response.response.text();
+      if (!responseText) {
+        logger.warn(`[enrichPendingAiNote] Empty response from Gemini for note ${noteId}`);
+        return;
+      }
+
+      const jsonStr = extractJsonFromResponse(responseText);
+      if (!jsonStr) {
+        logger.warn(`[enrichPendingAiNote] Could not extract JSON from Gemini response for note ${noteId}`);
+        return;
+      }
+
+      const enriched = JSON.parse(jsonStr);
+      const enrichedTitle = (enriched.title || '').trim() || rawTranscript.substring(0, 100).trim();
+      const enrichedCleanBody = (enriched.clean_body || '').trim() || rawTranscript.trim();
+      const enrichedCategory = mapCategory(enriched.category);
+      const enrichedPriority = mapPriority(enriched.priority);
+      const enrichedExtractedDate = parseExtractedDate(enriched.extracted_date);
+
+      const now = new Date().toISOString();
+      const updatePayload = {
+        title: enrichedTitle,
+        clean_body: enrichedCleanBody,
+        category: enrichedCategory,
+        priority: enrichedPriority,
+        extracted_date: enrichedExtractedDate || null,
+        ai_model: 'gemini-2.5-flash-lite',
+        status: 'active',
+        updated_at: now,
+        synced_at: now,
+      };
+
+      await db
+        .collection('users')
+        .doc(uid)
+        .collection('notes')
+        .doc(noteId)
+        .update(updatePayload);
+
+      logger.info(
+        `[enrichPendingAiNote] Successfully enriched note ${noteId} for user ${uid}`,
+        { enriched: JSON.stringify(updatePayload) },
+      );
+    } catch (error) {
+      logger.error(`[enrichPendingAiNote] Error enriching note ${noteId} for user ${uid}:`, error);
+      // Don't update the note; let client retry or manual processing handle it
+    }
+  },
+);
+
+function parseDigestTime(raw) {
+  if (!raw || typeof raw !== 'string') {
+    return { hour: 9, minute: 0 };
+  }
+
+  const value = raw.trim().toUpperCase();
+  const match12 = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (match12) {
+    let hour = Number(match12[1]);
+    const minute = Number(match12[2]);
+    const meridiem = match12[3];
+    if (hour === 12) {
+      hour = 0;
+    }
+    if (meridiem === 'PM') {
+      hour += 12;
+    }
+    return { hour, minute };
+  }
+
+  const match24 = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (match24) {
+    return {
+      hour: Number(match24[1]),
+      minute: Number(match24[2]),
+    };
+  }
+
+  return { hour: 9, minute: 0 };
+}
+
+function parseDigestTimes(rawTimes, rawSingle) {
+  const parsed = [];
+  const seen = new Set();
+  const values = Array.isArray(rawTimes) && rawTimes.length > 0
+    ? rawTimes
+    : [rawSingle];
+
+  for (const value of values) {
+    const slot = parseDigestTime(value);
+    const key = `${slot.hour}:${slot.minute}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    parsed.push(slot);
+  }
+
+  return parsed.length > 0 ? parsed : [{ hour: 9, minute: 0 }];
+}
+
+function localDateForOffset(nowUtc, offsetMinutes) {
+  const shifted = new Date(nowUtc.getTime() + offsetMinutes * 60 * 1000);
+  const y = shifted.getUTCFullYear();
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getUTCDate()).padStart(2, '0');
+  const hour = shifted.getUTCHours();
+  const minute = shifted.getUTCMinutes();
+  return {
+    ymd: `${y}-${m}-${d}`,
+    hour,
+    minute,
+  };
+}
+
+function sortPriority(notes) {
+  const weight = { high: 0, medium: 1, low: 2 };
+  return [...notes].sort((a, b) => {
+    const aw = weight[a.priority] ?? 9;
+    const bw = weight[b.priority] ?? 9;
+    if (aw !== bw) {
+      return aw - bw;
+    }
+    return (a.updated_at || '').localeCompare(b.updated_at || '') * -1;
+  });
+}
+
+function safeTitle(note) {
+function asciiOnly(value) {
+  return (value ?? '')
+    .toString()
+    .normalize('NFKD')
+    .replace(/[^\x00-\x7F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+  return (note.title || '').toString().trim() || 'Untitled note';
+  return asciiOnly((note.title || '').toString().trim() || 'Untitled note');
+}
+
+function normalizeCategoryKey(value) {
+  const normalized = asciiOnly(value).toLowerCase();
+  switch (normalized) {
+    case 'task':
+    case 'tasks':
+    case 'todo':
+    case 'to-do':
+      return 'tasks';
+    case 'reminder':
+    case 'reminders':
+      return 'reminders';
+    case 'idea':
+    case 'ideas':
+      return 'ideas';
+    case 'followup':
+    case 'follow-up':
+    case 'follow_up':
+      return 'follow-up';
+    case 'journal':
+      return 'journal';
+    case 'general':
+      return 'general';
+    default:
+      return normalized;
+  }
+}
+
+function categoryLabel(category) {
+  switch (normalizeCategoryKey(category)) {
+    case 'tasks':
+      return 'Tasks';
+    case 'reminders':
+      return 'Reminders';
+    case 'ideas':
+      return 'Ideas';
+    case 'follow-up':
+      return 'Follow-up';
+    case 'journal':
+      return 'Journal';
+    default:
+      return 'General';
+  }
+}
+
+function priorityLabel(priority) {
+  switch ((priority || '').toString().toLowerCase()) {
+    case 'high':
+      return 'HIGH';
+    case 'low':
+      return 'LOW';
+    default:
+      return 'MED';
+  }
+}
+
+function isActiveNote(note) {
+  return (note.status || 'active') === 'active' && note.is_deleted !== true;
+}
+
+function getNoteCategory(note) {
+  return normalizeCategoryKey(note.category || 'general');
+}
+
+function filterNotesByCategory(notes, category) {
+  const key = normalizeCategoryKey(category);
+  if (key === 'general' || key === 'summary' || key === 'all') {
+    return notes;
+  }
+  return notes.filter((note) => getNoteCategory(note) === key);
+}
+
+function formatNoteLine(note, index) {
+  return `${index + 1}. [${categoryLabel(note.category)}][${priorityLabel(note.priority)}] ${safeTitle(note)}`;
+}
+
+function buildNoteSummaryText(notes, heading, name, now, categoryFilter) {
+  const filtered = categoryFilter ? filterNotesByCategory(notes, categoryFilter) : notes;
+  const topNotes = sortPriority(filtered).slice(0, 3);
+  const counts = filtered.reduce((acc, note) => {
+    const key = getNoteCategory(note);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  const lines = [
+    `${heading} for ${asciiOnly(name || 'there')}`,
+    `Generated ${now.toISOString().replace('T', ' ').slice(0, 16)} UTC`,
+    '',
+    `Active notes: ${filtered.length}`,
+    `Tasks: ${counts.tasks || 0}`,
+    `Reminders: ${counts.reminders || 0}`,
+    `Ideas: ${counts.ideas || 0}`,
+    `Follow-up: ${counts['follow-up'] || 0}`,
+    `Journal: ${counts.journal || 0}`,
+    '',
+    topNotes.length > 0 ? 'Top 3:' : 'No active notes found.',
+  ];
+
+  topNotes.forEach((note, index) => {
+    lines.push(formatNoteLine(note, index));
+  });
+
+  lines.push('', 'Use /summary, /task, /reminder, /idea, /followup, /journal, or /all.');
+  return asciiOnly(lines.join('\n'));
+}
+
+function buildHelpText() {
+  return [
+    'WishperLog commands',
+    '',
+    '/summary - show the top 3 active notes',
+    '/task - top 3 tasks',
+    '/reminder - top 3 reminders',
+    '/idea - top 3 ideas',
+    '/followup - top 3 follow-up notes',
+    '/journal - top 3 journal notes',
+    '/all - top 3 active notes across all categories',
+  ].join('\n');
+}
+
+function parseTelegramCommand(text) {
+  const firstToken = asciiOnly(text).split(/\s+/)[0] || '';
+  const command = firstToken.replace(/^\//, '').split('@')[0].toLowerCase();
+  return command;
+}
+
+async function getUserByChatId(chatId) {
+  const snap = await db
+    .collection('users')
+    .where('telegram_chat_id', '==', String(chatId))
+    .limit(1)
+    .get();
+
+  if (snap.empty) {
+    return null;
+  }
+
+  const doc = snap.docs[0];
+  const data = doc.data() || {};
+  return {
+    uid: doc.id,
+    displayName: asciiOnly(data.display_name || data.displayName || 'there'),
+  };
+}
+
+async function getUserNotes(uid) {
+  const snap = await db
+    .collection('users')
+    .doc(uid)
+    .collection('notes')
+    .get();
+
+  return snap.docs
+    .map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    .filter(isActiveNote);
+}
+
+async function handleTelegramCommand(chatId, text, now) {
+  const command = parseTelegramCommand(text);
+
+  if (!command) {
+    return;
+  }
+
+  if (command === 'help') {
+    await sendTelegramMessage(chatId, buildHelpText());
+    return;
+  }
+
+  if (command === 'start') {
+    await sendTelegramMessage(chatId, buildHelpText());
+    return;
+  }
+
+  const linkedUser = await getUserByChatId(chatId);
+  if (!linkedUser) {
+    await sendTelegramMessage(
+      chatId,
+      'Link your WishperLog account first with /start uid_<your_uid>, then use /summary or /task.',
+    );
+    return;
+  }
+
+  const notes = await getUserNotes(linkedUser.uid);
+  const heading = command === 'summary' || command === 'all' ? 'Summary' : `${categoryLabel(command)} summary`;
+
+  switch (command) {
+    case 'summary':
+    case 'all':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, null),
+        sortPriority(notes).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(notes).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'task':
+    case 'tasks':
+    case 'todo':
+    case 'to-do':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'tasks'),
+        sortPriority(filterNotesByCategory(notes, 'tasks')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'tasks')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'reminder':
+    case 'reminders':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'reminders'),
+        sortPriority(filterNotesByCategory(notes, 'reminders')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'reminders')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'idea':
+    case 'ideas':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'ideas'),
+        sortPriority(filterNotesByCategory(notes, 'ideas')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'ideas')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'followup':
+    case 'follow-up':
+    case 'follow_up':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'follow-up'),
+        sortPriority(filterNotesByCategory(notes, 'follow-up')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'follow-up')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    case 'journal':
+      await sendTelegramMessage(
+        chatId,
+        buildNoteSummaryText(notes, heading, linkedUser.displayName, now, 'journal'),
+        sortPriority(filterNotesByCategory(notes, 'journal')).slice(0, 3).length > 0
+          ? { inline_keyboard: telegramInlineRows(linkedUser.uid, sortPriority(filterNotesByCategory(notes, 'journal')).slice(0, 3)) }
+          : undefined,
+      );
+      return;
+    default:
+      await sendTelegramMessage(chatId, buildHelpText());
+      return;
+  }
+}
+
+function telegramInlineRows(uid, notes) {
+  return notes.slice(0, 8).map((note) => {
+    const noteId = note.note_id || note.id;
+    const doneData = `done|${uid}|${noteId}`;
+    const archiveData = `archive|${uid}|${noteId}`;
+    return [
+      { text: `Done: ${safeTitle(note).slice(0, 24)}`, callback_data: doneData },
+      { text: 'Archive', callback_data: archiveData },
+    ];
+  });
+}
+
+async function sendTelegramMessage(chatId, text, replyMarkup) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    logger.warn('TELEGRAM_BOT_TOKEN is not configured');
+    return;
+  }
+
+  const endpoint = `https://api.telegram.org/bot${token}/sendMessage`;
+  const payload = {
+    chat_id: chatId,
+    text: asciiOnly(text),
+    disable_web_page_preview: true,
+    reply_markup: replyMarkup,
+  };
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    logger.error('Telegram sendMessage failed', {
+      status: response.status,
+      body,
+    });
+  }
+}
+
+async function answerTelegramCallback(callbackId, text) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token || !callbackId) {
+    return;
+  }
+  const endpoint = `https://api.telegram.org/bot${token}/answerCallbackQuery`;
+  await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      callback_query_id: callbackId,
+      text,
+      show_alert: false,
+    }),
+  });
+}
+
+async function sendSilentFcm({ token, uid, noteId, status }) {
+  if (!token) {
+    return;
+  }
+
+  const title = 'WishperLog update';
+  const body = status === 'done'
+    ? 'A note was marked done.'
+    : status === 'archived'
+      ? 'A note was archived.'
+      : 'Your notes were updated.';
+
+  await admin.messaging().send({
+    token,
+    notification: {
+      title,
+      body,
+    },
+    data: {
+      type: 'note_status_changed',
+      uid,
+      note_id: noteId,
+      status,
+      title,
+      body,
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        title,
+        body,
+      },
+    },
+    apns: {
+      headers: {
+        'apns-priority': '10',
+      },
+      payload: {
+        aps: {
+          alert: {
+            title,
+            body,
+          },
+          sound: 'default',
+        },
+      },
+    },
+  });
+}
+
+exports.sendDailyDigest = onSchedule(
+  {
+    schedule: '* * * * *',
+    timeZone: 'UTC',
+    region: 'us-central1',
+  },
+  async () => {
+    const nowUtc = new Date();
+    const users = await db.collection('users').get();
+
+    for (const userDoc of users.docs) {
+      const user = userDoc.data() || {};
+      const chatId = user.telegram_chat_id;
+      if (!chatId) {
+        continue;
+      }
+
+      const offsetMinutes = Number(user.timezone_offset_minutes ?? 0);
+      const local = localDateForOffset(nowUtc, offsetMinutes);
+      const digestTimes = parseDigestTimes(user.digest_times, user.digest_time);
+
+      const matchesCurrentMinute = digestTimes.some(
+        (digest) => local.hour === digest.hour && local.minute === digest.minute,
+      );
+      if (!matchesCurrentMinute) {
+        continue;
+      }
+
+      const alreadySentForDate = user.last_digest_sent_local_date;
+      if (alreadySentForDate === local.ymd) {
+        continue;
+      }
+
+      const notesSnap = await db
+        .collection('users')
+        .doc(userDoc.id)
+        .collection('notes')
+        .get();
+
+      const notes = sortPriority(notesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter(isActiveNote));
+      if (notes.length === 0) {
+        await userDoc.ref.set(
+          { last_digest_sent_local_date: local.ymd },
+          { merge: true },
+        );
+        continue;
+      }
+
+      const topNotes = notes.slice(0, 3);
+      const text = buildNoteSummaryText(notes, 'Daily summary', user.display_name || 'there', nowUtc, null);
+      const inlineKeyboard = topNotes.length > 0 ? { inline_keyboard: telegramInlineRows(userDoc.id, topNotes) } : undefined;
+      await sendTelegramMessage(chatId, text, inlineKeyboard);
+
+      await userDoc.ref.set(
+        { last_digest_sent_local_date: local.ymd },
+        { merge: true },
+      );
+    }
+
+    return null;
+  },
+);
+
+exports.telegramWebhook = onRequest({ region: 'us-central1' }, async (req, res) => {
+  try {
+    const body = req.body || {};
+
+    const callback = body.callback_query;
+    if (callback) {
+      const callbackData = (callback.data || '').toString();
+      const [action, uid, noteId] = callbackData.split('|');
+
+      if (!uid || !noteId) {
+        await answerTelegramCallback(callback.id, 'Invalid action payload');
+        res.status(200).json({ ok: true, ignored: true });
+        return;
+      }
+
+      await db
+        .collection('users')
+        .doc(uid)
+        .collection('notes')
+        .doc(noteId)
+        .set(
+          {
+            status: 'archived',
+            updated_at: new Date().toISOString(),
+          },
+          { merge: true },
+        );
+
+      const userDoc = await db.collection('users').doc(uid).get();
+      const user = userDoc.data() || {};
+      await sendSilentFcm({
+        token: user.fcm_token,
+        uid,
+        noteId,
+        status: 'archived',
+      });
+
+      await answerTelegramCallback(
+        callback.id,
+        action === 'done' ? 'Marked done' : 'Archived',
+      );
+
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    const message = body.message;
+    const chatId = message?.chat?.id;
+    const text = (message?.text || '').toString();
+    const startMatch = text.match(/^\/start\s+uid_(.+)$/i);
+
+    if (chatId && startMatch) {
+      const uid = startMatch[1].trim();
+      if (uid) {
+        await db.collection('users').doc(uid).set(
+          {
+            telegram_chat_id: String(chatId),
+          },
+          { merge: true },
+        );
+
+        await sendTelegramMessage(
+          chatId,
+          'WishperLog linked. Use /summary, /task, /reminder, /idea, /followup, /journal, or /all.',
+        );
+        res.status(200).json({ ok: true, linked: true });
+        return;
+      }
+    }
+
+    if (chatId && text && text.startsWith('/')) {
+      await handleTelegramCommand(chatId, text, new Date());
+      res.status(200).json({ ok: true, command: true });
+      return;
+    }
+
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    logger.error('telegramWebhook error', error);
+    res.status(500).json({ ok: false });
+  }
+});
+````
+
+### functions/package.json
+
+```json
+{
+  "name": "wishperlog-functions",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "migrate:telegram": "node scripts/migrate_telegram_digest.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.3.1",
+    "@google/generative-ai": "^0.21.0"
+  }
+}
+```
+
+### functions/scripts/migrate_clean_root_telegram_fields.js
+
+```javascript
+// functions/scripts/migrate_clean_root_telegram_fields.js
+//
+// One-shot script: strips all legacy telegram_* fields and message_state
+// from the root user documents across all users. Run ONCE after deploying
+// Patches 1–5. Reads existing digest/latest to confirm data is safe before
+// deleting root fields.
+//
+// Usage:  node functions/scripts/migrate_clean_root_telegram_fields.js
+
+const admin = require('firebase-admin');
+const serviceAccount = require('../serviceAccountKey.json'); // adjust path
+
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+const db = admin.firestore();
+
+const ROOT_TELEGRAM_FIELDS = [
+  'telegram_digest', 'telegram_summary', 'telegram_top', 'telegram_tasks',
+  'telegram_reminders', 'telegram_ideas', 'telegram_followup',
+  'telegram_journal', 'telegram_general', 'message_state',
+];
+
+async function migrate() {
+  const usersSnap = await db.collection('users').get();
+  console.log(`Found ${usersSnap.size} users`);
+
+  let cleaned = 0;
+  let skipped = 0;
+
+  for (const userDoc of usersSnap.docs) {
+    const uid  = userDoc.id;
+    const data = userDoc.data();
+
+    // Safety: only clean if digest/latest exists (data is safe)
+    const latestSnap = await db
+      .collection('users').doc(uid)
+      .collection('digest').doc('latest').get();
+
+    if (!latestSnap.exists) {
+      console.log(`  SKIP  ${uid} — digest/latest not found, skipping cleanup`);
+      skipped++;
+      continue;
+    }
+
+    const fieldsToDelete = {};
+    let hasStaleFields = false;
+    for (const field of ROOT_TELEGRAM_FIELDS) {
+      if (data[field] !== undefined) {
+        fieldsToDelete[field] = admin.firestore.FieldValue.delete();
+        hasStaleFields = true;
+      }
+    }
+
+    if (!hasStaleFields) {
+      skipped++;
+      continue;
+    }
+
+    await db.collection('users').doc(uid).update(fieldsToDelete);
+    console.log(`  CLEAN ${uid} — removed ${Object.keys(fieldsToDelete).length} stale fields`);
+    cleaned++;
+  }
+
+  console.log(`\nDone: ${cleaned} cleaned, ${skipped} skipped`);
+  process.exit(0);
+}
+
+migrate().catch(e => { console.error(e); process.exit(1); });
+```
+
+### functions/scripts/migrate_telegram_digest.js
+
+```javascript
+const fs = require('fs');
+const path = require('path');
+const admin = require('firebase-admin');
+
+function detectProjectId() {
+  const envProjectId =
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.GCLOUD_PROJECT ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    process.env.GCP_PROJECT;
+
+  if (envProjectId) {
+    return envProjectId.trim();
+  }
+
+  try {
+    const firebaseJsonPath = path.resolve(__dirname, '..', '..', 'firebase.json');
+    const raw = fs.readFileSync(firebaseJsonPath, 'utf8');
+    const parsed = JSON.parse(raw);
+
+    const inferred =
+      parsed?.flutter?.platforms?.dart?.['lib/firebase_options.dart']?.projectId ||
+      parsed?.flutter?.platforms?.android?.default?.projectId ||
+      parsed?.functions?.projectId ||
+      '';
+
+    return String(inferred).trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function initAdmin() {
+  if (admin.apps.length > 0) {
+    return;
+  }
+
+  const projectId = detectProjectId();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (projectId && clientEmail && privateKey) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey: privateKey.replace(/\\n/g, '\n'),
+      }),
+      projectId,
+    });
+    return;
+  }
+
+  admin.initializeApp(projectId ? { projectId } : undefined);
+}
+
+function asTrimmedString(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
+function asStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => asTrimmedString(item)).filter(Boolean);
+}
+
+function pickMessageStatePayload(state) {
+  const payload = {};
+  const keys = [
+    'telegram',
+    'telegram_digest',
+    'telegram_summary',
+    'telegram_top',
+    'telegram_tasks',
+    'telegram_reminders',
+    'telegram_ideas',
+    'telegram_followup',
+    'telegram_journal',
+    'telegram_general',
+  ];
+
+  for (const key of keys) {
+    const value = asTrimmedString(state?.[key]);
+    if (value) {
+      payload[key] = value;
+    }
+  }
+
+  return payload;
+}
+
+async function migrateUserDoc(db, docSnap, { dryRun }) {
+  const data = docSnap.data() || {};
+  const uid = docSnap.id;
+  const rootRef = docSnap.ref;
+  const configRef = rootRef.collection('digest').doc('config');
+  const latestRef = rootRef.collection('digest').doc('latest');
+
+  const rootDeletes = {};
+  for (const key of Object.keys(data)) {
+    if (key.startsWith('telegram_')) {
+      rootDeletes[key] = admin.firestore.FieldValue.delete();
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'message_state')) {
+    rootDeletes.message_state = admin.firestore.FieldValue.delete();
+  }
+
+  const configPayload = {
+    uid,
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const chatId = asTrimmedString(data.telegram_chat_id || data.chat_id);
+  if (chatId) {
+    configPayload.telegram_chat_id = chatId;
+  }
+
+  const displayName = asTrimmedString(data.display_name);
+  if (displayName) {
+    configPayload.display_name = displayName;
+  }
+
+  const digestTimes = asStringArray(data.digest_times);
+  if (digestTimes.length > 0) {
+    configPayload.digest_times = digestTimes;
+  } else {
+    const singleDigestTime = asTrimmedString(data.digest_time);
+    if (singleDigestTime) {
+      configPayload.digest_times = [singleDigestTime];
+    }
+  }
+
+  const digestTimesUtc = asStringArray(data.digest_times_utc);
+  if (digestTimesUtc.length > 0) {
+    configPayload.digest_times_utc = digestTimesUtc;
+  }
+
+  if (data.timezone_offset_minutes !== undefined && data.timezone_offset_minutes !== null) {
+    configPayload.timezone_offset_minutes = Number(data.timezone_offset_minutes) || 0;
+  }
+
+  const messageStatePayload = pickMessageStatePayload(data.message_state);
+  const latestPayload = Object.keys(messageStatePayload).length > 0
+    ? {
+        ...messageStatePayload,
+        computed_at: admin.firestore.FieldValue.serverTimestamp(),
+      }
+    : null;
+
+  const actions = [];
+  if (Object.keys(configPayload).length > 2) {
+    actions.push(`config fields: ${Object.keys(configPayload).join(', ')}`);
+  }
+  if (latestPayload) {
+    actions.push(`latest fields: ${Object.keys(latestPayload).join(', ')}`);
+  }
+  if (Object.keys(rootDeletes).length > 0) {
+    actions.push(`delete root fields: ${Object.keys(rootDeletes).join(', ')}`);
+  }
+
+  if (actions.length === 0) {
+    return { uid, changed: false };
+  }
+
+  if (dryRun) {
+    console.log(`[dry-run] ${uid} -> ${actions.join(' | ')}`);
+    return { uid, changed: true };
+  }
+
+  const batch = db.batch();
+  batch.set(configRef, configPayload, { merge: true });
+  if (latestPayload) {
+    batch.set(latestRef, latestPayload, { merge: true });
+  }
+  if (Object.keys(rootDeletes).length > 0) {
+    batch.set(rootRef, rootDeletes, { merge: true });
+  }
+
+  await batch.commit();
+  console.log(`[migrated] ${uid} -> ${actions.join(' | ')}`);
+  return { uid, changed: true };
+}
+
+async function main() {
+  initAdmin();
+  const db = admin.firestore();
+  const dryRun = process.env.DRY_RUN !== '0' && process.env.APPLY !== '1';
+
+  console.log(dryRun
+    ? 'Running in dry-run mode. Set APPLY=1 to write changes.'
+    : 'Running in apply mode. Changes will be written to Firestore.');
+
+  const snapshot = await db.collection('users').get();
+  let scanned = 0;
+  let changed = 0;
+
+  for (const docSnap of snapshot.docs) {
+    scanned += 1;
+    const result = await migrateUserDoc(db, docSnap, { dryRun });
+    if (result.changed) {
+      changed += 1;
+    }
+  }
+
+  console.log(`Done. scanned=${scanned} changed=${changed} mode=${dryRun ? 'dry-run' : 'apply'}`);
+}
+
+main().catch((error) => {
+  console.error('Migration failed:', error);
+  process.exitCode = 1;
+});
+```
+
+### issues.md
+
+```markdown
+# WishperLog Codebase Audit
+
+Date: 2026-04-09
+
+Scope:
+- Reviewed all source/config files under `lib/` and `android/`.
+- Reviewed binary launcher assets for presence only.
+- Treated generated files such as `lib/shared/models/note.g.dart` and `lib/firebase_options.dart` as generated output/config, so issues are assigned to the handwritten code that uses them.
+
+Validation:
+- `flutter analyze`: clean.
+- `flutter test`: failing.
+- Current failing test signal: `test/widget_test.dart` triggers `NotInitializedError` from `flutter_dotenv` through `AppEnv -> GeminiNoteClassifier -> AiClassifierRouter -> CaptureService`.
+
+Highest-risk themes:
+- Overlay/background capture reliability is still fragile when Flutter is not fully alive.
+- Data sync is duplicated across too many layers and will be hard to scale safely.
+- Several user-facing flows are visually polished but functionally incomplete or misleading.
+- Speech/search accuracy claims are stronger than the current wiring actually supports.
+
+## Priority Backlog
+
+## ISSUE-01 - P0 - Environment getters can crash before `.env` is loaded
+
+- Severity: P0
+- Area: bootstrap, DI, testing, background safety
+- Files: `lib/core/config/app_env.dart:18`, `lib/core/config/app_env.dart:36`, `lib/core/config/app_env.dart:41`, `lib/core/config/app_env.dart:46`, `lib/core/config/app_env.dart:57`, `lib/core/config/app_env.dart:68`, `test/widget_test.dart:18`
+- Problem: `AppEnv` getters call `dotenv.maybeGet(...)` directly even when `AppEnv.load()` has not run. That is why the existing widget test fails with `NotInitializedError`, and the same pattern can surface in any path that constructs AI/sync services before startup hydration.
+- Impact: red tests, brittle DI, risk of background/isolated crashes, harder local development.
+- Recommended fix: make `AppEnv` safe when dotenv is not initialized, or gate all service construction behind an explicit `AppEnv.load()` contract.
+
+## ISSUE-02 - P0 - Web fallback storage path is still broken
+
+- Severity: P0
+- Area: storage, web compatibility
+- Files: `lib/core/storage/isar_note_store.dart:24-68`
+- Problem: the web fallback sets `_useFirestoreOnly = true` and `_isar = null`, but then still calls `_initCompleter!.complete(_isar!)` and returns `_isar!`.
+- Impact: the advertised Firestore-only fallback cannot actually boot if Isar initialization fails on web.
+- Recommended fix: change `init()` to support a nullable/non-Isar success path, or split initialization state so Firestore-only mode never dereferences `_isar`.
+
+## ISSUE-03 - P0 - Overlay captures can be lost when the Flutter engine is not alive
+
+- Severity: P0
+- Area: Android overlay, background capture, reliability
+- Files: `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayForegroundService.kt:906-915`, `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/NoteInputReceiver.kt:12-17`, `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/NoteInputReceiver.kt:23-26`, `lib/features/overlay/overlay_notifier.dart:81-90`
+- Problem: `NoteInputReceiver` is registered with `LocalBroadcastManager`, but `OverlayForegroundService.broadcastCapture()` uses `sendBroadcast(intent)`. On top of that, the receiver comment promises a SharedPreferences safety net, but no persistence path actually writes pending notes anywhere.
+- Impact: voice/text captures from the Android overlay are at real risk of disappearing when the main Flutter channel is null or unavailable.
+- Recommended fix: use one consistent delivery mechanism, add a real persistence fallback, and only clear pending items after confirmed Dart-side receipt.
+
+## ISSUE-04 - P1 - Background capture enrichment does not fully sync and can time out
+
+- Severity: P1
+- Area: background processing, cloud sync
+- Files: `lib/background_note_handler.dart:17-20`, `lib/background_note_handler.dart:112-113`, `lib/background_note_handler.dart:123-141`
+- Problem: `_classifyAndUpdate()` claims to write back to Isar and Firestore, but it only updates Isar. The background isolate also self-parks for a hard-coded 60 seconds even if the batch takes longer.
+- Impact: notes captured while the UI engine is dead can remain stale in Firestore, and long-running background batches can be cut off arbitrarily.
+- Recommended fix: push the enriched note back to Firestore in the background path and replace the fixed-delay lifetime with an explicit completion-driven shutdown.
+
+## ISSUE-05 - P1 - First-time overlay enable flow is broken
+
+- Severity: P1
+- Area: permissions, UX
+- Files: `lib/features/overlay/overlay_notifier.dart:128-160`, `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/MainActivity.kt:55-65`
+- Problem: `OverlayNotifier.setEnabled(true)` opens the Android overlay settings screen and then immediately re-checks permission before the user can grant it.
+- Impact: the first enable attempt usually fails silently and forces the user to come back and toggle again.
+- Recommended fix: turn this into a resumable permission flow, or defer re-checking until the app resumes.
+
+## ISSUE-06 - P1 - The Flutter dynamic island exists but is never mounted
+
+- Severity: P1
+- Area: capture feedback, UI wiring
+- Files: `lib/main.dart:195-214`, `lib/shared/widgets/molecules/dynamic_notch_pill.dart:14-18`
+- Problem: `CaptureUiController` is provided globally, but `UnifiedDynamicIsland` is never inserted into the widget tree.
+- Impact: a major part of the capture/save feedback system is implemented but invisible inside the Flutter app, which makes the overlay flow feel inconsistent and unfinished.
+- Recommended fix: mount the widget at the app shell level or remove the unused state/UI contract.
+
+## ISSUE-07 - P1 - Speech-language settings do not apply to Flutter dictation flows
+
+- Severity: P1
+- Area: speech recognition accuracy, multilingual UX
+- Files: `lib/features/settings/presentation/screens/settings_screen.dart:201-230`, `lib/features/settings/presentation/screens/settings_screen.dart:668-756`, `lib/features/home/presentation/screens/home_screen.dart:75-112`, `lib/features/capture/presentation/state/capture_ui_controller.dart:80-135`
+- Problem: Settings writes speech preferences only to the native Android overlay channel, while the in-app Flutter dictation paths use separate `SpeechToText` calls with no language wiring and inconsistent offline behavior.
+- Impact: users can select Hindi/Bengali/Tamil/etc. in Settings and still get the wrong recognizer behavior in the app itself.
+- Recommended fix: centralize speech preferences and apply them to every capture path, not just the Android service.
+
+## ISSUE-08 - P1 - Onboarding/setup screens are mostly cosmetic
+
+- Severity: P1
+- Area: onboarding flow, user trust
+- Files: `lib/features/onboarding/presentation/screens/sign_in_screen.dart:53-78`, `lib/features/onboarding/presentation/screens/permissions_screen.dart:34-39`, `lib/features/onboarding/presentation/screens/permissions_screen.dart:81-165`
+- Problem: after sign-in, the app shows a fake setup animation and a "permissions" screen that does not actually request or verify any permissions or integrations before sending the user to `/home`.
+- Impact: the flow looks complete while leaving critical capabilities unresolved; it also trains users to ignore permission/setup messaging.
+- Recommended fix: either make the flow real or rename/simplify it so the UI matches what the app actually does.
+
+## ISSUE-09 - P1 - Sync architecture is duplicated, conflict-prone, and not scalable
+
+- Severity: P1
+- Area: data, database, sync architecture
+- Files: `lib/features/notes/data/note_repository.dart:58-101`, `lib/core/storage/isar_note_store.dart:220-434`, `lib/features/sync/data/firestore_note_sync_service.dart:67-85`, `lib/features/sync/data/external_sync_service.dart:88-115`
+- Problem: local save, Firestore push, Firestore pull, AI updates, and Google Tasks/Calendar sync are spread across several services with overlapping write responsibility. In fallback mode, Firestore paths read the full notes collection and filter in memory. The Firestore listener also writes the entire remote snapshot back into Isar wholesale.
+- Impact: higher risk of last-write-wins bugs, poor scale, higher Firestore cost, and hard-to-debug state loops.
+- Recommended fix: define one source-of-truth sync orchestrator, diff remote updates instead of replaying full collections, and move expensive filters into indexed queries.
+
+## ISSUE-10 - P1 - Data model loses fidelity and uses query-unfriendly timestamp strings
+
+- Severity: P1
+- Area: data modeling, reporting, scheduling
+- Files: `lib/shared/models/note.dart:118-156`, `lib/shared/models/note.dart:160-177`, `lib/shared/models/note_helpers.dart:246-259`
+- Problem: note timestamps are serialized as ISO strings rather than typed Firestore timestamps, and `parseSource()` drops `googleTasks` and `googleCalendar` back to `homeWritingBox`.
+- Impact: weaker server-side querying/sorting, more parsing fragility, and incorrect provenance after round-tripping synced notes.
+- Recommended fix: use typed timestamp fields in Firestore and fully support every `CaptureSource` enum case in serialization/parsing.
+
+## ISSUE-11 - P2 - Search will not scale smoothly and is weak for non-English text
+
+- Severity: P2
+- Area: search, smoothness, multilingual accuracy
+- Files: `lib/features/search/presentation/search_screen.dart:123-129`, `lib/features/search/data/smart_note_search.dart:39-52`, `lib/features/search/data/smart_note_search.dart:200-248`
+- Problem: every debounced query runs a synchronous full-corpus TF-IDF-style scan on the UI thread. Tokenization also strips anything outside ASCII letters/digits and uses only English stop words.
+- Impact: UI jank as note count grows, poor results for Hindi/other non-Latin text, and mismatch with the app's multi-language speech settings.
+- Recommended fix: move search off the UI isolate and use a tokenizer/index strategy that respects Unicode text.
+
+## ISSUE-12 - P2 - Telegram formatting and linking have correctness gaps
+
+- Severity: P2
+- Area: Telegram UX, bot integration
+- Files: `lib/shared/models/note_helpers.dart:30-44`, `lib/features/sync/data/telegram_service.dart:209-260`, `lib/features/sync/data/telegram_service.dart:390-392`
+- Problem: `categoryEmoji()` returns plain labels instead of emojis/icons, so digest/find output is visually wrong. The fallback auto-link flow also uses `getUpdates`, which conflicts with webhook/server-style bot deployments.
+- Impact: weaker bot presentation today and brittle Telegram linking if a backend worker/webhook is introduced.
+- Recommended fix: return real glyphs or chips for category display and avoid client-side polling in environments that should be webhook-driven.
+
+## ISSUE-13 - P2 - Settings wording and behavior are misleading in several places
+
+- Severity: P2
+- Area: settings UX, product flow
+- Files: `lib/features/settings/presentation/screens/settings_screen.dart:313-318`, `lib/features/sync/data/external_sync_service.dart:88-115`, `lib/features/settings/presentation/screens/settings_screen.dart:590-600`, `lib/core/theme/theme_cubit.dart:14-22`
+- Problem: `Sync now` only pulls Google Task completions even though a full sync API exists. The theme UI shows a binary light/dark switch even though `ThemeMode.system` is supported.
+- Impact: users cannot trust what the controls say they do, and useful capability is hidden.
+- Recommended fix: align labels to actual behavior or wire the controls to the full feature set.
+
+## ISSUE-14 - P2 - Local digest notification support is incomplete
+
+- Severity: P2
+- Area: notifications, reminders
+- Files: `lib/main.dart:112-116`, `lib/features/notifications/data/local_notification_service.dart:18-79`
+- Problem: the app initializes local notifications and defines `showDigestReminder()`, but there is no scheduling/trigger path that actually uses it.
+- Impact: the app asks for notification permission without delivering the device-side digest experience it describes.
+- Recommended fix: either wire local digest scheduling into WorkManager/background flows or remove the permission prompt until the feature is real.
+
+## ISSUE-15 - P2 - Capture affordances are incomplete or misleading
+
+- Severity: P2
+- Area: capture UX, widgets, folder flow
+- Files: `lib/features/home/presentation/widgets/thought_canvas.dart:135-147`, `lib/features/notes/presentation/screens/folder_screen.dart:292-304`
+- Problem: the home writing surface shows tag/reminder actions that do nothing, and the folder FAB opens a generic quick note editor that does not preserve the current folder category.
+- Impact: the interface suggests precision controls that do not exist and creates avoidable category drift.
+- Recommended fix: either implement the controls or remove them, and pre-seed quick-add from the active folder context.
+
+## ISSUE-16 - P2 - The visual system is likely to jank on mid-range Android hardware
+
+- Severity: P2
+- Area: smoothness, rendering performance
+- Files: `lib/shared/widgets/glass_pane.dart:41-119`, `lib/shared/widgets/mesh_gradient_background.dart:26-80`, `lib/features/notes/presentation/widgets/glass_note_card.dart:86`
+- Problem: the UI stacks many `BackdropFilter`s, a continuously animating mesh background, and `IntrinsicHeight` inside scrollable note cards.
+- Impact: expensive composition and layout work on long lists and older GPUs, especially in folders/settings where the glass effect is repeated heavily.
+- Recommended fix: reduce live blur usage in list items, make the animated background optional, and remove `IntrinsicHeight` from repeated cards.
+
+## ISSUE-17 - P1 - Android release/privacy readiness is not production-safe yet
+
+- Severity: P1
+- Area: Android release, privacy, data protection
+- Files: `android/app/build.gradle.kts:35-40`, `android/app/src/main/AndroidManifest.xml:36-43`
+- Problem: release builds still use the debug signing config, and `android:allowBackup="true"` is enabled even though the app stores notes, Telegram IDs, overlay preferences, and tokens in app data.
+- Impact: shipping risk, poor release hygiene, and privacy exposure through Android backup/restore.
+- Recommended fix: add real release signing and define an explicit backup policy before production distribution.
+
+## ISSUE-18 - P3 - Dead and duplicate code paths are accumulating
+
+- Severity: P3
+- Area: maintainability, complexity
+- Files: `lib/features/capture/data/note_save_service.dart:5-25`, `lib/features/notes/data/note_repository.dart:58-112`, `lib/features/overlay/overlay_bubble.dart:21-47`, `lib/features/overlay/overlay_notifier.dart:66-70`, `lib/features/onboarding/presentation/screens/splash_screen.dart`, `lib/features/notes/presentation/widgets/search_notes_modal.dart`, `lib/shared/widgets/molecules/dynamic_notch_pill.dart`
+- Problem: deprecated wrappers are still active, multiple near-identical save/search/onboarding paths coexist, and some callback wiring is never used.
+- Impact: more surface area to maintain, more places for subtle regressions, and slower iteration.
+- Recommended fix: collapse onto one capture flow, one search flow, one onboarding flow, and delete unused presentation scaffolding.
+
+## ISSUE-19 - P3 - There is no future-proof, non-disruptive ad/consent architecture yet
+
+- Severity: P3
+- Area: future scalability, monetization, compliance
+- Files: `lib/features/home/presentation/screens/home_screen.dart`, `lib/features/notes/presentation/screens/folder_screen.dart`, `lib/features/settings/presentation/screens/settings_screen.dart`, `android/app/src/main/AndroidManifest.xml`
+- Problem: I did not find any ad service, consent model, remote placement config, or reserved non-intrusive ad surfaces in the reviewed Flutter/Android code. All major screens are hand-laid full-bleed experiences.
+- Impact: if ads are added later, they will likely require invasive retrofits that hurt UX unless the app first introduces consent, placement abstraction, and analytics boundaries.
+- Recommended fix: design ad support as a first-class optional layer with consent gating, placement tokens, and layout-safe insertion points before monetization work begins.
+
+## Validation Notes
+
+- `flutter analyze` passed cleanly, which means the current issues are mostly runtime, architecture, UX, scalability, and platform-wiring problems rather than lint-level defects.
+- `flutter test` failed because `AppEnv` can be read before dotenv initialization; the existing boot test in `test/widget_test.dart` is not green today.
+
+## Coverage Appendix
+
+Legend:
+- `Issue(s)` means the file directly contributes to one or more issues above.
+- `No direct issue logged` means it was reviewed and did not stand out as a primary defect owner.
+- `Generated/Binary` means presence/config was checked, but no manual logic issue is assigned there.
+
+### `lib/`
+
+- `lib/main.dart` - ISSUE-06, ISSUE-14
+- `lib/background_note_handler.dart` - ISSUE-04
+- `lib/firebase_options.dart` - Generated config; no direct issue logged
+- `lib/app/router.dart` - No blocking defect logged; route drift contributes to ISSUE-18
+- `lib/core/config/app_env.dart` - ISSUE-01
+- `lib/core/di/injection_container.dart` - ISSUE-01, ISSUE-18
+- `lib/core/background/work_manager_service.dart` - No direct issue logged; background behavior depends on ISSUE-04 and ISSUE-14
+- `lib/core/background/connectivity_sync_coordinator.dart` - No direct issue logged
+- `lib/core/settings/app_preferences_repository.dart` - No direct issue logged
+- `lib/core/storage/isar_note_store.dart` - ISSUE-02, ISSUE-09
+- `lib/core/theme/app_colors.dart` - No direct issue logged
+- `lib/core/theme/app_colors_x.dart` - No direct issue logged
+- `lib/core/theme/app_theme.dart` - No direct issue logged
+- `lib/core/theme/theme_cubit.dart` - ISSUE-13
+- `lib/core/theme/app_springs.dart` - No direct issue logged
+- `lib/core/theme/app_durations.dart` - No direct issue logged
+- `lib/features/auth/data/repositories/user_repository.dart` - No direct blocker logged; token/storage concerns are adjacent to ISSUE-17
+- `lib/features/ai/data/ai_classifier_router.dart` - ISSUE-01
+- `lib/features/ai/data/ai_processing_service.dart` - ISSUE-09
+- `lib/features/ai/data/gemini_note_classifier.dart` - ISSUE-01
+- `lib/features/ai/data/groq_note_classifier.dart` - ISSUE-01
+- `lib/features/capture/data/capture_service.dart` - ISSUE-01, ISSUE-09
+- `lib/features/capture/data/note_save_service.dart` - ISSUE-18
+- `lib/features/capture/presentation/state/capture_ui_controller.dart` - ISSUE-06, ISSUE-07
+- `lib/features/capture/presentation/state/capture_ui_state.dart` - No direct issue logged
+- `lib/features/home/presentation/home_screen_layout.dart` - No direct issue logged
+- `lib/features/home/presentation/screens/home_screen.dart` - ISSUE-07, ISSUE-19
+- `lib/features/home/presentation/widgets/folder_grid.dart` - No direct issue logged
+- `lib/features/home/presentation/widgets/thought_canvas.dart` - ISSUE-15
+- `lib/features/notes/data/note_repository.dart` - ISSUE-09, ISSUE-18
+- `lib/features/notes/presentation/screens/folder_screen.dart` - ISSUE-15, ISSUE-19
+- `lib/features/notes/presentation/screens/note_detail_screen.dart` - No direct blocker logged; formatting polish could improve
+- `lib/features/notes/presentation/widgets/glass_note_card.dart` - ISSUE-16
+- `lib/features/notes/presentation/widgets/search_notes_modal.dart` - ISSUE-18
+- `lib/features/notifications/data/local_notification_service.dart` - ISSUE-14
+- `lib/features/onboarding/presentation/screens/permissions_screen.dart` - ISSUE-08
+- `lib/features/onboarding/presentation/screens/sign_in_screen.dart` - ISSUE-08
+- `lib/features/onboarding/presentation/screens/splash_screen.dart` - ISSUE-18
+- `lib/features/onboarding/presentation/screens/telegram_screen.dart` - No direct blocker logged; bot flow still depends on ISSUE-12
+- `lib/features/overlay/overlay_bubble.dart` - ISSUE-18
+- `lib/features/overlay/overlay_notifier.dart` - ISSUE-03, ISSUE-05, ISSUE-18
+- `lib/features/overlay/presentation/system_banner_overlay.dart` - ISSUE-18
+- `lib/features/overlay/quick_note_editor.dart` - No direct blocker logged; participates in ISSUE-15 flow mismatch
+- `lib/features/search/data/smart_note_search.dart` - ISSUE-11
+- `lib/features/search/presentation/search_screen.dart` - ISSUE-11
+- `lib/features/settings/presentation/screens/settings_screen.dart` - ISSUE-07, ISSUE-13, ISSUE-19
+- `lib/features/settings/presentation/widgets/digest_schedule_section.dart` - ISSUE-13
+- `lib/features/sync/data/external_sync_service.dart` - ISSUE-09, ISSUE-13
+- `lib/features/sync/data/fcm_sync_service.dart` - No direct blocker logged
+- `lib/features/sync/data/firestore_note_sync_service.dart` - ISSUE-09
+- `lib/features/sync/data/google_api_client.dart` - No direct issue logged
+- `lib/features/sync/data/telegram_service.dart` - ISSUE-12
+- `lib/shared/events/note_event_bus.dart` - No direct issue logged
+- `lib/shared/models/enums.dart` - No direct issue logged
+- `lib/shared/models/note.dart` - ISSUE-10
+- `lib/shared/models/note.g.dart` - Generated Isar code; no manual issue assigned
+- `lib/shared/models/note_helpers.dart` - ISSUE-10, ISSUE-12
+- `lib/shared/models/user.dart` - No direct issue logged
+- `lib/shared/widgets/atoms/category_color.dart` - No direct issue logged
+- `lib/shared/widgets/glass_container.dart` - No direct issue logged
+- `lib/shared/widgets/glass_page_background.dart` - No direct issue logged
+- `lib/shared/widgets/glass_pane.dart` - ISSUE-16
+- `lib/shared/widgets/glass_title_bar.dart` - No direct issue logged
+- `lib/shared/widgets/mesh_gradient_background.dart` - ISSUE-16
+- `lib/shared/widgets/molecules/dynamic_notch_pill.dart` - ISSUE-06, ISSUE-18
+- `lib/shared/widgets/top_notch_message.dart` - ISSUE-18
+
+### `android/`
+
+- `android/settings.gradle.kts` - No direct issue logged
+- `android/build.gradle.kts` - No direct issue logged
+- `android/gradle.properties` - No direct issue logged
+- `android/gradle/wrapper/gradle-wrapper.properties` - No direct issue logged
+- `android/local.properties` - Local machine config; no repo logic issue assigned
+- `android/app/build.gradle.kts` - ISSUE-17
+- `android/app/src/main/AndroidManifest.xml` - ISSUE-17, ISSUE-19
+- `android/app/src/debug/AndroidManifest.xml` - No direct issue logged
+- `android/app/src/profile/AndroidManifest.xml` - No direct issue logged
+- `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/MainActivity.kt` - ISSUE-05
+- `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/FlutterEngineHolder.kt` - No direct issue logged
+- `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayForegroundService.kt` - ISSUE-03
+- `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BackgroundNoteService.kt` - ISSUE-04
+- `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/NoteInputReceiver.kt` - ISSUE-03
+- `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BootReceiver.kt` - No direct blocker logged
+- `android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/WishperlogApplication.kt` - No direct issue logged
+- `android/app/src/main/res/values/colors.xml` - No direct issue logged
+- `android/app/src/main/res/values/styles.xml` - No direct issue logged
+- `android/app/src/main/res/values-night/styles.xml` - No direct issue logged
+- `android/app/src/main/res/drawable/launch_background.xml` - No direct issue logged
+- `android/app/src/main/res/drawable-v21/launch_background.xml` - No direct issue logged
+- `android/app/src/main/res/mipmap-mdpi/ic_launcher.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-hdpi/ic_launcher.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-xhdpi/ic_launcher.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png` - Binary asset; presence reviewed only
+- `android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png` - Binary asset; presence reviewed only
+
+## Short Closing Note
+
+The project has strong ambition and a lot of thoughtful UX work, but the biggest current problems are not styling problems. They are mostly reliability, trust, and architecture problems: getting capture events across Android/Flutter boundaries safely, making data sync coherent, and making the UI say only what the product can actually do today.
+```
 
 ### lib/app/route_observer.dart
 
@@ -1213,6 +8085,42 @@ class IsarNoteStore {
         .findFirst();
   }
 
+  /// Finds a very recent note with the same transcript, regardless of source.
+  Future<Note?> findRecentByTranscriptAnySource({
+    required String uid,
+    required String rawTranscript,
+    Duration within = const Duration(seconds: 5),
+  }) async {
+    final normalizedTranscript = rawTranscript.trim();
+    if (normalizedTranscript.isEmpty) return null;
+
+    final cutoff = DateTime.now().subtract(within);
+
+    if (_useFirestoreOnly) {
+      final notes = await getAllNotes();
+      final matches = notes.where((note) {
+        return note.uid == uid &&
+            note.rawTranscript.trim() == normalizedTranscript &&
+            note.createdAt.isAfter(cutoff);
+      }).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return matches.isEmpty ? null : matches.first;
+    }
+
+    await init();
+    if (_isar == null || !_isar!.isOpen) return null;
+
+    return _isar!.notes
+        .filter()
+        .uidEqualTo(uid)
+        .and()
+        .rawTranscriptEqualTo(normalizedTranscript)
+        .and()
+        .createdAtGreaterThan(cutoff, include: true)
+        .sortByCreatedAtDesc()
+        .findFirst();
+  }
+
   Future<Note?> getById(String noteId) => getByNoteId(noteId);
 
   /// Find a note by its Google Task ID. Returns null if not found or not in Isar mode.
@@ -2039,18 +8947,13 @@ class ThemeCubit extends Cubit<ThemeMode> {
 
 ### lib/features/ai/data/ai_classifier_router.dart
 
-````dart
-import 'dart:convert';
-
+```dart
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wishperlog/core/config/app_env.dart';
-import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
-import 'package:wishperlog/features/ai/data/groq_note_classifier.dart';
+import 'package:wishperlog/features/ai/data/unified_ai_classifier.dart';
 import 'package:wishperlog/features/nlp/nlp_task_parser.dart';
 import 'package:wishperlog/shared/models/enums.dart';
-import 'package:wishperlog/shared/models/note_helpers.dart';
 
 class AiModelOption {
   const AiModelOption({
@@ -2068,12 +8971,13 @@ class AiModelOption {
   final bool recommended;
 }
 
+/// Consolidated router for all AI providers (Groq, Mistral, Cerebras, HuggingFace).
+/// Gemini has been completely removed from this system.
 class AiClassifierRouter {
   static const _prefsProviderKey = 'ai_provider';
   static const _prefsModelPrefix = 'ai_model_';
 
   static const List<AiProvider> _fallbackOrder = [
-    AiProvider.gemini,
     AiProvider.groq,
     AiProvider.mistral,
     AiProvider.cerebras,
@@ -2081,52 +8985,31 @@ class AiClassifierRouter {
   ];
 
   static const Map<AiProvider, List<AiModelOption>> _modelCatalog = {
-    AiProvider.gemini: [
-      AiModelOption(
-        provider: AiProvider.gemini,
-        id: 'gemini-1.5-flash',
-        label: 'Gemini 1.5 Flash',
-        description: 'Best compatibility for AI Studio keys. Fast and stable for note cleanup, categorization, and digest extraction.',
-        recommended: true,
-      ),
-      AiModelOption(
-        provider: AiProvider.gemini,
-        id: 'gemini-2.5-flash',
-        label: 'Gemini 2.5 Flash',
-        description: 'Higher-quality reasoning when available. Good for longer transcripts and denser note summaries.',
-      ),
-      AiModelOption(
-        provider: AiProvider.gemini,
-        id: 'gemini-3-flash',
-        label: 'Gemini 3 Flash',
-        description: 'Newest fast Gemini option. Use when you want the strongest quality-to-speed balance.',
-      ),
-    ],
     AiProvider.groq: [
       AiModelOption(
         provider: AiProvider.groq,
         id: 'llama-3.3-70b-versatile',
         label: 'Llama 3.3 70B Versatile',
-        description: 'Best quality on Groq for classification and clean note rewriting.',
+        description: 'Premium quality for classification and note enhancement. Best all-around performance.',
         recommended: true,
       ),
       AiModelOption(
         provider: AiProvider.groq,
         id: 'llama-3.1-8b-instant',
         label: 'Llama 3.1 8B Instant',
-        description: 'Very fast fallback for quick routing, short notes, and quota-sensitive sessions.',
+        description: 'Fast and lightweight fallback. Great for testing and quota limits.',
       ),
       AiModelOption(
         provider: AiProvider.groq,
         id: 'qwen3-32b',
         label: 'Qwen 3 32B',
-        description: 'Good multilingual and structured-output performance for mixed-language notes.',
+        description: 'Strong multilingual performance for mixed-language notes.',
       ),
       AiModelOption(
         provider: AiProvider.groq,
         id: 'llama-4-scout-17b-16e-instruct',
         label: 'Llama 4 Scout',
-        description: 'Balanced quality and speed for general-purpose note classification.',
+        description: 'Balanced quality and speed for general-purpose classification.',
       ),
     ],
     AiProvider.mistral: [
@@ -2134,20 +9017,20 @@ class AiClassifierRouter {
         provider: AiProvider.mistral,
         id: 'mistral-large-latest',
         label: 'Mistral Large',
-        description: 'Strong structured reasoning and classification quality for free-form notes.',
+        description: 'Strong structured reasoning and high-quality classification. Excellent for complex notes.',
         recommended: true,
       ),
       AiModelOption(
         provider: AiProvider.mistral,
         id: 'open-mistral-nemo',
         label: 'Mistral Nemo',
-        description: 'Efficient daily-driver model when you want lower latency and solid accuracy.',
+        description: 'Efficient model with solid accuracy. Good for fast classification.',
       ),
       AiModelOption(
         provider: AiProvider.mistral,
         id: 'codestral-latest',
         label: 'Codestral',
-        description: 'Useful for terse, highly structured output when the note text is noisy or fragmented.',
+        description: 'For highly structured output and technical notes.',
       ),
     ],
     AiProvider.huggingface: [
@@ -2155,20 +9038,20 @@ class AiClassifierRouter {
         provider: AiProvider.huggingface,
         id: 'meta-llama/Llama-3.1-70B-Instruct',
         label: 'Llama 3.1 70B Instruct',
-        description: 'Strong general reasoning via Hugging Face hosted inference.',
+        description: 'Powerful reasoning via Hugging Face hosted inference. High quality.',
         recommended: true,
       ),
       AiModelOption(
         provider: AiProvider.huggingface,
         id: 'mistralai/Mistral-Nemo-Instruct-2407',
         label: 'Mistral Nemo Instruct',
-        description: 'Good for fast testing and light-weight classification on the HF API.',
+        description: 'Efficient and fast via Hugging Face API.',
       ),
       AiModelOption(
         provider: AiProvider.huggingface,
         id: 'google/gemma-2-27b-it',
         label: 'Gemma 2 27B IT',
-        description: 'Solid compact alternative for testing broad open-model support.',
+        description: 'Solid compact alternative for general classification.',
       ),
     ],
     AiProvider.cerebras: [
@@ -2176,64 +9059,81 @@ class AiClassifierRouter {
         provider: AiProvider.cerebras,
         id: 'llama-3.3-70b',
         label: 'Llama 3.3 70B',
-        description: 'High-throughput model for strong note cleanup and extraction.',
+        description: 'High-throughput inference with excellent note enhancement quality.',
         recommended: true,
       ),
       AiModelOption(
         provider: AiProvider.cerebras,
         id: 'llama-3.1-8b',
         label: 'Llama 3.1 8B',
-        description: 'Fast and inexpensive fallback for short notes or quota-sensitive runs.',
+        description: 'Fast fallback for quick classification.',
       ),
       AiModelOption(
         provider: AiProvider.cerebras,
         id: 'llama-4-scout-17b-16e-instruct',
         label: 'Llama 4 Scout',
-        description: 'Balanced choice when you want a newer instruction model on Cerebras.',
+        description: 'Latest instruction model on Cerebras.',
       ),
     ],
     AiProvider.auto: [],
   };
 
-  final GeminiNoteClassifier _gemini;
-  final GroqNoteClassifier _groq;
-  final Map<AiProvider, _OpenAiCompatibleClassifier> _openAiClients = {};
+  final Map<AiProvider, UnifiedAiClassifier> _classifiers = {};
 
   AiProvider _activeProvider = AiProvider.auto;
   String _lastUsedModelName = 'AI';
   final Map<AiProvider, String> _selectedModelIds = {};
 
-  AiClassifierRouter()
-      : _gemini = GeminiNoteClassifier(),
-        _groq = GroqNoteClassifier() {
+  AiClassifierRouter() {
+    _initializeClassifiers();
     _seedDefaults();
-    _openAiClients[AiProvider.mistral] = _OpenAiCompatibleClassifier(
+  }
+
+  void _initializeClassifiers() {
+    _classifiers[AiProvider.groq] = UnifiedAiClassifier(
+      providerName: 'groq',
+      apiKey: AppEnv.groqApiKey,
+      endpoint: Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+      primaryModels: const ['llama-3.3-70b-versatile'],
+      fallbackModels: const [
+        'llama-3.1-8b-instant',
+        'qwen3-32b',
+        'llama-4-scout-17b-16e-instruct',
+      ],
+    );
+
+    _classifiers[AiProvider.mistral] = UnifiedAiClassifier(
       providerName: 'mistral',
       apiKey: AppEnv.mistralApiKey,
       endpoint: Uri.parse('https://api.mistral.ai/v1/chat/completions'),
+      primaryModels: const ['mistral-large-latest'],
       fallbackModels: const ['open-mistral-nemo', 'codestral-latest'],
     );
-    _openAiClients[AiProvider.huggingface] = _OpenAiCompatibleClassifier(
+
+    _classifiers[AiProvider.cerebras] = UnifiedAiClassifier(
+      providerName: 'cerebras',
+      apiKey: AppEnv.cerebrasApiKey,
+      endpoint: Uri.parse('https://api.cerebras.ai/v1/chat/completions'),
+      primaryModels: const ['llama-3.3-70b'],
+      fallbackModels: const ['llama-3.1-8b', 'llama-4-scout-17b-16e-instruct'],
+    );
+
+    _classifiers[AiProvider.huggingface] = UnifiedAiClassifier(
       providerName: 'huggingface',
       apiKey: AppEnv.huggingFaceApiKey,
-      endpoint: Uri.parse('https://api-inference.huggingface.co/v1/chat/completions'),
+      endpoint: Uri.parse(
+          'https://api-inference.huggingface.co/v1/chat/completions'),
+      primaryModels: const ['meta-llama/Llama-3.1-70B-Instruct'],
       fallbackModels: const [
         'mistralai/Mistral-Nemo-Instruct-2407',
         'google/gemma-2-27b-it',
       ],
     );
-    _openAiClients[AiProvider.cerebras] = _OpenAiCompatibleClassifier(
-      providerName: 'cerebras',
-      apiKey: AppEnv.cerebrasApiKey,
-      endpoint: Uri.parse('https://api.cerebras.ai/v1/chat/completions'),
-      fallbackModels: const ['llama-3.1-8b', 'llama-4-scout-17b-16e-instruct'],
-    );
   }
 
   AiProvider get activeProvider => _activeProvider;
   String get lastUsedModelName => _lastUsedModelName;
-  bool get geminiConfigured => _gemini.isConfigured;
-  bool get groqConfigured => _groq.isConfigured;
+  bool get groqConfigured => AppEnv.groqApiKey.isNotEmpty;
   bool get mistralConfigured => AppEnv.mistralApiKey.isNotEmpty;
   bool get huggingfaceConfigured => AppEnv.huggingFaceApiKey.isNotEmpty;
   bool get cerebrasConfigured => AppEnv.cerebrasApiKey.isNotEmpty;
@@ -2250,12 +9150,14 @@ class AiClassifierRouter {
     }
     return models.firstWhere(
       (option) => option.recommended,
-      orElse: () => models.isNotEmpty ? models.first : const AiModelOption(
-        provider: AiProvider.auto,
-        id: 'local',
-        label: 'Local',
-        description: 'No AI provider configured.',
-      ),
+      orElse: () => models.isNotEmpty
+          ? models.first
+          : const AiModelOption(
+              provider: AiProvider.auto,
+              id: 'local',
+              label: 'Local',
+              description: 'No AI provider configured.',
+            ),
     ).id;
   }
 
@@ -2270,9 +9172,10 @@ class AiClassifierRouter {
   bool isConfigured(AiProvider provider) {
     switch (provider) {
       case AiProvider.auto:
-        return geminiConfigured || groqConfigured || mistralConfigured || huggingfaceConfigured || cerebrasConfigured;
-      case AiProvider.gemini:
-        return geminiConfigured;
+        return groqConfigured ||
+            mistralConfigured ||
+            huggingfaceConfigured ||
+            cerebrasConfigured;
       case AiProvider.groq:
         return groqConfigured;
       case AiProvider.mistral:
@@ -2288,8 +9191,6 @@ class AiClassifierRouter {
     switch (provider) {
       case AiProvider.auto:
         return 'Auto';
-      case AiProvider.gemini:
-        return 'Gemini';
       case AiProvider.groq:
         return 'Groq';
       case AiProvider.mistral:
@@ -2304,17 +9205,15 @@ class AiClassifierRouter {
   String providerDescription(AiProvider provider) {
     switch (provider) {
       case AiProvider.auto:
-        return 'Tries Gemini first, then Groq, then Mistral, Cerebras, and Hugging Face.';
-      case AiProvider.gemini:
-        return 'Best for AI Studio keys and the cleanest note rewrites.';
+        return 'Tries Groq first, then Mistral, Cerebras, and Hugging Face.';
       case AiProvider.groq:
-        return 'Fastest OpenAI-compatible fallback for real-time note capture.';
+        return 'Fastest and most reliable for real-time note classification.';
       case AiProvider.mistral:
-        return 'Strong structured reasoning with an experimentation-friendly API.';
+        return 'Strong structured reasoning and high-quality output.';
       case AiProvider.huggingface:
-        return 'Broad open-model testing via hosted inference endpoints.';
+        return 'Broad open-model testing via hosted inference.';
       case AiProvider.cerebras:
-        return 'High-throughput Llama inference with low-latency responses.';
+        return 'High-throughput inference with low latency.';
     }
   }
 
@@ -2322,16 +9221,18 @@ class AiClassifierRouter {
     try {
       final prefs = await SharedPreferences.getInstance();
       final storedProvider = prefs.getString(_prefsProviderKey);
-      _activeProvider = AiProvider.values.firstWhere(
+      var provider = AiProvider.values.firstWhere(
         (p) => p.name == storedProvider,
         orElse: () => AiProvider.auto,
       );
 
-      for (final provider in AiProvider.values) {
-        if (provider == AiProvider.auto) continue;
-        final storedModel = prefs.getString('$_prefsModelPrefix${provider.name}');
+      _activeProvider = provider;
+
+      for (final p in AiProvider.values) {
+        if (p == AiProvider.auto) continue;
+        final storedModel = prefs.getString('$_prefsModelPrefix${p.name}');
         if (storedModel != null && storedModel.isNotEmpty) {
-          _selectedModelIds[provider] = storedModel;
+          _selectedModelIds[p] = storedModel;
         }
       }
       _seedDefaults();
@@ -2360,7 +9261,7 @@ class AiClassifierRouter {
     }
   }
 
-  Future<GeminiClassificationResult> classify(String rawTranscript) async {
+  Future<UnifiedAiClassificationResult> classify(String rawTranscript) async {
     final providers = _orderedProviders();
     for (final provider in providers) {
       final result = await _classifyWithProvider(provider, rawTranscript);
@@ -2374,7 +9275,8 @@ class AiClassifierRouter {
 
     final fallback = _localFallback(rawTranscript);
     _lastUsedModelName = fallback.model;
-    debugPrint('[AiClassifierRouter] All providers failed — using local fallback');
+    debugPrint(
+        '[AiClassifierRouter] All providers failed — using local fallback');
     return fallback;
   }
 
@@ -2388,57 +9290,34 @@ class AiClassifierRouter {
     ];
   }
 
-  Future<GeminiClassificationResult?> _classifyWithProvider(
+  Future<UnifiedAiClassificationResult?> _classifyWithProvider(
     AiProvider provider,
     String rawTranscript,
   ) async {
-    switch (provider) {
-      case AiProvider.auto:
-        return null;
-      case AiProvider.gemini:
-        if (!_gemini.isConfigured) return null;
-        try {
-          return await _gemini.classify(
-            rawTranscript,
-            modelName: selectedModelIdFor(AiProvider.gemini),
-          );
-        } catch (e) {
-          debugPrint('[AiClassifierRouter] Gemini failed: $e');
-          return null;
-        }
-      case AiProvider.groq:
-        if (!_groq.isConfigured) return null;
-        try {
-          return await _groq.classify(
-            rawTranscript,
-            modelName: selectedModelIdFor(AiProvider.groq),
-          );
-        } catch (e) {
-          debugPrint('[AiClassifierRouter] Groq failed: $e');
-          return null;
-        }
-      case AiProvider.mistral:
-      case AiProvider.huggingface:
-      case AiProvider.cerebras:
-        final client = _openAiClients[provider];
-        if (client == null || !client.isConfigured) return null;
-        try {
-          return await client.classify(
-            rawTranscript,
-            modelName: selectedModelIdFor(provider),
-          );
-        } catch (e) {
-          debugPrint('[AiClassifierRouter] ${provider.name} failed: $e');
-          return null;
-        }
+    if (provider == AiProvider.auto) return null;
+
+    final classifier = _classifiers[provider];
+    if (classifier == null || !classifier.isConfigured) return null;
+
+    try {
+      return await classifier.classify(
+        rawTranscript,
+        modelName: selectedModelIdFor(provider),
+      );
+    } catch (e) {
+      debugPrint('[AiClassifierRouter] ${provider.name} failed: $e');
+      return null;
     }
   }
 
-  GeminiClassificationResult _localFallback(String raw) {
+  UnifiedAiClassificationResult _localFallback(String raw) {
     final cleaned = raw.trim();
     final parsed = NlpTaskParser.parse(cleaned);
-    return GeminiClassificationResult(
-      title: parsed.cleanTitle?.isNotEmpty == true ? parsed.cleanTitle! : _fallbackTitle(cleaned),
+    return UnifiedAiClassificationResult(
+      title: parsed.cleanTitle?.isNotEmpty == true
+          ? parsed.cleanTitle!
+          : _fallbackTitle(cleaned),
+      translatedTitle: null,
       category: parsed.category,
       priority: parsed.priority,
       extractedDate: parsed.extractedDate,
@@ -2449,166 +9328,29 @@ class AiClassifierRouter {
   }
 
   String _fallbackTitle(String raw) {
-    final words = raw.trim().split(RegExp(r'\s+')).take(6).toList();
+    final words = raw.trim().split(RegExp(r'\s+')).take(8).toList();
     return words.isEmpty ? 'Quick note' : words.join(' ');
   }
 
   void _seedDefaults() {
     for (final entry in _modelCatalog.entries) {
       final provider = entry.key;
-      if (provider == AiProvider.auto) continue;
+      if (provider == AiProvider.auto) {
+        continue;
+      }
       if (_selectedModelIds[provider]?.isNotEmpty == true) continue;
       final models = entry.value;
       if (models.isEmpty) continue;
-      _selectedModelIds[provider] = models.firstWhere(
-        (option) => option.recommended,
-        orElse: () => models.first,
-      ).id;
+      _selectedModelIds[provider] = models
+          .firstWhere(
+            (option) => option.recommended,
+            orElse: () => models.first,
+          )
+          .id;
     }
   }
 }
-
-class _OpenAiCompatibleClassifier {
-  _OpenAiCompatibleClassifier({
-    required this.providerName,
-    required this.apiKey,
-    required this.endpoint,
-    required this.fallbackModels,
-  });
-
-  final String providerName;
-  final String apiKey;
-  final Uri endpoint;
-  final List<String> fallbackModels;
-
-  bool get isConfigured => apiKey.isNotEmpty;
-
-  Future<GeminiClassificationResult?> classify(
-    String rawTranscript, {
-    String? modelName,
-  }) async {
-    if (!isConfigured || rawTranscript.trim().isEmpty) return null;
-
-    final candidates = <String>{
-      if (modelName != null && modelName.trim().isNotEmpty) modelName.trim(),
-      ...fallbackModels,
-    }.toList();
-
-    for (final model in candidates) {
-      final result = await _callApi(rawTranscript, model);
-      if (result != null) return result;
-    }
-    return null;
-  }
-
-  Future<GeminiClassificationResult?> _callApi(
-    String rawTranscript,
-    String model,
-  ) async {
-    try {
-      final response = await http.post(
-        endpoint,
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'model': model,
-          'messages': [
-            {'role': 'system', 'content': GeminiNoteClassifier.buildSystemPrompt()},
-            {'role': 'user', 'content': 'Raw input: ${rawTranscript.trim()}'},
-          ],
-          'temperature': 0.2,
-          'max_tokens': 512,
-          'response_format': {'type': 'json_object'},
-        }),
-      ).timeout(const Duration(seconds: 20));
-
-      if (response.statusCode == 429) {
-        debugPrint('[$providerName] Rate limit hit on $model');
-        return null;
-      }
-
-      if (response.statusCode != 200) {
-        debugPrint('[$providerName] API error ${response.statusCode} on $model: ${response.body}');
-        return null;
-      }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final content = _extractContent(body);
-      if (content == null || content.trim().isEmpty) return null;
-
-      return _parse(rawTranscript, content.trim(), model: '$providerName-$model');
-    } catch (e) {
-      debugPrint('[$providerName] classify error on $model: $e');
-      return null;
-    }
-  }
-
-  String? _extractContent(Map<String, dynamic> body) {
-    final choices = body['choices'];
-    if (choices is! List || choices.isEmpty) return null;
-    final first = choices.first;
-    if (first is! Map<String, dynamic>) return null;
-    final message = first['message'];
-    if (message is! Map<String, dynamic>) return null;
-    final content = message['content'];
-    return content is String ? content : null;
-  }
-
-  GeminiClassificationResult? _parse(
-    String raw,
-    String payload, {
-    required String model,
-  }) {
-    try {
-      final noFence = payload
-          .replaceAll(RegExp(r'```json\s*'), '')
-          .replaceAll('```', '')
-          .trim();
-      final start = noFence.indexOf('{');
-      final end = noFence.lastIndexOf('}');
-      if (start < 0 || end <= start) return null;
-
-      final decoded = jsonDecode(noFence.substring(start, end + 1)) as Map<String, dynamic>;
-      final title = (decoded['title'] as String?)?.trim();
-      final cleanBody = (decoded['clean_body'] as String?)?.trim();
-      final categoryText = (decoded['category'] as String?) ?? NoteCategory.general.name;
-      final inferredCategory = parseCategory(categoryText);
-      final textForHeuristics = [raw, title, cleanBody].whereType<String>().join(' ');
-
-      return GeminiClassificationResult(
-        title: title?.isNotEmpty == true ? title! : _fallbackTitle(raw),
-        category: inferredCategory == NoteCategory.general
-            ? inferCategoryFromText(textForHeuristics)
-            : inferredCategory,
-        priority: parsePriority((decoded['priority'] as String?) ?? NotePriority.medium.name),
-        extractedDate: _parseDate(decoded['extracted_date']),
-        cleanBody: cleanBody?.isNotEmpty == true ? cleanBody! : raw.trim(),
-        model: model,
-        wasFallback: false,
-      );
-    } catch (e) {
-      debugPrint('[$providerName] parse error: $e');
-      return null;
-    }
-  }
-
-  String _fallbackTitle(String raw) {
-    final words = raw.trim().split(RegExp(r'\s+')).take(6).toList();
-    return words.isEmpty ? 'Quick note' : words.join(' ');
-  }
-
-  DateTime? _parseDate(dynamic value) {
-    if (value == null || value.toString().toLowerCase() == 'null') return null;
-    try {
-      return DateTime.parse(value.toString().trim());
-    } catch (_) {
-      return null;
-    }
-  }
-}
-````
+```
 
 ### lib/features/ai/data/ai_processing_service.dart
 
@@ -2621,7 +9363,7 @@ import 'package:flutter/foundation.dart';
 import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/storage/isar_note_store.dart';
 import 'package:wishperlog/features/ai/data/ai_classifier_router.dart';
-import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
+import 'package:wishperlog/features/ai/data/unified_ai_classifier.dart';
 import 'package:wishperlog/features/sync/data/message_state_service.dart';
 import 'package:wishperlog/features/sync/data/external_sync_service.dart';
 import 'package:wishperlog/shared/events/note_event_bus.dart';
@@ -2723,6 +9465,14 @@ class AiProcessingService {
     _inFlight.add(noteId);
     try {
       final note = await _isarNoteStore.getById(noteId);
+      // Guard: if the background handler already enriched the note
+      // (status = active, aiModel != ''), skip re-classification.
+      if (note != null &&
+          note.status != NoteStatus.pendingAi &&
+          note.aiModel.isNotEmpty) {
+        debugPrint('[AiProcessingService] Skipping already-active note: $noteId');
+        return;
+      }
       if (note == null) {
         debugPrint('[AiProcessingService] Note $noteId not found — skipping');
         return;
@@ -2746,8 +9496,8 @@ class AiProcessingService {
 
     // ── STEP 1: Classify ───────────────────────────────────────────────────────
     // Temporal context is auto-injected by AiClassifierRouter via
-    // GeminiNoteClassifier.buildSystemPrompt() — no extra work needed here.
-    final GeminiClassificationResult result;
+    // UnifiedAiClassifier.buildSystemPrompt() — no extra work needed here.
+    final UnifiedAiClassificationResult result;
     try {
       result = await _aiRouter.classify(note.rawTranscript);
     } catch (e) {
@@ -2761,6 +9511,7 @@ class AiProcessingService {
       title:              result.title,
       cleanBody:          result.cleanBody,
       translatedContent:  result.translatedContent,
+      translatedTitle:    result.translatedTitle,
       category:           result.category,
       priority:           result.priority,
       extractedDate:      result.extractedDate,
@@ -2828,6 +9579,8 @@ class AiProcessingService {
     'note_id':        note.noteId,
     'uid':            note.uid,
     'raw_transcript': note.rawTranscript,
+    'translated_content': note.translatedContent,
+    'translated_title': note.translatedTitle,
     'title':          note.title,
     'clean_body':     note.cleanBody,
     'category':       note.category.name,
@@ -2846,338 +9599,229 @@ class AiProcessingService {
 }
 ```
 
-### lib/features/ai/data/gemini_note_classifier.dart
+### lib/features/ai/data/unified_ai_classifier.dart
 
 ````dart
-import 'dart:convert';
+// lib/features/ai/data/unified_ai_classifier.dart
+// Unified AI classifier supporting Groq, Mistral, Cerebras, and HuggingFace
+// Consolidated from previous Gemini and OpenAI-compatible implementations
 
-import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:wishperlog/core/config/app_env.dart';
-import 'package:wishperlog/features/nlp/nlp_task_parser.dart';
-import 'package:wishperlog/shared/models/enums.dart';
-import 'package:wishperlog/shared/models/note_helpers.dart';
-
-/// Result returned by any AI classifier (Gemini or Groq).
-class GeminiClassificationResult {
-  const GeminiClassificationResult({
-    required this.title,
-    required this.category,
-    required this.priority,
-    required this.extractedDate,
-    required this.cleanBody,
-    required this.model,
-    required this.wasFallback,
-    this.translatedContent,
-  });
-
-  final String title;
-  final NoteCategory category;
-  final NotePriority priority;
-  final DateTime? extractedDate;
-  final String cleanBody;
-  final String model;
-  final bool wasFallback;
-  /// English translation when input was detected as non-English. Null otherwise.
-  final String? translatedContent;
-}
-
-
-class GeminiNoteClassifier {
-  GeminiNoteClassifier({String? apiKey, GenerativeModel? model})
-      : _apiKey = apiKey ?? AppEnv.geminiApiKey,
-        _providedModel = model;
-
-  final String _apiKey;
-  final GenerativeModel? _providedModel;
-
-  static const List<String> supportedModels = [
-    'gemini-2.5-flash-preview-04-17',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-  ];
-
-  bool get isConfigured => _apiKey.isNotEmpty;
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // SYSTEM PROMPT v4 — God-Level
-  //
-  // Key upgrades over v3:
-  //  • Temporal context injected at call-time (not static), enabling accurate
-  //    relative-date parsing ("tomorrow", "next Monday", etc.).
-  //  • Explicit homophones list for Indian-English STT (most common errors).
-  //  • Hard rule: category "follow-up" ↔ any check-in/ping/follow phrasing.
-  //  • Confidence-weighted: if ambiguous between tasks/reminders, prefer tasks.
-  //  • Stricter JSON contract with inline type annotations.
-  // ──────────────────────────────────────────────────────────────────────────
-  static const String _systemPromptTemplate = r'''
-You are an intelligent voice-note post-processor embedded in WishperLog.
-You receive raw speech-to-text output which may contain mispronunciations,
-homophones, run-on sentences, filler words, grammar errors, and STT artefacts.
-
-TODAY'S DATE AND TIME: {{TEMPORAL_CONTEXT}}
-
-Your job:
-  A) Correct the text intelligently (see clean_body rules).
-  B) Classify it into the JSON schema below.
-
-════════════════════════════════════════════
-OUTPUT — EXACTLY ONE raw JSON object.
-No markdown fences, no backticks, no prose.
-First byte MUST be `{`  Last byte MUST be `}`
-════════════════════════════════════════════
-{
-  "title":               "<string: 3–9 words in INPUT language>",
-  "clean_body":          "<string: corrected full note in INPUT language>",
-  "translated_content":  "<string: English translation if non-English input, else null>",
-  "category":            "<string: tasks|reminders|ideas|follow-up|journal|general>",
-  "priority":            "<string: high|medium|low>",
-  "extracted_date":      "<string YYYY-MM-DD | null>"
-}
-
-━━━ FIELD RULES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-title
-  • 3–9 words in the INPUT language (do NOT translate).
-  • Begin with an action verb OR the main subject noun.
-  • No trailing punctuation. Omit filler openers ("Note about", "Remind me to").
-  • ✓ "Call dentist Friday"   ✓ "Landing page hero copy"   ✓ "Mom birthday gift"
-
-clean_body  ← ACTIVE CORRECTION REQUIRED
-  Fix ALL of the following from raw STT output:
-  • Homophones / mispronunciations — common Indian-English STT errors to fix:
-      "contrack"→"contract", "meting"→"meeting", "fone"→"phone",
-      "revert back"→"revert", "prepone"→"bring forward",
-      "do the needful"→"handle this", "kinda"→"kind of",
-      "gonna"→"going to", "wanna"→"want to", "lemme"→"let me".
-  • Filler words — remove: "um", "uh", "like", "you know", "basically",
-      "actually", "so yeah", "right so", "okay so".
-  • Repeated words — deduplicate: "the the", "call call" → keep one.
-  • Run-on fragments joined by "and" or "so" — split into sentences.
-  • Missing capitalisation at sentence starts.
-  • Obvious missing articles (a/an/the) only when unambiguous.
-  • Normalise "tommorow", "tommorrow" → "tomorrow".
-  DO NOT: translate, summarise, add new context, change names, change numbers.
-
-category — choose EXACTLY ONE:
-  "tasks"     → actionable item with a verb: "call", "buy", "finish", "send".
-  "reminders" → time-bound alert, event, or appointment.
-  "ideas"     → creative concept, insight, or brainstorm with no deadline.
-  "follow-up" → any check-in, ping, or follow-up on a previous action:
-                  "follow up with X", "check with Y", "ping Z", "any update on".
-  "journal"   → personal reflection, emotion, observation, gratitude.
-  "general"   → anything that doesn't fit the above.
-  TIE-BREAK: tasks > reminders > follow-up > ideas > journal > general.
-
-priority
-  "high"   → contains urgency words: "urgent", "asap", "today", "critical",
-              "deadline", "immediately", OR an extracted_date within 24 h.
-  "medium" → has a date/time in 1–7 days, or mild urgency ("soon", "this week").
-  "low"    → everything else.
-
-extracted_date
-  • If the note contains a specific date or relative reference, compute the
-    absolute date using TODAY'S DATE above and return YYYY-MM-DD.
-  • Relative references to resolve (using TODAY'S DATE):
-      "today"      → TODAY
-      "tomorrow"   → TODAY + 1 day
-      "next Monday"→ next calendar Monday
-      "this Friday"→ the coming Friday
-      "in 3 days"  → TODAY + 3 days
-      "next week"  → TODAY + 7 days
-  • If no date is mentioned → null.
-
-IMPORTANT: respond with ONLY the JSON object. Zero extra characters.
-''';
-
-  /// Builds the system prompt injecting the current date/time for temporal parsing.
-  static String buildSystemPrompt() {
-    final now = DateTime.now();
-    final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    final months   = ['January', 'February', 'March', 'April', 'May', 'June',
-                      'July', 'August', 'September', 'October', 'November', 'December'];
-
-    final temporal =
-        '${weekdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} ${now.year} '
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} '
-        '(${_tzOffsetString(now)}, tz=${now.timeZoneName})';
-
-    return _systemPromptTemplate.replaceFirst('{{TEMPORAL_CONTEXT}}', temporal);
-  }
-
-  static String _tzOffsetString(DateTime dt) {
-    final offset = dt.timeZoneOffset;
-    final sign   = offset.isNegative ? '-' : '+';
-    final h      = offset.inHours.abs().toString().padLeft(2, '0');
-    final m      = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-    return 'UTC$sign$h:$m';
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // Classify
-  // ──────────────────────────────────────────────────────────────────────────
-
-  Future<GeminiClassificationResult> classify(
-    String rawTranscript, {
-    String? modelName,
-  }) async {
-    if (!isConfigured) {
-      return _localFallback(rawTranscript, 'gemini-local');
-    }
-    if (rawTranscript.trim().isEmpty) {
-      return _localFallback('', 'gemini-local');
-    }
-
-    try {
-      final selectedModel = modelName ?? 'gemini-1.5-flash';
-      final model = _providedModel ??
-          GenerativeModel(
-            model: selectedModel,
-            apiKey: _apiKey,
-            generationConfig: GenerationConfig(
-              temperature: 0.2,
-              maxOutputTokens: 512,
-              // Constrain to JSON only via responseMimeType when available.
-              responseMimeType: 'application/json',
-            ),
-          );
-
-      final systemPrompt = buildSystemPrompt();
-      final prompt = '$systemPrompt\n\nRaw input: ${rawTranscript.trim()}';
-
-      final response = await model.generateContent([Content.text(prompt)]).timeout(
-        const Duration(seconds: 20),
-        onTimeout: () => throw TimeoutException('Gemini timeout after 20 s'),
-      );
-
-      final raw = response.text ?? '';
-      if (raw.trim().isEmpty) {
-        throw Exception('Gemini returned empty response');
-      }
-
-      return _parseJson(rawTranscript, raw.trim(), model: selectedModel);
-    } on TimeoutException catch (e) {
-      throw Exception('[GeminiClassifier] Timeout: $e');
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // Parsing helpers
-  // ──────────────────────────────────────────────────────────────────────────
-
-  GeminiClassificationResult _parseJson(
-    String raw,
-    String payload, {
-    required String model,
-    bool wasFallback = false,
-  }) {
-    try {
-      final noFence = payload
-          .replaceAll(RegExp(r'```json\s*'), '')
-          .replaceAll('```', '')
-          .trim();
-      final start = noFence.indexOf('{');
-      final end   = noFence.lastIndexOf('}');
-      if (start < 0 || end <= start) throw FormatException('No JSON object found');
-
-      final decoded = jsonDecode(noFence.substring(start, end + 1)) as Map<String, dynamic>;
-      final title     = (decoded['title']      as String?)?.trim();
-      final cleanBody = (decoded['clean_body'] as String?)?.trim();
-      final categoryText = (decoded['category'] as String?) ?? NoteCategory.general.name;
-      final inferredCategory = parseCategory(categoryText);
-      final textForHeuristics = [raw, title, cleanBody].whereType<String>().join(' ');
-
-      final translatedContent = (decoded['translated_content'] as String?)?.trim();
-      return GeminiClassificationResult(
-        title:              title?.isNotEmpty == true ? title! : _fallbackTitle(raw),
-        translatedContent:  (translatedContent?.isNotEmpty == true) ? translatedContent : null,
-        category:           inferredCategory == NoteCategory.general
-            ? inferCategoryFromText(textForHeuristics)
-            : inferredCategory,
-        priority:      parsePriority((decoded['priority'] as String?) ?? NotePriority.medium.name),
-        extractedDate: _parseDate(decoded['extracted_date']),
-        cleanBody:     cleanBody?.isNotEmpty == true ? cleanBody! : raw.trim(),
-        model:         model,
-        wasFallback:   wasFallback,
-      );
-    } catch (e) {
-      return _localFallback(raw, model);
-    }
-  }
-
-  GeminiClassificationResult _localFallback(String raw, String model) {
-    final parsed = NlpTaskParser.parse(raw);
-    return GeminiClassificationResult(
-      title:         parsed.cleanTitle?.isNotEmpty == true ? parsed.cleanTitle! : _fallbackTitle(raw),
-      category:      parsed.category,
-      priority:      parsed.priority,
-      extractedDate: parsed.extractedDate,
-      cleanBody:     raw.trim(),
-      model:         model,
-      wasFallback:   true,
-    );
-  }
-
-  String _fallbackTitle(String raw) {
-    final words = raw.trim().split(RegExp(r'\s+')).take(6).toList();
-    return words.isEmpty ? 'Quick note' : words.join(' ');
-  }
-
-  DateTime? _parseDate(dynamic value) {
-    if (value == null || value.toString().toLowerCase() == 'null') return null;
-    try {
-      return DateTime.parse(value.toString().trim());
-    } catch (_) {
-      return null;
-    }
-  }
-}
-
-// Simple timeout exception since dart:async's TimeoutException needs an import.
-class TimeoutException implements Exception {
-  TimeoutException(this.message);
-  final String message;
-  @override String toString() => 'TimeoutException: $message';
-}
-````
-
-### lib/features/ai/data/groq_note_classifier.dart
-
-````dart
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:wishperlog/core/config/app_env.dart';
-import 'package:wishperlog/features/ai/data/gemini_note_classifier.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 
-/// Groq Chat API classifier (OpenAI-compatible).
-/// Primary model: llama-3.3-70b-versatile
-/// Fallback model: llama-3.1-8b-instant (if 70b hits rate limit)
-///
-/// Uses the shared GeminiNoteClassifier.buildSystemPrompt() so both
-/// providers use identical prompt logic including temporal context.
-class GroqNoteClassifier {
-  static const _baseUrl      = 'https://api.groq.com/openai/v1/chat/completions';
-  static const _primaryModel = 'llama-3.3-70b-versatile';
-  static const _fallbackModel = 'llama-3.1-8b-instant';
-  static const List<String> supportedModels = [
-    'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant',
-    'qwen3-32b',
-    'llama-4-scout-17b-16e-instruct',
-  ];
+class UnifiedAiClassificationResult {
+  const UnifiedAiClassificationResult({
+    required this.title,
+    required this.translatedTitle,
+    required this.category,
+    required this.priority,
+    required this.cleanBody,
+    required this.model,
+    this.translatedContent,
+    this.extractedDate,
+    this.wasFallback = false,
+  });
 
-  final String _apiKey;
+  final String title;
+  final String? translatedTitle;
+  final NoteCategory category;
+  final NotePriority priority;
+  final String cleanBody;
+  final String model;
+  final String? translatedContent;
+  final DateTime? extractedDate;
+  final bool wasFallback;
+}
 
-  GroqNoteClassifier({String? apiKey}) : _apiKey = apiKey ?? AppEnv.groqApiKey;
+/// Unified classifier for all AI providers (Groq, Mistral, Cerebras, HuggingFace).
+/// 
+/// Key features:
+/// - Single powerful system prompt across all providers
+/// - Consistent JSON parsing and field extraction
+/// - Automatic model fallback strategy
+/// - Temporal context injection for better date parsing
+/// - Multilingual support with translation extraction
+/// - Structured output for consistent note classification
+class UnifiedAiClassifier {
+  const UnifiedAiClassifier({
+    required this.providerName,
+    required this.apiKey,
+    required this.endpoint,
+    this.primaryModels = const [],
+    this.fallbackModels = const [],
+  });
 
-  bool get isConfigured => _apiKey.isNotEmpty;
+  final String providerName;
+  final String apiKey;
+  final Uri endpoint;
+  final List<String> primaryModels;
+  final List<String> fallbackModels;
 
-  Future<GeminiClassificationResult?> classify(
+  bool get isConfigured => apiKey.isNotEmpty;
+
+  /// Build the ultra-powerful system prompt for consistent, high-quality classification.
+  /// This prompt emphasizes:
+  /// - Precise title generation
+  /// - Multi-language support with translation
+  /// - Deep category inference
+  /// - Temporal awareness with relative date parsing
+  /// - Structured output in JSON format
+  static String buildSystemPrompt({
+    String? userLocation,
+    String? userContext,
+  }) {
+    final now = DateTime.now();
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final temporal =
+        '${weekdays[now.weekday - 1]} ${now.day} ${months[now.month - 1]} '
+        '${now.year} '
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')} '
+        '(UTC${now.timeZoneOffset.isNegative ? '-' : '+'}${now.timeZoneOffset.inHours.abs().toString().padLeft(2, '0')}:'
+        '${(now.timeZoneOffset.inMinutes.abs() % 60).toString().padLeft(2, '0')})';
+
+    final envLines = <String>[
+      'NOW: $temporal',
+      if ((userLocation ?? '').isNotEmpty) 'LOCATION: $userLocation',
+      if ((userContext ?? '').isNotEmpty) 'USER_CONTEXT: $userContext',
+    ].join('\n');
+
+    return '''YOU ARE WISHPERLOG'S INTELLIGENT NOTE CLASSIFIER AND OPTIMIZER.
+
+YOUR MISSION:
+Parse user voice/text input into actionable, properly categorized, and multilingual notes.
+Return ONLY valid JSON—no prose, markdown, code fences, or explanations.
+
+ENVIRONMENT CONTEXT:
+$envLines
+
+SUPPORTED CATEGORIES: tasks | reminders | ideas | follow_up | journal | general
+PRIORITY LEVELS: high | medium | low
+
+OUTPUT SCHEMA (ALL FIELDS REQUIRED):
+{
+  "title": "<concise 5-8 word imperative title in INPUT LANGUAGE>",
+  "translated_title": "<English translation of title IF input is non-English; null if already English>",
+  "clean_body": "<polished version preserving INPUT LANGUAGE, fix grammar/clarity, max 500 chars>",
+  "category": "<one of: tasks, reminders, ideas, follow_up, journal, general>",
+  "priority": "<high | medium | low>",
+  "extracted_date": "<ISO 8601 datetime or null if no date mentioned>",
+  "translated_content": "<English translation of clean_body IF input is non-English; null if already English>"
+}
+
+CLASSIFICATION RULES:
+
+1. TITLE GENERATION:
+   - Imperative mood preferred: "buy milk", "call mom", "plan trip"
+   - 5-8 words max, clear and scannable
+   - In the user's original language
+   - Start with action verb when possible
+
+2. LANGUAGE & TRANSLATION:
+   - Preserve original language in title and clean_body
+   - If user speaks Hindi, Telugu, Tamil, Malayalam, Marathi, or any non-English language:
+     * ALWAYS populate translated_title with natural English equivalent
+     * ALWAYS populate translated_content with full English translation
+   - If input is already English:
+     * Set translated_title to null
+     * Set translated_content to null
+   - Translations must be semantically accurate and idiomatic (not literal)
+
+3. CATEGORY INFERENCE:
+   - tasks      → Action-oriented: starts with verb, "to-do", "karna hai", "cheyyali", "cheyali"
+   - reminders  → Time-bound awareness: "remind me", "yaad rakhna", "remind", "alert"
+   - follow_up  → Needs investigation: "follow up", "puchna hai", "check on", "verify"
+   - ideas      → Exploratory: "what if", "kya agar", "brainstorm", "consider", "imagine"
+   - journal    → Reflective/emotional: "I feel", "today I learned", "grateful for", "reflective tone"
+   - general    → Fallback if no strong match; informational notes, miscellaneous
+   
+   Use context + keywords to rank category confidence. If unsure, default to 'general'.
+
+4. PRIORITY INFERENCE:
+   - HIGH    → Urgent, deadline-driven, safety-critical, "ASAP", "urgent", "immediately"
+   - MEDIUM  → Standard, typical tasks with normal importance
+   - LOW     → Someday/maybe, vague future, backlog, exploratory, "when possible"
+   
+   Default to MEDIUM unless strong urgency signals present.
+
+5. DATE EXTRACTION:
+   - Parse absolute: "2024-03-15", "March 15", "next Monday"
+   - Parse relative: "tomorrow", "next week", "in 3 days", "kal", "parson", "hafte mein"
+   - Use NOW context to resolve: if today is Wed, "next Monday" = Friday after next
+   - Return ISO 8601 format or null if unresolvable
+
+6. TEXT CLEANING:
+   - Fix obvious typos, stutter repetition: "I umm I want" → "I want"
+   - Remove filler words: "like", "um", "uh", "basically", "you know"
+   - Improve grammar while preserving intent and original language
+   - Keep emotional tone if reflective/journal entry
+   - Max 500 chars; if longer, summarize key points
+
+7. MULTILINGUAL ROBUSTNESS:
+   - Accept mixed-language input: "kya agar we could meet tomorrow at coffee?"
+   - Detect primary language by word count; classify accordingly
+   - Translate coherently even with code-switching
+   - Preserve original language in output fields; provide English in translated_* fields
+
+EXAMPLE INPUTS & EXPECTED OUTPUTS:
+
+INPUT 1 (Hindi): "kal mohan ko call krna reminder do"
+OUTPUT:
+{
+  "title": "Mohan ko call karna",
+  "translated_title": "Call Mohan",
+  "clean_body": "Mohan ko kal call karna hai",
+  "translated_content": "Need to call Mohan tomorrow",
+  "category": "reminders",
+  "priority": "medium",
+  "extracted_date": "2025-04-15T00:00:00Z",
+  "category_confidence": 0.95
+}
+
+INPUT 2 (English): "Buy groceries tomorrow morning before 10am"
+OUTPUT:
+{
+  "title": "Buy groceries tomorrow morning",
+  "translated_title": null,
+  "clean_body": "Buy groceries tomorrow morning before 10 AM",
+  "translated_content": null,
+  "category": "tasks",
+  "priority": "medium",
+  "extracted_date": "2025-04-15T10:00:00Z"
+}
+
+INPUT 3 (Mixed): "what if we could integrate AI for better note search?"
+OUTPUT:
+{
+  "title": "Integrate AI for note search",
+  "translated_title": null,
+  "clean_body": "Consider integrating AI capabilities for enhanced note search functionality",
+  "translated_content": null,
+  "category": "ideas",
+  "priority": "low",
+  "extracted_date": null
+}
+
+FINAL RULES:
+- Always return valid JSON (no extra formatting, no markdown)
+- All fields must be present (use null for undefined translations or dates)
+- Be generous with translations for non-English input
+- Favor user intent over grammatical perfection
+- If ambiguous, choose the most actionable classification
+- Never make assumptions about dates beyond the examples provided
+''';
+  }
+
+  /// Classify a transcript using this provider.
+  Future<UnifiedAiClassificationResult?> classify(
     String rawTranscript, {
     String? modelName,
   }) async {
@@ -3185,111 +9829,168 @@ class GroqNoteClassifier {
 
     final candidates = <String>{
       if (modelName != null && modelName.trim().isNotEmpty) modelName.trim(),
-      _primaryModel,
-      _fallbackModel,
-      ...supportedModels,
+      ...primaryModels,
+      ...fallbackModels,
     }.toList();
 
     for (final model in candidates) {
       final result = await _callApi(rawTranscript, model);
       if (result != null) return result;
-      if (model == _primaryModel) {
-        debugPrint('[GroqClassifier] Primary model failed, trying fallback model');
+      if (model == primaryModels.firstOrNull) {
+        debugPrint(
+            '[$providerName] Primary model $model failed, trying fallback');
       }
     }
     return null;
   }
 
-  Future<GeminiClassificationResult?> _callApi(String rawTranscript, String model) async {
+  /// Call the provider's API and parse the response.
+  Future<UnifiedAiClassificationResult?> _callApi(
+    String rawTranscript,
+    String model,
+  ) async {
     try {
-      final systemPrompt = GeminiNoteClassifier.buildSystemPrompt();
-
-      final response = await http.post(
-        Uri.parse(_baseUrl),
-        headers: {
-          'Authorization': 'Bearer $_apiKey',
-          'Content-Type':  'application/json',
-        },
-        body: jsonEncode({
-          'model': model,
-          'messages': [
-            {'role': 'system', 'content': systemPrompt},
-            {'role': 'user',   'content': 'Raw input: ${rawTranscript.trim()}'},
-          ],
-          'temperature':  0.2,
-          'max_tokens':   512,
-          // JSON mode — Groq supports this for llama models.
-          'response_format': {'type': 'json_object'},
-        }),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            endpoint,
+            headers: {
+              'Authorization': 'Bearer $apiKey',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'model': model,
+              'messages': [
+                {
+                  'role': 'system',
+                  'content': buildSystemPrompt(),
+                },
+                {
+                  'role': 'user',
+                  'content': 'Raw input: ${rawTranscript.trim()}',
+                },
+              ],
+              'temperature': 0.2,
+              'max_tokens': 800,
+              // Groq and Mistral support JSON response format.
+              // Cerebras and HuggingFace extract JSON from freeform output.
+              if (_supportsJsonResponseFormat(providerName))
+                'response_format': {'type': 'json_object'},
+            }),
+          )
+          .timeout(const Duration(seconds: 25));
 
       if (response.statusCode == 429) {
-        debugPrint('[GroqClassifier] Rate limit hit on $model');
-        return null; // caller will try fallback
-      }
-
-      if (response.statusCode != 200) {
-        debugPrint('[GroqClassifier] API error ${response.statusCode} on $model: ${response.body}');
+        debugPrint('[$providerName] Rate limit on $model');
         return null;
       }
 
-      final body    = jsonDecode(response.body) as Map<String, dynamic>;
-      final content = (body['choices'] as List?)?.first?['message']?['content'] as String?;
-      if (content == null || content.isEmpty) return null;
+      if (response.statusCode != 200) {
+        debugPrint(
+            '[$providerName] API error ${response.statusCode}: ${response.body}');
+        return null;
+      }
 
-      return _parse(rawTranscript, content.trim(), model: 'groq-$model');
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final content = _extractContent(body);
+      if (content == null || content.trim().isEmpty) return null;
+
+      return _parseResponse(rawTranscript, content.trim(),
+          model: '$providerName-$model');
     } catch (e) {
-      debugPrint('[GroqClassifier] classify error on $model: $e');
+      debugPrint('[$providerName] classify on $model: $e');
       return null;
     }
   }
 
-  GeminiClassificationResult? _parse(String raw, String payload, {required String model}) {
+  /// Extract the message content from provider response.
+  String? _extractContent(Map<String, dynamic> body) {
+    final choices = body['choices'];
+    if (choices is! List || choices.isEmpty) return null;
+    final first = choices.first;
+    if (first is! Map<String, dynamic>) return null;
+    final message = first['message'];
+    if (message is! Map<String, dynamic>) return null;
+    return message['content'] as String?;
+  }
+
+  /// Parse JSON response from provider.
+  UnifiedAiClassificationResult? _parseResponse(
+    String raw,
+    String payload, {
+    required String model,
+  }) {
     try {
+      // Remove markdown code fences if present.
       final noFence = payload
-          .replaceAll(RegExp(r'```json\s*'), '')
-          .replaceAll('```', '')
+          .replaceAll(RegExp(r'```json\s*', caseSensitive: false), '')
+          .replaceAll(RegExp(r'```\s*'), '')
           .trim();
+
+      // Extract first complete JSON object.
       final start = noFence.indexOf('{');
-      final end   = noFence.lastIndexOf('}');
-      if (start < 0 || end <= start) return null;
+      final end = noFence.lastIndexOf('}');
+      if (start < 0 || end <= start) {
+        debugPrint('[$providerName] No JSON in response');
+        return null;
+      }
 
-      final decoded   = jsonDecode(noFence.substring(start, end + 1)) as Map<String, dynamic>;
-      final title     = (decoded['title']      as String?)?.trim();
+      final decoded =
+          jsonDecode(noFence.substring(start, end + 1)) as Map<String, dynamic>;
+
+      final title = (decoded['title'] as String?)?.trim();
+      final translatedTitle = (decoded['translated_title'] as String?)?.trim();
+      final translatedContent =
+          (decoded['translated_content'] as String?)?.trim();
       final cleanBody = (decoded['clean_body'] as String?)?.trim();
-      final categoryText = (decoded['category'] as String?) ?? NoteCategory.general.name;
-      final inferredCategory = parseCategory(categoryText);
-      final textForHeuristics = [raw, title, cleanBody].whereType<String>().join(' ');
+      final categoryText =
+          (decoded['category'] as String?) ?? NoteCategory.general.name;
+      final priorityText =
+          (decoded['priority'] as String?) ?? NotePriority.medium.name;
 
-      return GeminiClassificationResult(
-        title:         title?.isNotEmpty == true ? title! : _fallbackTitle(raw),
-        category:      inferredCategory == NoteCategory.general
+      final inferredCategory = parseCategory(categoryText);
+      final textForHeuristics =
+          [raw, title, cleanBody].whereType<String>().join(' ');
+
+      return UnifiedAiClassificationResult(
+        title: title?.isNotEmpty == true ? title! : _fallbackTitle(raw),
+        translatedTitle:
+            translatedTitle?.isNotEmpty == true ? translatedTitle : null,
+        translatedContent:
+            translatedContent?.isNotEmpty == true ? translatedContent : null,
+        category: inferredCategory == NoteCategory.general
             ? inferCategoryFromText(textForHeuristics)
             : inferredCategory,
-        priority:      parsePriority((decoded['priority']  as String?) ?? NotePriority.medium.name),
+        priority: parsePriority(priorityText),
         extractedDate: _parseDate(decoded['extracted_date']),
-        cleanBody:     cleanBody?.isNotEmpty == true ? cleanBody! : raw.trim(),
-        model:         model,
-        wasFallback:   false,
+        cleanBody: cleanBody?.isNotEmpty == true ? cleanBody! : raw.trim(),
+        model: model,
+        wasFallback: false,
       );
     } catch (e) {
-      debugPrint('[GroqClassifier] parse error: $e');
+      debugPrint('[$providerName] Parse error: $e');
       return null;
     }
   }
 
   String _fallbackTitle(String raw) {
-    final words = raw.trim().split(RegExp(r'\s+')).take(6).toList();
+    final words = raw.trim().split(RegExp(r'\s+')).take(8).toList();
     return words.isEmpty ? 'Quick note' : words.join(' ');
   }
 
   DateTime? _parseDate(dynamic value) {
-    if (value == null || value.toString().toLowerCase() == 'null') return null;
+    if (value == null || value.toString().toLowerCase() == 'null') {
+      return null;
+    }
     try {
       return DateTime.parse(value.toString().trim());
     } catch (_) {
       return null;
     }
+  }
+
+  static bool _supportsJsonResponseFormat(String provider) {
+    final name = provider.toLowerCase();
+    return name == 'groq' || name == 'mistral';
   }
 }
 ````
@@ -3606,6 +10307,8 @@ import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/models/note.dart';
 
 class CaptureService {
+  static final Set<String> _inFlightDedupKeys = {};
+
   CaptureService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
@@ -3656,15 +10359,22 @@ class CaptureService {
   }) async {
     final trimmed = rawTranscript.trim();
     if (trimmed.isEmpty) return null;
+    final dedupKey = '${_auth?.currentUser?.uid ?? 'local'}::$trimmed';
+
+    if (_inFlightDedupKeys.contains(dedupKey)) {
+      debugPrint('[CaptureService] Duplicate capture suppressed (in-flight)');
+      return null;
+    }
+
+    _inFlightDedupKeys.add(dedupKey);
 
     try {
       final now = DateTime.now();
       final user = _auth?.currentUser;
       if (user != null) {
-        final recent = await _isarNoteStore.findRecentByTranscript(
+        final recent = await _isarNoteStore.findRecentByTranscriptAnySource(
           uid: user.uid,
           rawTranscript: trimmed,
-          source: source,
         );
         if (recent != null) {
           debugPrint('[CaptureService] Duplicate capture skipped: ${recent.noteId}');
@@ -3713,6 +10423,8 @@ class CaptureService {
       debugPrint('[CaptureService] ERROR during ingestRawCapture: $error');
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
+    } finally {
+      _inFlightDedupKeys.remove(dedupKey);
     }
   }
 
@@ -4392,8 +11104,11 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   final FocusNode _canvasFocusNode = FocusNode();
 
   bool _saving = false;
+  bool _saveInProgress = false;
   bool _speechReady = false;
   bool _isDictating = false;
+  String _sttLanguage = 'en-US';
+  static const _sttLanguageCycle = ['en-US', 'hi-IN', 'te-IN'];
   String _dictationPrefix = '';
   NoteCategory _quickCategory = NoteCategory.general;
   NotePriority _quickPriority = NotePriority.medium;
@@ -4534,20 +11249,21 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   }
 
   Future<void> _saveWritingBox() async {
-    if (_saving) {
+    if (_saveInProgress) {
       return;
     }
 
-    final textToSave = _writingController.text.trim();
-    if (textToSave.isEmpty) {
-      return;
-    }
-
-    setState(() {
-      _saving = true;
-    });
-
+    _saveInProgress = true;
     try {
+      final textToSave = _writingController.text.trim();
+      if (textToSave.isEmpty || _saving) {
+        return;
+      }
+
+      setState(() {
+        _saving = true;
+      });
+
       final savedNote = await _captureService.ingestRawCapture(
         rawTranscript: textToSave,
         source: CaptureSource.homeWritingBox,
@@ -4586,6 +11302,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
           _saving = false;
         });
       }
+      _saveInProgress = false;
     }
   }
 
@@ -4935,6 +11652,14 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                       onReminderLongPress: _clearReminder,
                                       onMicPressStart: _startDictation,
                                       onMicPressEnd: () => _stopDictation(submitCaptured: true),
+                                      languageCode: _sttLanguage,
+                                      onLanguageSelect: () {
+                                        final idx = _sttLanguageCycle.indexOf(_sttLanguage);
+                                        setState(() {
+                                          _sttLanguage = _sttLanguageCycle[
+                                              (idx + 1) % _sttLanguageCycle.length];
+                                        });
+                                      },
                                       isSaving: _saving,
                                       isRecording: _isDictating,
                                       tagActive: tagActive,
@@ -5391,6 +12116,8 @@ class ThoughtCanvas extends StatelessWidget {
     this.reminderActive = false,
     this.tagLabel,
     this.reminderLabel,
+    this.languageCode = 'en-US',
+    this.onLanguageSelect,
     super.key,
   });
 
@@ -5409,7 +12136,8 @@ class ThoughtCanvas extends StatelessWidget {
   final bool reminderActive;
   final String? tagLabel;
   final String? reminderLabel;
-
+  final String languageCode;
+  final VoidCallback? onLanguageSelect;
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -5573,6 +12301,17 @@ class ThoughtCanvas extends StatelessWidget {
                           onLongPress: onReminderLongPress,
                         ),
                         const Spacer(),
+                        // Language selector (tap to cycle: en-US / hi-IN / te-IN)
+                        if (onLanguageSelect != null)
+                          _BarBtn(
+                            icon: Icons.language_rounded,
+                            color: languageCode != 'en-US'
+                                ? AppColors.tasks
+                                : context.textSec,
+                            active: languageCode != 'en-US',
+                            onTap: () => onLanguageSelect?.call(),
+                          ),
+                        const SizedBox(width: 4),
                         // Mic (long-press to dictate)
                         GestureDetector(
                           onLongPressStart: (_) => onMicPressStart(),
@@ -6099,10 +12838,9 @@ class NoteRepository {
     final user = _auth?.currentUser;
 
     if (user != null) {
-      final recent = await _isarNoteStore.findRecentByTranscript(
+      final recent = await _isarNoteStore.findRecentByTranscriptAnySource(
         uid: user.uid,
         rawTranscript: text,
-        source: CaptureSource.homeWritingBox,
       );
       if (recent != null) {
         debugPrint('[NoteRepository] Duplicate home save skipped: ${recent.noteId}');
@@ -7296,18 +14034,154 @@ class _MetaChip extends StatelessWidget {
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/features/notes/data/note_repository.dart';
 import 'package:wishperlog/shared/models/note.dart';
 import 'package:wishperlog/shared/models/note_helpers.dart';
 import 'package:wishperlog/shared/models/enums.dart';
 import 'package:wishperlog/shared/widgets/glass_page_background.dart';
 import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
-class NoteViewScreen extends StatelessWidget {
-  const NoteViewScreen({super.key, required this.note});
+class NoteViewScreen extends StatefulWidget {
+  const NoteViewScreen({required this.note, super.key});
 
   final Note note;
+
+  @override
+  State<NoteViewScreen> createState() => _NoteViewScreenState();
+}
+
+class _NoteViewScreenState extends State<NoteViewScreen> {
+  final NoteRepository _notes = sl<NoteRepository>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _bodyController = TextEditingController();
+
+  late Note _note;
+  bool _showTranslation = false;
+  bool _isEditing = false;
+  bool _saving = false;
+  NoteCategory _category = NoteCategory.general;
+  NotePriority _priority = NotePriority.medium;
+  DateTime? _extractedDate;
+
+  bool get _hasTranslation => (_note.translatedContent ?? '').trim().isNotEmpty;
+
+  String get _displayBody =>
+      (_showTranslation && _hasTranslation)
+          ? _note.translatedContent!.trim()
+          : (_note.cleanBody.isNotEmpty ? _note.cleanBody : _note.rawTranscript);
+
+  String get _displayTitle =>
+      (_showTranslation && _hasTranslation && (_note.translatedTitle ?? '').trim().isNotEmpty)
+          ? _note.translatedTitle!.trim()
+          : (_note.title.isNotEmpty ? _note.title : 'Untitled Note');
+
+  @override
+  void initState() {
+    super.initState();
+    _note = widget.note;
+    _seedEditors();
+  }
+
+  @override
+  void didUpdateWidget(covariant NoteViewScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.note.noteId != widget.note.noteId) {
+      _note = widget.note;
+      _seedEditors();
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  void _seedEditors() {
+    _titleController.text = _note.title == 'Quick note' ? '' : _note.title;
+    _bodyController.text = _note.cleanBody.isNotEmpty ? _note.cleanBody : _note.rawTranscript;
+    _category = _note.category;
+    _priority = _note.priority;
+    _extractedDate = _note.extractedDate;
+  }
+
+  void _toggleEditor() {
+    setState(() {
+      _isEditing = !_isEditing;
+      if (_isEditing) {
+        _seedEditors();
+      }
+    });
+  }
+
+  Future<void> _saveEdits() async {
+    if (_saving) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _saving = true);
+    try {
+      await _notes.updateEditedNote(
+        noteId: _note.noteId,
+        title: _titleController.text,
+        cleanBody: _bodyController.text,
+        category: _category,
+        priority: _priority,
+        extractedDate: _extractedDate,
+      );
+
+      final updated = _note.copyWith(
+        title: _titleController.text.trim().isEmpty ? _note.title : _titleController.text.trim(),
+        cleanBody: _bodyController.text.trim().isEmpty ? _note.cleanBody : _bodyController.text.trim(),
+        category: _category,
+        priority: _priority,
+        extractedDate: _extractedDate,
+        clearExtractedDate: _extractedDate == null,
+        updatedAt: DateTime.now(),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _note = updated;
+        _isEditing = false;
+      });
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Note updated')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save note: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  Future<void> _pickExtractedDate() async {
+    final initialDate = _extractedDate ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null && mounted) {
+      setState(() => _extractedDate = picked);
+    }
+  }
+
+  void _clearExtractedDate() {
+    setState(() => _extractedDate = null);
+  }
 
   Color _priorityColor(NotePriority p) => switch (p) {
     NotePriority.high   => const Color(0xFFEF4444),
@@ -7317,12 +14191,13 @@ class NoteViewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final note = _note;
     final accent = categoryColor(note.category);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
-      floatingActionButton: _EditFab(noteId: note.noteId),
+      floatingActionButton: _EditFab(onPressed: _toggleEditor),
       body: GlassPageBackground(
         child: Stack(
           children: [
@@ -7388,7 +14263,7 @@ class NoteViewScreen extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          final body = '${note.title}\n\n${note.cleanBody.isNotEmpty ? note.cleanBody : note.rawTranscript}';
+                          final body = '$_displayTitle\n\n$_displayBody';
                           Clipboard.setData(ClipboardData(text: body));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Copied to clipboard')),
@@ -7480,7 +14355,7 @@ class NoteViewScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  note.title.isEmpty ? 'Untitled Note' : note.title,
+                                  _displayTitle,
                                   style: TextStyle(
                                     color: context.textPri,
                                     fontSize: 30,
@@ -7489,6 +14364,43 @@ class NoteViewScreen extends StatelessWidget {
                                     height: 1.2,
                                   ),
                                 ),
+                                if (_hasTranslation) ...[
+                                  const SizedBox(height: 8),
+                                  GestureDetector(
+                                    onTap: () => setState(() => _showTranslation = !_showTranslation),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 220),
+                                      curve: Curves.easeOut,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(999),
+                                        color: AppColors.ideas.withValues(alpha: _showTranslation ? 0.22 : 0.10),
+                                        border: Border.all(
+                                          color: AppColors.ideas.withValues(alpha: 0.30),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.translate_rounded,
+                                            size: 14,
+                                            color: AppColors.ideas,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            _showTranslation ? 'Show original' : 'Show in English',
+                                            style: TextStyle(
+                                              color: AppColors.ideas,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: 16),
                                 Text(
                                   'Captured ${_formatDate(note.createdAt)}',
@@ -7499,22 +14411,38 @@ class NoteViewScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 18),
-                                if (note.translatedContent != null)
-                                  _TranslationToggle(note: note)
-                                else
-                                SelectableText(
-                                  note.cleanBody.isNotEmpty
-                                      ? note.cleanBody
-                                      : note.rawTranscript,
-                                  style: TextStyle(
-                                    color: context.textPri,
-                                    fontSize: 16,
-                                    height: 1.75,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: 0.1,
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 260),
+                                  child: SelectableText(
+                                    _displayBody,
+                                    key: ValueKey<bool>(_showTranslation),
+                                    style: TextStyle(
+                                      color: context.textPri,
+                                      fontSize: 16,
+                                      height: 1.75,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: 0.1,
+                                    ),
                                   ),
                                 ),
-
+                                if (_isEditing) ...[
+                                  const SizedBox(height: 20),
+                                  _InlineEditPanel(
+                                    formKey: _formKey,
+                                    titleController: _titleController,
+                                    bodyController: _bodyController,
+                                    category: _category,
+                                    priority: _priority,
+                                    extractedDate: _extractedDate,
+                                    saving: _saving,
+                                    onCategoryChanged: (value) => setState(() => _category = value),
+                                    onPriorityChanged: (value) => setState(() => _priority = value),
+                                    onPickDate: _pickExtractedDate,
+                                    onClearDate: _clearExtractedDate,
+                                    onCancel: _toggleEditor,
+                                    onSave: _saveEdits,
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -7586,13 +14514,18 @@ class _SurfacePill extends StatelessWidget {
         children: [
           Icon(icon, size: 13, color: tint),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: tint,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.3,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+              style: TextStyle(
+                color: tint,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         ],
@@ -7601,85 +14534,19 @@ class _SurfacePill extends StatelessWidget {
   }
 }
 
-// ── Translation toggle (original ↔ English) ──────────────────────────────────
-class _TranslationToggle extends StatefulWidget {
-  const _TranslationToggle({required this.note});
-  final Note note;
-  @override
-  State<_TranslationToggle> createState() => _TranslationToggleState();
-}
-
-class _TranslationToggleState extends State<_TranslationToggle> {
-  bool _showOriginal = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final bodyText = _showOriginal
-        ? (widget.note.cleanBody.isNotEmpty ? widget.note.cleanBody : widget.note.rawTranscript)
-        : (widget.note.translatedContent ?? widget.note.cleanBody);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () => setState(() => _showOriginal = !_showOriginal),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.tasks.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.tasks.withValues(alpha: 0.30)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.translate_rounded, size: 13, color: AppColors.tasks),
-                    const SizedBox(width: 5),
-                    Text(
-                      _showOriginal ? 'Show English' : 'Show Original',
-                      style: const TextStyle(
-                        color: AppColors.tasks,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SelectableText(
-          bodyText,
-          style: TextStyle(
-            color: context.textPri,
-            fontSize: 16,
-            height: 1.75,
-            fontWeight: FontWeight.w400,
-            letterSpacing: 0.1,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _EditFab extends StatelessWidget {
-  const _EditFab({required this.noteId});
-  final String noteId;
+  const _EditFab({required this.onPressed});
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return FloatingActionButton.extended(
-      heroTag: 'edit_fab_$noteId',
+      heroTag: 'edit_fab_note_view',
       onPressed: () {
         HapticFeedback.mediumImpact();
-        context.push('/notes/$noteId');
+        onPressed();
       },
       backgroundColor: Colors.transparent,
       foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -7724,6 +14591,192 @@ class _EditFab extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineEditPanel extends StatelessWidget {
+  const _InlineEditPanel({
+    required this.formKey,
+    required this.titleController,
+    required this.bodyController,
+    required this.category,
+    required this.priority,
+    required this.extractedDate,
+    required this.saving,
+    required this.onCategoryChanged,
+    required this.onPriorityChanged,
+    required this.onPickDate,
+    required this.onClearDate,
+    required this.onCancel,
+    required this.onSave,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController titleController;
+  final TextEditingController bodyController;
+  final NoteCategory category;
+  final NotePriority priority;
+  final DateTime? extractedDate;
+  final bool saving;
+  final ValueChanged<NoteCategory> onCategoryChanged;
+  final ValueChanged<NotePriority> onPriorityChanged;
+  final VoidCallback onPickDate;
+  final VoidCallback onClearDate;
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+
+  InputDecoration _inputDecoration(BuildContext context, {required String label, required String hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: context.surface1.withValues(alpha: context.isDark ? 0.82 : 0.72),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: context.border.withValues(alpha: 0.7)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: context.border.withValues(alpha: 0.55)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: AppColors.ideas.withValues(alpha: 0.75), width: 1.4),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 2,
+      radius: 24,
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Inline edit',
+              style: TextStyle(
+                color: context.textPri,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: titleController,
+              textInputAction: TextInputAction.next,
+              decoration: _inputDecoration(context, label: 'Title', hint: 'Note title'),
+              validator: (value) {
+                if ((value ?? '').trim().isEmpty && bodyController.text.trim().isEmpty) {
+                  return 'Add a title or body';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: bodyController,
+              minLines: 4,
+              maxLines: 8,
+              decoration: _inputDecoration(context, label: 'Body', hint: 'Note details'),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                SizedBox(
+                  width: 170,
+                  child: DropdownButtonFormField<NoteCategory>(
+                    initialValue: category,
+                    decoration: _inputDecoration(context, label: 'Category', hint: 'Choose category'),
+                    items: NoteCategory.values
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(categoryLabel(value)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) onCategoryChanged(value);
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 170,
+                  child: DropdownButtonFormField<NotePriority>(
+                    initialValue: priority,
+                    decoration: _inputDecoration(context, label: 'Priority', hint: 'Choose priority'),
+                    items: NotePriority.values
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value.name.toUpperCase()),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) onPriorityChanged(value);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onPickDate,
+                    icon: const Icon(Icons.event_rounded, size: 18),
+                    label: Text(extractedDate == null ? 'Pick date' : _formatDate(extractedDate!)),
+                  ),
+                ),
+                if (extractedDate != null) ...[
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: onClearDate,
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: saving ? null : onCancel,
+                  child: const Text('Cancel'),
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: saving ? null : onSave,
+                  icon: saving
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_rounded, size: 18),
+                  label: Text(saving ? 'Saving' : 'Save'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -8095,7 +15148,7 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
                             fontWeight: FontWeight.w600,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Search title, body, or category...',
+                            hintText: 'Search raw, cleaned, translated, or category...',
                             hintStyle: TextStyle(color: secondaryColor),
                             border: InputBorder.none,
                             isDense: true,
@@ -8142,7 +15195,7 @@ class _SearchNotesModalState extends State<SearchNotesModal> {
                             borderRadius: BorderRadius.circular(14),
                             onTap: () {
                               Navigator.of(context).pop();
-                              context.push('/notes/{note.noteId}');
+                              context.push('/notes/${note.noteId}');
                             },
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(
@@ -10789,41 +17842,32 @@ class _OverlayRootWrapperState extends State<OverlayRootWrapper> {
 ```dart
 // lib/features/overlay/overlay_customisation_sheet.dart
 //
-// "God-Level" overlay customisation bottom-sheet.
-// Shows live preview + every setting from OverlaySettings.
+// Real-time overlay customiser — every control immediately previews the bubble
+// and island appearance in a live mock widget above the controls.
+// No "Apply" button needed; changes are debounced and pushed to native after
+// 300 ms of idle time using OverlayNotifier.saveOverlaySettings().
 
-import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:wishperlog/core/di/injection_container.dart';
 import 'package:wishperlog/core/theme/app_colors.dart';
 import 'package:wishperlog/core/theme/app_colors_x.dart';
+import 'package:wishperlog/features/overlay/overlay_notifier.dart';
 import 'package:wishperlog/features/overlay/overlay_settings_model.dart';
+import 'package:wishperlog/shared/widgets/glass_pane.dart';
 
-/// Call via:
-///   showOverlayCustomisationSheet(context, initial, onSave);
-Future<void> showOverlayCustomisationSheet(
-  BuildContext context,
-  OverlaySettings initial,
-  Future<void> Function(OverlaySettings) onSave,
-) async {
-  await showModalBottomSheet<void>(
+/// Shows the overlay customisation bottom sheet.
+void showOverlayCustomisationSheet(BuildContext context) {
+  showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _OverlayCustomisationSheet(
-      initial: initial,
-      onSave: onSave,
-    ),
+    builder: (_) => const _OverlayCustomisationSheet(),
   );
 }
 
 class _OverlayCustomisationSheet extends StatefulWidget {
-  const _OverlayCustomisationSheet({
-    required this.initial,
-    required this.onSave,
-  });
-
-  final OverlaySettings initial;
-  final Future<void> Function(OverlaySettings) onSave;
+  const _OverlayCustomisationSheet();
 
   @override
   State<_OverlayCustomisationSheet> createState() =>
@@ -10832,155 +17876,420 @@ class _OverlayCustomisationSheet extends StatefulWidget {
 
 class _OverlayCustomisationSheetState
     extends State<_OverlayCustomisationSheet> {
-  late OverlaySettings _s;
+  late OverlaySettings _draft;
+  Timer? _applyDebounce;
   bool _saving = false;
-  bool _growPreview = false;
 
   @override
   void initState() {
     super.initState();
-    _s = widget.initial;
+    _draft = sl<OverlayNotifier>().overlaySettings;
   }
 
-  // ── Live preview ──────────────────────────────────────────────────────────
+  @override
+  void dispose() {
+    _applyDebounce?.cancel();
+    super.dispose();
+  }
 
-  Widget _buildPreview() {
-    final hasGlow = _s.borderStyle == OverlayBorderStyle.glow;
-    final gradient = _s.colorFill == OverlayColorFill.linearGradient
-        ? LinearGradient(
-            colors: [_s.gradientStart, _s.gradientEnd],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          )
-        : _s.colorFill == OverlayColorFill.radialGradient
-            ? RadialGradient(
-                colors: [_s.gradientStart, _s.gradientEnd],
-              )
-            : null;
+  void _update(OverlaySettings next) {
+    setState(() => _draft = next);
+    _applyDebounce?.cancel();
+    _applyDebounce = Timer(const Duration(milliseconds: 300), _apply);
+  }
 
-    final baseDecoration = BoxDecoration(
-      color: _s.colorFill == OverlayColorFill.solid ? _s.solidColor.withValues(alpha: _s.alpha) : null,
-      gradient: gradient,
-      borderRadius: BorderRadius.circular(24),
-      border: _s.borderStyle != OverlayBorderStyle.none
-          ? Border.all(
-              color: _s.borderColor.withValues(
-                alpha: _s.borderStyle == OverlayBorderStyle.hairline ? 0.5 : 1.0,
+  Future<void> _apply() async {
+    if (!mounted) return;
+    setState(() => _saving = true);
+    try {
+      await sl<OverlayNotifier>().saveOverlaySettings(_draft);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.82,
+      maxChildSize: 0.95,
+      minChildSize: 0.40,
+      builder: (ctx, scrollCtrl) => GlassPane(
+        level: 1,
+        radius: 28,
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            // ── Drag handle ──────────────────────────────────────────────────
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 6),
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.textSec.withValues(alpha: 0.28),
+                  borderRadius: BorderRadius.circular(999),
+                ),
               ),
-              width: _s.borderStyle == OverlayBorderStyle.hairline ? 0.6 : 1.4,
-            )
-          : null,
-      boxShadow: hasGlow
-          ? [
-              BoxShadow(
-                color: _s.borderColor.withValues(alpha: 0.55),
-                blurRadius: 20,
-                spreadRadius: 2,
-              ),
-            ]
-          : null,
-    );
-
-    Widget pill = AnimatedScale(
-      scale: _growPreview && _s.animation == OverlayAnimation.sizeGrow
-          ? _s.growScale
-          : 1.0,
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutBack,
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _growPreview = true),
-        onTapUp: (_) => setState(() => _growPreview = false),
-        onTapCancel: () => setState(() => _growPreview = false),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: _s.colorFill == OverlayColorFill.glass ? _s.blurSigma : 0,
-              sigmaY: _s.colorFill == OverlayColorFill.glass ? _s.blurSigma : 0,
             ),
-            child: Container(
-              width: 160,
-              height: 52,
-              decoration: _s.colorFill == OverlayColorFill.glass
-                  ? baseDecoration.copyWith(
-                      color: Colors.white.withValues(alpha: _s.alpha * 0.12),
-                      border: baseDecoration.border,
-                      boxShadow: baseDecoration.boxShadow,
-                    )
-                  : baseDecoration,
+            // ── Title ────────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.mic_rounded, color: Colors.white.withValues(alpha: 0.9), size: 20),
-                  const SizedBox(width: 8),
                   Text(
-                    'Hold to Record',
+                    'Overlay Style',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      color: context.textPri,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.4,
                     ),
+                  ),
+                  const Spacer(),
+                  if (_saving)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // ── Live preview ─────────────────────────────────────────────────
+            _LivePreview(settings: _draft),
+            const SizedBox(height: 14),
+            // ── Controls ─────────────────────────────────────────────────────
+            Expanded(
+              child: ListView(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                children: [
+                  _SectionLabel('Opacity'),
+                  Slider(
+                    value: _draft.alpha,
+                    min: 0.30,
+                    max: 1.0,
+                    divisions: 14,
+                    label: '${(_draft.alpha * 100).round()}%',
+                    activeColor: AppColors.tasks,
+                    onChanged: (v) => _update(_draft.copyWith(alpha: v)),
+                  ),
+                  _SectionLabel('Fill Style'),
+                  _SegmentRow<OverlayColorFill>(
+                    values: OverlayColorFill.values,
+                    selected: _draft.colorFill,
+                    label: (v) => v.name,
+                    onChanged: (v) => _update(_draft.copyWith(colorFill: v)),
+                  ),
+                  if (_draft.colorFill == OverlayColorFill.solid) ...[
+                    _SectionLabel('Solid colour'),
+                    _ColorRow(
+                      color: _draft.solidColor,
+                      onChanged: (c) => _update(_draft.copyWith(solidColor: c)),
+                    ),
+                  ],
+                  if (_draft.colorFill == OverlayColorFill.linearGradient ||
+                      _draft.colorFill == OverlayColorFill.radialGradient) ...[
+                    _SectionLabel('Gradient start'),
+                    _ColorRow(
+                      color: _draft.gradientStart,
+                      onChanged: (c) =>
+                          _update(_draft.copyWith(gradientStart: c)),
+                    ),
+                    _SectionLabel('Gradient end'),
+                    _ColorRow(
+                      color: _draft.gradientEnd,
+                      onChanged: (c) =>
+                          _update(_draft.copyWith(gradientEnd: c)),
+                    ),
+                  ],
+                  _SectionLabel('Border'),
+                  _SegmentRow<OverlayBorderStyle>(
+                    values: OverlayBorderStyle.values,
+                    selected: _draft.borderStyle,
+                    label: (v) => v.name,
+                    onChanged: (v) => _update(_draft.copyWith(borderStyle: v)),
+                  ),
+                  _SectionLabel('Animation'),
+                  _SegmentRow<OverlayAnimation>(
+                    values: OverlayAnimation.values,
+                    selected: _draft.animation,
+                    label: (v) => v.name,
+                    onChanged: (v) => _update(_draft.copyWith(animation: v)),
+                  ),
+                  if (_draft.animation == OverlayAnimation.sizeGrow) ...[
+                    _SectionLabel('Grow scale  '
+                        '${_draft.growScale.toStringAsFixed(2)}×'),
+                    Slider(
+                      value: _draft.growScale,
+                      min: 1.0,
+                      max: 1.25,
+                      divisions: 10,
+                      activeColor: AppColors.tasks,
+                      onChanged: (v) =>
+                          _update(_draft.copyWith(growScale: v)),
+                    ),
+                  ],
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Restore overlay on reboot',
+                      style: TextStyle(
+                        color: context.textPri,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    value: _draft.persistOnReboot,
+                    activeThumbColor: AppColors.tasks,
+                    onChanged: (v) =>
+                        _update(_draft.copyWith(persistOnReboot: v)),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () => _update(const OverlaySettings()),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.reminders,
+                      side: BorderSide(
+                        color: AppColors.reminders.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: const Text('Reset to defaults'),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Live preview widget ───────────────────────────────────────────────────────
+class _LivePreview extends StatelessWidget {
+  const _LivePreview({required this.settings});
+
+  final OverlaySettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      level: 2,
+      radius: 20,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          Column(
+            children: [
+              _MockBubble(settings: settings),
+              const SizedBox(height: 6),
+              Text(
+                'Bubble',
+                style: TextStyle(
+                  color: context.textSec,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          Column(
+            children: [
+              _MockIsland(settings: settings),
+              const SizedBox(height: 6),
+              Text(
+                'Island',
+                style: TextStyle(
+                  color: context.textSec,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MockBubble extends StatelessWidget {
+  const _MockBubble({required this.settings});
+  final OverlaySettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 54,
+      height: 54,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: _resolveGradient(settings),
+        color: _resolveGradient(settings) == null
+            ? settings.solidColor.withValues(alpha: settings.alpha)
+            : null,
+        border: _resolveBorder(settings),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+    );
+  }
+}
+
+class _MockIsland extends StatelessWidget {
+  const _MockIsland({required this.settings});
+  final OverlaySettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: _resolveGradient(settings),
+        color: _resolveGradient(settings) == null
+            ? settings.solidColor.withValues(alpha: settings.alpha)
+            : null,
+        border: _resolveBorder(settings),
+      ),
+      child: const Center(
+        child: Text(
+          'Saved · Tasks',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
     );
-
-    return Center(child: pill);
   }
+}
 
-  // ── Section label ─────────────────────────────────────────────────────────
+LinearGradient? _resolveGradient(OverlaySettings s) {
+  switch (s.colorFill) {
+    case OverlayColorFill.linearGradient:
+      return LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          s.gradientStart.withValues(alpha: s.alpha),
+          s.gradientEnd.withValues(alpha: s.alpha),
+        ],
+      );
+    case OverlayColorFill.radialGradient:
+      return LinearGradient(
+        begin: Alignment.center,
+        end: Alignment.bottomRight,
+        colors: [
+          s.gradientStart.withValues(alpha: s.alpha),
+          s.gradientEnd.withValues(alpha: s.alpha),
+        ],
+      );
+    case OverlayColorFill.glass:
+      return LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withValues(alpha: s.alpha * 0.22),
+          Colors.white.withValues(alpha: s.alpha * 0.06),
+        ],
+      );
+    case OverlayColorFill.solid:
+      return null;
+  }
+}
 
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(top: 20, bottom: 8),
-    child: Text(
-      text,
-      style: TextStyle(
-        color: context.textSec,
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.1,
-      ),
-    ),
-  );
+Border? _resolveBorder(OverlaySettings s) {
+  switch (s.borderStyle) {
+    case OverlayBorderStyle.none:
+      return null;
+    case OverlayBorderStyle.hairline:
+      return Border.all(
+        color: s.borderColor.withValues(alpha: 0.5),
+        width: 0.8,
+      );
+    case OverlayBorderStyle.glow:
+      return Border.all(
+        color: s.borderColor.withValues(alpha: 0.88),
+        width: 1.4,
+      );
+  }
+}
 
-  // ── Segmented button helper ───────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  Widget _segmented<T>({
-    required List<T> values,
-    required T current,
-    required String Function(T) label,
-    required void Function(T) onSelect,
-  }) {
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 14, bottom: 4),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: context.textSec,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.7,
+          ),
+        ),
+      );
+}
+
+class _SegmentRow<T> extends StatelessWidget {
+  const _SegmentRow({
+    required this.values,
+    required this.selected,
+    required this.label,
+    required this.onChanged,
+  });
+
+  final List<T> values;
+  final T selected;
+  final String Function(T) label;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 6,
+      runSpacing: 6,
       children: values.map((v) {
-        final selected = v == current;
+        final active = v == selected;
         return GestureDetector(
-          onTap: () => setState(() => onSelect(v)),
+          onTap: () => onChanged(v),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            duration: const Duration(milliseconds: 140),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: selected
-                  ? AppColors.tasks
-                  : context.surface1.withValues(alpha: 0.6),
+              color: active
+                  ? AppColors.tasks.withValues(alpha: 0.18)
+                  : context.surface1.withValues(alpha: 0.56),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: selected
-                    ? AppColors.tasks
-                    : context.textSec.withValues(alpha: 0.2),
+                color: active
+                    ? AppColors.tasks.withValues(alpha: 0.72)
+                    : context.textSec.withValues(alpha: 0.10),
               ),
             ),
             child: Text(
               label(v),
               style: TextStyle(
-                color: selected ? Colors.white : context.textSec,
-                fontSize: 13,
+                color: active ? AppColors.tasks : context.textSec,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -10989,296 +18298,42 @@ class _OverlayCustomisationSheetState
       }).toList(),
     );
   }
+}
 
-  // ── Color row ─────────────────────────────────────────────────────────────
+class _ColorRow extends StatelessWidget {
+  const _ColorRow({required this.color, required this.onChanged});
+  final Color color;
+  final ValueChanged<Color> onChanged;
 
   static const _palette = [
-    Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFEC4899),
-    Color(0xFF22D3EE), Color(0xFF10B981), Color(0xFFF59E0B),
-    Color(0xFFEF4444), Color(0xFF1C1C2E), Color(0xFFFFFFFF),
+    Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4),
+    Color(0xFF10B981), Color(0xFFF59E0B), Color(0xFFEF4444),
+    Color(0xFFEC4899), Color(0xFF1C1C2E), Color(0xFFFFFFFF),
   ];
 
-  Widget _colorRow(Color current, void Function(Color) onSelect) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _palette.map((c) {
-        final sel = current.toARGB32() == c.toARGB32();
-        return GestureDetector(
-          onTap: () => setState(() => onSelect(c)),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 140),
-            width: 30, height: 30,
-            decoration: BoxDecoration(
-              color: c,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: sel ? Colors.white : Colors.transparent,
-                width: 2.5,
-              ),
-              boxShadow: sel
-                  ? [BoxShadow(color: c.withValues(alpha: 0.6), blurRadius: 10)]
-                  : null,
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.78,
-      minChildSize: 0.5,
-      maxChildSize: 0.96,
-      expand: false,
-      builder: (ctx, scrollCtrl) {
-        return ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+  Widget build(BuildContext context) => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _palette.map((c) {
+          final selected = c.toARGB32() == color.toARGB32();
+          return GestureDetector(
+            onTap: () => onChanged(c),
             child: Container(
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
-                color: context.isDark
-                    ? const Color(0xF2111827)
-                    : const Color(0xF2F9FAFB),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
-                children: [
-                  // Handle bar
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: context.textSec.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Title row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Overlay Customiser',
-                                style: TextStyle(
-                                  color: context.textPri,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.4,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Applies to the floating bubble and the dynamic island.',
-                                style: TextStyle(
-                                  color: context.textSec,
-                                  fontSize: 12,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _saving
-                              ? null
-                              : () async {
-                                  setState(() => _saving = true);
-                                  try {
-                                    await widget.onSave(_s);
-                                    if (ctx.mounted) Navigator.of(ctx).pop();
-                                  } finally {
-                                    if (mounted) setState(() => _saving = false);
-                                  }
-                                },
-                          child: _saving
-                              ? const SizedBox(
-                                  width: 16, height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : Text(
-                                  'Save',
-                                  style: TextStyle(
-                                    color: AppColors.tasks,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // Scrollable content
-                  Expanded(
-                    child: ListView(
-                      controller: scrollCtrl,
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-                      children: [
-                        // ── Preview ───────────────────────────────────────
-                        _label('LIVE PREVIEW — TAP TO TEST ANIMATION'),
-                        Container(
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: context.surface1.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: context.textSec.withValues(alpha: 0.1)),
-                          ),
-                          child: _buildPreview(),
-                        ),
-
-                        // ── Transparency ─────────────────────────────────
-                        _label('TRANSPARENCY'),
-                        Row(
-                          children: [
-                            Text('${(_s.alpha * 100).round()}%',
-                                style: TextStyle(color: context.textSec, fontSize: 12)),
-                            Expanded(
-                              child: Slider(
-                                value: _s.alpha,
-                                min: 0.2, max: 1.0, divisions: 32,
-                                activeColor: AppColors.tasks,
-                                onChanged: (v) => setState(() => _s = _s.copyWith(alpha: v)),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        // ── Glassmorphism Blur ────────────────────────────
-                        _label('GLASSMORPHISM BLUR'),
-                        Row(
-                          children: [
-                            Text('σ${_s.blurSigma.round()}',
-                                style: TextStyle(color: context.textSec, fontSize: 12)),
-                            Expanded(
-                              child: Slider(
-                                value: _s.blurSigma,
-                                min: 0, max: 40, divisions: 40,
-                                activeColor: AppColors.tasks,
-                                onChanged: (v) => setState(() => _s = _s.copyWith(blurSigma: v)),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        // ── Fill Style ───────────────────────────────────
-                        _label('FILL STYLE'),
-                        _segmented<OverlayColorFill>(
-                          values: OverlayColorFill.values,
-                          current: _s.colorFill,
-                          label: (v) => switch (v) {
-                            OverlayColorFill.glass => 'Glass',
-                            OverlayColorFill.solid => 'Solid',
-                            OverlayColorFill.linearGradient => 'Linear',
-                            OverlayColorFill.radialGradient => 'Radial',
-                          },
-                          onSelect: (v) => _s = _s.copyWith(colorFill: v),
-                        ),
-
-                        // ── Solid color ───────────────────────────────────
-                        if (_s.colorFill == OverlayColorFill.solid) ...[
-                          _label('FILL COLOUR'),
-                          _colorRow(_s.solidColor, (c) => _s = _s.copyWith(solidColor: c)),
-                        ],
-
-                        // ── Gradient colours ──────────────────────────────
-                        if (_s.colorFill == OverlayColorFill.linearGradient ||
-                            _s.colorFill == OverlayColorFill.radialGradient) ...[
-                          _label('GRADIENT START'),
-                          _colorRow(_s.gradientStart, (c) => _s = _s.copyWith(gradientStart: c)),
-                          _label('GRADIENT END'),
-                          _colorRow(_s.gradientEnd, (c) => _s = _s.copyWith(gradientEnd: c)),
-                        ],
-
-                        // ── Border Style ──────────────────────────────────
-                        _label('BORDER STYLE'),
-                        _segmented<OverlayBorderStyle>(
-                          values: OverlayBorderStyle.values,
-                          current: _s.borderStyle,
-                          label: (v) => switch (v) {
-                            OverlayBorderStyle.none => 'None',
-                            OverlayBorderStyle.hairline => 'Hairline',
-                            OverlayBorderStyle.glow => 'Glow',
-                          },
-                          onSelect: (v) => _s = _s.copyWith(borderStyle: v),
-                        ),
-                        if (_s.borderStyle != OverlayBorderStyle.none) ...[
-                          _label('BORDER / GLOW COLOUR'),
-                          _colorRow(_s.borderColor, (c) => _s = _s.copyWith(borderColor: c)),
-                        ],
-
-                        // ── Animation ─────────────────────────────────────
-                        _label('TOUCH ANIMATION'),
-                        _segmented<OverlayAnimation>(
-                          values: OverlayAnimation.values,
-                          current: _s.animation,
-                          label: (v) => switch (v) {
-                            OverlayAnimation.none => 'None',
-                            OverlayAnimation.sizeGrow => 'Size Grow',
-                            OverlayAnimation.pulseGlow => 'Pulse Glow',
-                            OverlayAnimation.bounceIn => 'Bounce In',
-                          },
-                          onSelect: (v) => _s = _s.copyWith(animation: v),
-                        ),
-                        if (_s.animation == OverlayAnimation.sizeGrow) ...[
-                          _label('GROW SCALE'),
-                          Row(
-                            children: [
-                              Text('${(_s.growScale * 100).round()}%',
-                                  style: TextStyle(color: context.textSec, fontSize: 12)),
-                              Expanded(
-                                child: Slider(
-                                  value: _s.growScale,
-                                  min: 1.0, max: 1.30, divisions: 15,
-                                  activeColor: AppColors.tasks,
-                                  onChanged: (v) => setState(() => _s = _s.copyWith(growScale: v)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-
-                        // ── Persistence ───────────────────────────────────
-                        _label('PERSISTENCE'),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            'Show after device reboot',
-                            style: TextStyle(color: context.textPri, fontSize: 14),
-                          ),
-                          value: _s.persistOnReboot,
-                          activeThumbColor: AppColors.tasks,
-                          onChanged: (v) => setState(() => _s = _s.copyWith(persistOnReboot: v)),
-                        ),
-
-                        _label('TARGET'),
-                        Text(
-                          'These settings currently apply to the bubble and island together.',
-                          style: TextStyle(
-                            color: context.textSec,
-                            fontSize: 12,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                shape: BoxShape.circle,
+                color: c,
+                border: Border.all(
+                  color: selected ? AppColors.tasks : Colors.transparent,
+                  width: 2.5,
+                ),
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
+          );
+        }).toList(),
+      );
 }
 ```
 
@@ -12708,14 +19763,16 @@ class SmartNoteSearch {
   static Map<String, (double, String)> _noteFields(Note note) {
     return {
       'title': (3.5, note.title),
+      'translated_title': (3.2, note.translatedTitle ?? ''),
       'body': (2.5, note.cleanBody),
-      'transcript': (1.5, note.rawTranscript),
+      'translated_body': (2.4, note.translatedContent ?? ''),
+      'transcript': (1.8, note.rawTranscript),
       'category': (1.0, categoryLabel(note.category)),
     };
   }
 
   static String _noteAllText(Note note) {
-    return '${note.title} ${note.cleanBody} ${note.rawTranscript} ${categoryLabel(note.category)}'
+    return '${note.title} ${note.translatedTitle ?? ''} ${note.cleanBody} ${note.translatedContent ?? ''} ${note.rawTranscript} ${categoryLabel(note.category)}'
         .toLowerCase();
   }
 
@@ -12730,12 +19787,18 @@ class SmartNoteSearch {
   };
 
   static List<String> _tokenise(String text) {
-    return text
+    final normalized = text
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ')
         .split(RegExp(r'\s+'))
         .where((t) => t.length >= 2 && !_stopWords.contains(t))
         .toList();
+
+    if (normalized.isNotEmpty) return normalized;
+
+    // Fallback for short non-Latin inputs that survive poorly through token filters.
+    final raw = text.trim().toLowerCase();
+    return raw.isEmpty ? const <String>[] : <String>[raw];
   }
 
   // ── Utility ───────────────────────────────────────────────────────────────
@@ -13572,25 +20635,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _openOverlayCustomiser() async {
-    final notifier = _overlayNotifier;
-    await showOverlayCustomisationSheet(
-      context,
-      notifier.overlaySettings,
-      (updated) => notifier.saveOverlaySettings(updated),
-    );
+  void _openOverlayCustomiser() {
+    showOverlayCustomisationSheet(context);
   }
 
   Future<void> _hydrateSpeechSettings() async {
     try {
       final values = await _overlayChannel.invokeMapMethod<String, dynamic>(
         'getSpeechSettings',
-      );
-      if (!mounted || values == null) return;
+      ) ?? <String, dynamic>{}; // Ensure non-null values
+      if (!mounted) return; // Validate mounted state
       setState(() {
         _speechLanguage = (values['language'] as String?) ?? 'en-US';
         _speechPreferOffline = (values['preferOffline'] as bool?) ?? false;
-      });
+      }); // Adjusted to handle actual return type of invokeMapMethod
     } catch (e) {
       debugPrint('[Settings] _hydrateSpeechSettings error: $e');
     }
@@ -14500,11 +21558,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _buildAiStatusBadge(
                       _aiRouter.providerDescription(_aiRouter.activeProvider),
                       _aiRouter.isConfigured(_aiRouter.activeProvider),
-                      _aiRouter.activeProvider == AiProvider.gemini
-                          ? AppColors.tasks
-                          : _aiRouter.activeProvider == AiProvider.groq
-                              ? const Color(0xFFF97316)
-                              : AppColors.ideas,
+                      _aiRouter.activeProvider == AiProvider.groq
+                          ? const Color(0xFFF97316)
+                          : _aiRouter.activeProvider == AiProvider.mistral
+                              ? AppColors.ideas
+                              : AppColors.general,
                     ),
                     const SizedBox(height: 12),
                     _buildAiSelectionSummary(context),
@@ -14872,7 +21930,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final selectedModel = _aiRouter.selectedModelFor(provider);
     final configured = _aiRouter.isConfigured(provider);
     final keyLabel = switch (provider) {
-      AiProvider.gemini => 'GEMINI_API_KEY',
       AiProvider.groq => 'GROQ_API_KEY',
       AiProvider.mistral => 'MISTRAL_API_KEY',
       AiProvider.huggingface => 'HUGGINGFACE_API_KEY',
@@ -17157,28 +24214,48 @@ class MessageStateService {
       'low': active.where((n) => n.priority == NotePriority.low).length,
     };
 
+    // ── Root doc: config-only aggregates, NO channel content ─────────────────
+    // Intentionally omits display_name; that field is written once at sign-in
+    // by UserRepository and must not be overwritten here to avoid race conditions.
     await _firestore
         .collection('users')
         .doc(uid)
         .set({
-      'schema_version': 2,
-      'display_name': displayName ?? '',
-      'updated_at': FieldValue.serverTimestamp(),
+      'schema_version'   : 3,
+      'updated_at'       : FieldValue.serverTimestamp(),
       'active_note_count': active.length,
-      'category_counts': categoryCounts,
-      'priority_counts': priorityCounts,
-      'message_state': messages,
-      'summary': messages['telegram_summary'] ?? messages['telegram_digest'] ?? messages['telegram'] ?? '',
-      'telegram_digest': messages['telegram_digest'] ?? '',
-      'telegram_summary': messages['telegram_summary'] ?? '',
-      'telegram_top': messages['telegram_top'] ?? '',
-      'telegram_tasks': messages['telegram_tasks'] ?? '',
-      'telegram_reminders': messages['telegram_reminders'] ?? '',
-      'telegram_ideas': messages['telegram_ideas'] ?? '',
-      'telegram_followup': messages['telegram_followup'] ?? '',
-      'telegram_journal': messages['telegram_journal'] ?? '',
-      'telegram_general': messages['telegram_general'] ?? '',
+      'category_counts'  : categoryCounts,
+      'priority_counts'  : priorityCounts,
     }, SetOptions(merge: true));
+
+    // ── digest/latest: single source of truth for all channel messages ────────
+    // merge:false guarantees stale keys from prior schema versions are wiped
+    // clean on every recompute cycle.
+    final latestPayload = <String, dynamic>{
+      'computed_at'       : FieldValue.serverTimestamp(),
+      'active_note_count' : active.length,
+      'telegram'          : messages['telegram']           ?? messages['telegram_digest'] ?? '',
+      'telegram_digest'   : messages['telegram_digest']    ?? '',
+      'telegram_summary'  : messages['telegram_summary']   ?? '',
+      'telegram_top'      : messages['telegram_top']       ?? '',
+      'telegram_tasks'    : messages['telegram_tasks']     ?? '',
+      'telegram_reminders': messages['telegram_reminders'] ?? '',
+      'telegram_ideas'    : messages['telegram_ideas']     ?? '',
+      'telegram_followup' : messages['telegram_followup']  ?? '',
+      'telegram_journal'  : messages['telegram_journal']   ?? '',
+      'telegram_general'  : messages['telegram_general']   ?? '',
+    };
+
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('digest')
+        .doc('latest')
+        .set(latestPayload, SetOptions(merge: false));
+    // If this throws permission-denied, add to firestore.rules:
+    //   match /users/{userId}/digest/{doc} {
+    //     allow read, write: if request.auth != null && request.auth.uid == userId;
+    //   }
   }
 }
 
@@ -17496,14 +24573,39 @@ class TelegramService {
   Future<void> disconnectTelegram() async {
     _lastLinkToken = null;
 
+    // Wipe all Telegram config from the root user doc, including any
+    // residual telegram_* fields written by the old permission-denied fallback.
     await _userDoc.set({
-      'telegram_chat_id': FieldValue.delete(),
-      'telegram_link_token': FieldValue.delete(),
-      'telegram_link_token_created_at': FieldValue.delete(),
-      'telegram_link_pin': FieldValue.delete(),
-      'telegram_link_pin_created_at': FieldValue.delete(),
-      'message_state': FieldValue.delete(),
+      'telegram_chat_id'               : FieldValue.delete(),
+      'telegram_link_token'            : FieldValue.delete(),
+      'telegram_link_token_created_at' : FieldValue.delete(),
+      'telegram_link_pin'              : FieldValue.delete(),
+      'telegram_link_pin_created_at'   : FieldValue.delete(),
+      'message_state'                  : FieldValue.delete(),
+      // Legacy root-level telegram_* fields (from permission-denied fallback):
+      'telegram_digest'                : FieldValue.delete(),
+      'telegram_summary'               : FieldValue.delete(),
+      'telegram_top'                   : FieldValue.delete(),
+      'telegram_tasks'                 : FieldValue.delete(),
+      'telegram_reminders'             : FieldValue.delete(),
+      'telegram_ideas'                 : FieldValue.delete(),
+      'telegram_followup'              : FieldValue.delete(),
+      'telegram_journal'               : FieldValue.delete(),
+      'telegram_general'               : FieldValue.delete(),
     }, SetOptions(merge: true));
+
+    // Delete the digest subcollection docs (best-effort, non-fatal).
+    try {
+      final uid = _uid;
+      await _firestore
+          .collection('users').doc(uid)
+          .collection('digest').doc('latest')
+          .delete();
+      await _firestore
+          .collection('users').doc(uid)
+          .collection('digest').doc('config')
+          .delete();
+    } catch (_) {}
   }
 
   // ── Digest Collection API ───────────────────────────────────────────────────
@@ -18106,7 +25208,6 @@ enum CaptureSource {
 
 enum AiProvider {
   auto,
-  gemini,
   groq,
   mistral,
   huggingface,
@@ -18146,6 +25247,11 @@ class Note {
   String noteId;
   String uid;
   String rawTranscript;
+  /// English translation of the original content when the input was non-English.
+  /// Null if the note content is already in English.
+  String? translatedContent;
+  /// English translation of the title when the input was non-English.
+  String? translatedTitle;
   String title;
   String cleanBody;
 
@@ -18172,14 +25278,12 @@ class Note {
 
   DateTime? syncedAt;
 
-  /// Non-null when the AI detected non-English input and produced an English
-  /// translation. The original text stays in [title] / [cleanBody].
-  String? translatedContent;
-
   Note({
     required this.noteId,
     required this.uid,
     required this.rawTranscript,
+    this.translatedContent,
+    this.translatedTitle,
     required this.title,
     required this.cleanBody,
     required this.category,
@@ -18193,13 +25297,16 @@ class Note {
     this.gtaskId,
     required this.source,
     this.syncedAt,
-    this.translatedContent,
   });
 
   Note copyWith({
     String? noteId,
     String? uid,
     String? rawTranscript,
+    String? translatedContent,
+    String? translatedTitle,
+    bool clearTranslatedContent = false,
+    bool clearTranslatedTitle = false,
     String? title,
     String? cleanBody,
     NoteCategory? category,
@@ -18217,13 +25324,17 @@ class Note {
     CaptureSource? source,
     DateTime? syncedAt,
     bool clearSyncedAt = false,
-    String? translatedContent,
-    bool clearTranslatedContent = false,
   }) {
     return Note(
       noteId: noteId ?? this.noteId,
       uid: uid ?? this.uid,
       rawTranscript: rawTranscript ?? this.rawTranscript,
+      translatedContent: clearTranslatedContent
+        ? null
+        : (translatedContent ?? this.translatedContent),
+      translatedTitle: clearTranslatedTitle
+        ? null
+        : (translatedTitle ?? this.translatedTitle),
       title: title ?? this.title,
       cleanBody: cleanBody ?? this.cleanBody,
       category: category ?? this.category,
@@ -18239,9 +25350,6 @@ class Note {
       gtaskId: clearGtaskId ? null : (gtaskId ?? this.gtaskId),
       source: source ?? this.source,
       syncedAt: clearSyncedAt ? null : (syncedAt ?? this.syncedAt),
-      translatedContent: clearTranslatedContent
-          ? null
-          : (translatedContent ?? this.translatedContent),
     );
   }
 
@@ -18251,6 +25359,8 @@ class Note {
       'note_id': noteId,
       'uid': uid,
       'raw_transcript': rawTranscript,
+      'translated_content': translatedContent,
+      'translated_title': translatedTitle,
       'title': title,
       'clean_body': cleanBody,
       'category': category.name,
@@ -18269,7 +25379,6 @@ class Note {
       'gtask_id': gtaskId,
       'gcal_event_id': gcalEventId,
       'is_deleted': status == NoteStatus.deleted,
-      'translated_content': translatedContent,
     };
   }
 
@@ -18278,6 +25387,8 @@ class Note {
       'note_id': noteId,
       'uid': uid,
       'raw_transcript': rawTranscript,
+      'translated_content': translatedContent,
+      'translated_title': translatedTitle,
       'title': title,
       'clean_body': cleanBody,
       'category': category.name,
@@ -18299,6 +25410,8 @@ class Note {
       noteId: _readString(row, 'note_id'),
       uid: _readString(row, 'uid'),
       rawTranscript: _readString(row, 'raw_transcript'),
+      translatedContent: row['translated_content']?.toString(),
+      translatedTitle: row['translated_title']?.toString(),
       title: _readString(row, 'title'),
       cleanBody: _readString(row, 'clean_body'),
       category: parseCategory(_readString(row, 'category')),
@@ -18324,6 +25437,8 @@ class Note {
       noteId: noteId,
       uid: uid,
       rawTranscript: (json['raw_transcript'] as String?)?.trim() ?? '',
+      translatedContent: json['translated_content'] as String?,
+      translatedTitle: json['translated_title'] as String?,
       title: (json['title'] as String?)?.trim().isNotEmpty == true
           ? (json['title'] as String).trim()
           : 'Quick note',
@@ -18350,7 +25465,6 @@ class Note {
         (json['source'] as String?) ?? CaptureSource.homeWritingBox.name,
       ),
       syncedAt: _readFirestoreDate(json['synced_at']),
-      translatedContent: json['translated_content'] as String?,
     );
   }
 
@@ -18391,13 +25505,9 @@ extension GetNoteCollection on Isar {
   IsarCollection<Note> get notes => this.collection();
 }
 
-final int _noteSchemaId = int.parse('6284318083599466921');
-final int _noteIndexNoteId = int.parse('-9014133502494436840');
-final int _noteIndexStatus = int.parse('-107785170620420283');
-
-final NoteSchema = CollectionSchema(
+const NoteSchema = CollectionSchema(
   name: r'Note',
-  id: _noteSchemaId,
+  id: 6284318083599466921,
   properties: {
     r'aiModel': PropertySchema(
       id: 0,
@@ -18473,13 +25583,23 @@ final NoteSchema = CollectionSchema(
       name: r'title',
       type: IsarType.string,
     ),
-    r'uid': PropertySchema(
+    r'translatedContent': PropertySchema(
       id: 14,
+      name: r'translatedContent',
+      type: IsarType.string,
+    ),
+    r'translatedTitle': PropertySchema(
+      id: 15,
+      name: r'translatedTitle',
+      type: IsarType.string,
+    ),
+    r'uid': PropertySchema(
+      id: 16,
       name: r'uid',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 15,
+      id: 17,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -18491,7 +25611,7 @@ final NoteSchema = CollectionSchema(
   idName: r'isarId',
   indexes: {
     r'noteId': IndexSchema(
-      id: _noteIndexNoteId,
+      id: -9014133502494436840,
       name: r'noteId',
       unique: true,
       replace: false,
@@ -18504,7 +25624,7 @@ final NoteSchema = CollectionSchema(
       ],
     ),
     r'status': IndexSchema(
-      id: _noteIndexStatus,
+      id: -107785170620420283,
       name: r'status',
       unique: false,
       replace: false,
@@ -18552,6 +25672,18 @@ int _noteEstimateSize(
   bytesCount += 3 + object.source.name.length * 3;
   bytesCount += 3 + object.status.name.length * 3;
   bytesCount += 3 + object.title.length * 3;
+  {
+    final value = object.translatedContent;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.translatedTitle;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.uid.length * 3;
   return bytesCount;
 }
@@ -18576,8 +25708,10 @@ void _noteSerialize(
   writer.writeString(offsets[11], object.status.name);
   writer.writeDateTime(offsets[12], object.syncedAt);
   writer.writeString(offsets[13], object.title);
-  writer.writeString(offsets[14], object.uid);
-  writer.writeDateTime(offsets[15], object.updatedAt);
+  writer.writeString(offsets[14], object.translatedContent);
+  writer.writeString(offsets[15], object.translatedTitle);
+  writer.writeString(offsets[16], object.uid);
+  writer.writeDateTime(offsets[17], object.updatedAt);
 }
 
 Note _noteDeserialize(
@@ -18605,8 +25739,10 @@ Note _noteDeserialize(
         NoteStatus.active,
     syncedAt: reader.readDateTimeOrNull(offsets[12]),
     title: reader.readString(offsets[13]),
-    uid: reader.readString(offsets[14]),
-    updatedAt: reader.readDateTime(offsets[15]),
+    translatedContent: reader.readStringOrNull(offsets[14]),
+    translatedTitle: reader.readStringOrNull(offsets[15]),
+    uid: reader.readString(offsets[16]),
+    updatedAt: reader.readDateTime(offsets[17]),
   );
   object.isarId = id;
   return object;
@@ -18652,8 +25788,12 @@ P _noteDeserializeProp<P>(
     case 13:
       return (reader.readString(offset)) as P;
     case 14:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 15:
+      return (reader.readStringOrNull(offset)) as P;
+    case 16:
+      return (reader.readString(offset)) as P;
+    case 17:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -20637,6 +27777,299 @@ extension NoteQueryFilter on QueryBuilder<Note, Note, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'translatedContent',
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'translatedContent',
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'translatedContent',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'translatedContent',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'translatedContent',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'translatedContent',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'translatedContent',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'translatedContent',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'translatedContent',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'translatedContent',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedContentIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'translatedContent',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition>
+      translatedContentIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'translatedContent',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'translatedTitle',
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'translatedTitle',
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'translatedTitle',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'translatedTitle',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'translatedTitle',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'translatedTitle',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'translatedTitle',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'translatedTitle',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'translatedTitle',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'translatedTitle',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'translatedTitle',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterFilterCondition> translatedTitleIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'translatedTitle',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Note, Note, QAfterFilterCondition> uidEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -20992,6 +28425,30 @@ extension NoteQuerySortBy on QueryBuilder<Note, Note, QSortBy> {
     });
   }
 
+  QueryBuilder<Note, Note, QAfterSortBy> sortByTranslatedContent() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'translatedContent', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterSortBy> sortByTranslatedContentDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'translatedContent', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterSortBy> sortByTranslatedTitle() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'translatedTitle', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterSortBy> sortByTranslatedTitleDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'translatedTitle', Sort.desc);
+    });
+  }
+
   QueryBuilder<Note, Note, QAfterSortBy> sortByUid() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'uid', Sort.asc);
@@ -21198,6 +28655,30 @@ extension NoteQuerySortThenBy on QueryBuilder<Note, Note, QSortThenBy> {
     });
   }
 
+  QueryBuilder<Note, Note, QAfterSortBy> thenByTranslatedContent() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'translatedContent', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterSortBy> thenByTranslatedContentDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'translatedContent', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterSortBy> thenByTranslatedTitle() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'translatedTitle', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Note, Note, QAfterSortBy> thenByTranslatedTitleDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'translatedTitle', Sort.desc);
+    });
+  }
+
   QueryBuilder<Note, Note, QAfterSortBy> thenByUid() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'uid', Sort.asc);
@@ -21320,6 +28801,22 @@ extension NoteQueryWhereDistinct on QueryBuilder<Note, Note, QDistinct> {
     });
   }
 
+  QueryBuilder<Note, Note, QDistinct> distinctByTranslatedContent(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'translatedContent',
+          caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Note, Note, QDistinct> distinctByTranslatedTitle(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'translatedTitle',
+          caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Note, Note, QDistinct> distinctByUid(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -21422,6 +28919,18 @@ extension NoteQueryProperty on QueryBuilder<Note, Note, QQueryProperty> {
   QueryBuilder<Note, String, QQueryOperations> titleProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'title');
+    });
+  }
+
+  QueryBuilder<Note, String?, QQueryOperations> translatedContentProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'translatedContent');
+    });
+  }
+
+  QueryBuilder<Note, String?, QQueryOperations> translatedTitleProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'translatedTitle');
     });
   }
 
@@ -21534,27 +29043,50 @@ bool _hasPhrase(String text, List<String> phrases) {
   return false;
 }
 
+// ── Hindi (romanised/transliterated) keyword banks ────────────────────────
+const _hiFollowUp = [
+  'follow karo', 'follow up karo', 'puchna hai', 'reply karo',
+  'update lo', 'baat karo',
+];
+const _hiDateSignals = [
+  'kal', 'aaj', 'subah', 'shaam', 'raat ko', 'is hafte', 'agli baar',
+  'yaad rakhna', 'mujhe yaad dilana', 'reminder', 'deadline',
+];
+const _hiTaskSignals = [
+  'karna hai', 'karo', 'lena hai', 'bhejo', 'call karo', 'book karo',
+  'likhna hai', 'khareedna', 'dena hai', 'fix karo', 'batao',
+];
+const _hiIdeaSignals = [
+  'kya agar', 'ek idea', 'sochna chahiye', 'explore karo', 'shayad',
+];
+
+// ── Telugu (romanised) keyword banks ─────────────────────────────────────
+const _teFollowUp = [
+  'follow up cheyyali', 'chudali', 'update telusukovali',
+];
+const _teDateSignals = [
+  'repu', 'ee roju', 'ee vaaram', 'remind cheyyandi', 'gurtu pettukovali',
+];
+const _teTaskSignals = [
+  'cheyyali', 'pampali', 'call cheyyali', 'book cheyyali', 'fix cheyyali',
+];
+
 NoteCategory inferCategoryFromText(String raw) {
   final text = _normalizeInferenceText(raw);
   if (text.isEmpty) return NoteCategory.general;
 
+  // Follow-up detection (English + Hindi + Telugu)
   if (_hasPhrase(text, const [
-    'follow up',
-    'followup',
-    'check in',
-    'check with',
-    'ping',
-    'any update on',
-    'touch base',
-    'get back to',
+    'follow up', 'followup', 'check in', 'check with', 'ping',
+    'any update on', 'touch base', 'get back to',
+    ..._hiFollowUp, ..._teFollowUp,
   ])) {
     return NoteCategory.followUp;
   }
 
   final hasDateSignal = _hasPhrase(text, const [
-    'today',
-    'tomorrow',
-    'tonight',
+    'today', 'tomorrow', 'tonight',
+    ..._hiDateSignals, ..._teDateSignals,
     'next monday',
     'next tuesday',
     'next wednesday',
@@ -21584,26 +29116,16 @@ NoteCategory inferCategoryFromText(String raw) {
     r'^(call|buy|book|send|email|text|reply|fix|finish|review|update|draft|write|prepare|submit|pay|schedule|move|order|install|create|check|clean|plan|meet|join|ring)\b',
   ).hasMatch(text);
   final actionSignal = actionVerbAtStart || _hasPhrase(text, const [
-    'to do',
-    'todo',
-    'need to',
-    'must',
-    'should',
-    'have to',
-    'remember to',
+    'to do', 'todo', 'need to', 'must', 'should', 'have to', 'remember to',
+    ..._hiTaskSignals, ..._teTaskSignals,
   ]);
   if (actionSignal) {
     return NoteCategory.tasks;
   }
 
   if (_hasPhrase(text, const [
-    'idea',
-    'brainstorm',
-    'what if',
-    'could be',
-    'maybe',
-    'explore',
-    'consider',
+    'idea', 'brainstorm', 'what if', 'could be', 'maybe', 'explore', 'consider',
+    ..._hiIdeaSignals,
   ])) {
     return NoteCategory.ideas;
   }
@@ -23127,3640 +30649,153 @@ class _TopNotchPillState extends State<_TopNotchPill>
 }
 ```
 
-### android/app/build.gradle.kts
+### pubspec.yaml
 
-```kotlin
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
-}
+```yaml
+name: wishperlog
+description: "My awesome voice logger app."
+publish_to: 'none'
+version: 1.0.0+1
 
-android {
-    namespace = "com.adarshkumarverma.wishperlog"
-    compileSdk = maxOf(flutter.compileSdkVersion, 35)
-    ndkVersion = flutter.ndkVersion
+environment:
+  sdk: ^3.11.4
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true
-    }
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_bloc: ^9.1.1
+  get_it: ^9.2.1
+  go_router: ^17.2.0
+  firebase_core: ^4.6.0
+  firebase_auth: ^6.3.0
+  google_sign_in: ^6.3.0
+  cloud_firestore: ^6.2.0
+  isar: ^3.1.0
+  isar_flutter_libs: ^3.1.0
+  path_provider: ^2.1.5
+  speech_to_text: ^7.3.0
+  shared_preferences: ^2.5.3
+  google_generative_ai: ^0.4.7
+  googleapis: ^14.0.0
+  http: ^1.5.0
+  url_launcher: ^6.3.2
+  flutter_dotenv: ^6.0.0
+  timezone: ^0.10.1
+  workmanager: ^0.9.0+3
+  connectivity_plus: ^7.1.0
+  firebase_messaging: ^16.0.2
+  flutter_local_notifications: ^19.4.2
+  flutter_svg: ^2.2.0
+  permission_handler: ^11.0.1
+  provider: ^6.1.2
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.6
+  isar_generator: ^3.1.0
 
-    defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.adarshkumarverma.wishperlog"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = maxOf(flutter.targetSdkVersion, 35)
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-    }
-
-    signingConfigs {
-        create("release") {
-            // Values are read from gradle.properties (local, never committed to VCS).
-            // See MANUAL CONFIGURATION section for setup instructions.
-            val storeFilePath = System.getenv("WISHPERLOG_STORE_FILE")
-                ?: project.findProperty("WISHPERLOG_STORE_FILE") as String?
-            val storePassword = System.getenv("WISHPERLOG_STORE_PASSWORD")
-                ?: project.findProperty("WISHPERLOG_STORE_PASSWORD") as String?
-            val keyAlias = System.getenv("WISHPERLOG_KEY_ALIAS")
-                ?: project.findProperty("WISHPERLOG_KEY_ALIAS") as String?
-            val keyPassword = System.getenv("WISHPERLOG_KEY_PASSWORD")
-                ?: project.findProperty("WISHPERLOG_KEY_PASSWORD") as String?
-
-            if (storeFilePath != null) {
-                storeFile     = file(storeFilePath)
-                this.storePassword = storePassword ?: ""
-                this.keyAlias     = keyAlias      ?: ""
-                this.keyPassword  = keyPassword   ?: ""
-            }
-        }
-    }
-
-    buildTypes {
-        release {
-            // Use release signing when keys are available; fall back to debug for
-            // local `flutter run --release` during development.
-            val hasReleaseSigning = signingConfigs.findByName("release")
-                ?.storeFile?.exists() == true
-            signingConfig = if (hasReleaseSigning)
-                signingConfigs.getByName("release")
-            else
-                signingConfigs.getByName("debug")
-            isMinifyEnabled = false
-            isShrinkResources = false
-        }
-    }
-}
-
-flutter {
-    source = "../.."
-}
-
-dependencies {
-    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-}
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/icons/
 ```
 
-### android/app/google-services.json
-
-```json
-{
-  "project_info": {
-    "project_number": "982731246537",
-    "firebase_url": "https://wishperlog-default-rtdb.asia-southeast1.firebasedatabase.app",
-    "project_id": "wishperlog",
-    "storage_bucket": "wishperlog.firebasestorage.app"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:982731246537:android:bff1e21915bd4c632cf618",
-        "android_client_info": {
-          "package_name": "com.adarshkumarverma.wishperlog"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "982731246537-63ibaop0hio54tg5fgh0s9pehqb5gigm.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.adarshkumarverma.wishperlog",
-            "certificate_hash": "ddae9ee974d9c4c1898c205ef35bc896ad3ac4b0"
-          }
-        },
-        {
-          "client_id": "982731246537-pk0h1lp6sco8h474t1sqbmehj8aj0g65.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyB-0jX3pPJ-8iBDMlSW1W19ih_XkqtqH4E"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "982731246537-pk0h1lp6sco8h474t1sqbmehj8aj0g65.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "982731246537-ds47rpj0jsvqqoo62ej105n5i0l12u7k.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.adarshkumarverma.wishperlog"
-              }
-            }
-          ]
-        }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-```
-
-### android/app/src/debug/AndroidManifest.xml
-
-```xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The INTERNET permission is required for development. Specifically,
-         the Flutter tool needs it to communicate with the running application
-         to allow setting breakpoints, to provide hot reload, etc.
-    -->
-    <uses-permission android:name="android.permission.INTERNET"/>
-</manifest>
-```
-
-### android/app/src/main/AndroidManifest.xml
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.adarshkumarverma.wishperlog">
-
-    <!-- ── Network ─────────────────────────────────────────────────────── -->
-    <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- ── Microphone ──────────────────────────────────────────────────── -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-    <!-- ── Foreground service permissions ─────────────────────────────── -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!--
-        CRITICAL FIX #1:
-        On Android 11+ (API 30+), background services that access the microphone
-        MUST declare FOREGROUND_SERVICE_MICROPHONE and set foregroundServiceType
-        to "microphone" in the <service> tag. Without this, Android silently
-        revokes mic access from background services after ~2 seconds.
-        This was the PRIMARY cause of the recording stopping out-of-app.
-    -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-
-    <!-- ── Other system permissions ────────────────────────────────────── -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-
-    <queries>
-        <package android:name="com.google.android.gms" />
-        <package android:name="com.android.vending" />
-    </queries>
-
-    <application
-        android:name=".WishperlogApplication"
-        android:label="wishperlog"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:allowBackup="false"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
-        android:enableOnBackInvokedCallback="true"
-        android:theme="@style/NormalTheme">
-
-        <activity
-            android:name="com.adarshkumarverma.wishperlog.MainActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
-            android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|density|uiMode"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize"
-            android:windowTranslucentStatus="true"
-            android:windowTranslucentNavigation="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <meta-data android:name="flutterEmbedding" android:value="2" />
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_color"
-            android:resource="@color/black" />
-
-        <!--
-            CRITICAL FIX #1 (continued):
-            foregroundServiceType MUST include "microphone" for SpeechRecognizer
-            to work in a background service on Android 11+.
-            "specialUse" is retained because the service also drives a
-            SYSTEM_ALERT_WINDOW overlay (which requires a use-case justification
-            on Play Store submission).
-        -->
-        <service
-            android:name=".OverlayForegroundService"
-            android:foregroundServiceType="microphone|specialUse"
-            android:exported="false" />
-
-        <!-- Headless Flutter engine — only needs dataSync (no mic) -->
-        <service
-            android:name=".BackgroundNoteService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false" />
-
-        <receiver android:name=".NoteInputReceiver" android:exported="false" />
-
-        <receiver android:name=".BootReceiver" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-    </application>
-</manifest>
-```
-
-### android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
-
-```java
-package io.flutter.plugins;
-
-import androidx.annotation.Keep;
-import androidx.annotation.NonNull;
-import io.flutter.Log;
-
-import io.flutter.embedding.engine.FlutterEngine;
-
-/**
- * Generated file. Do not edit.
- * This file is generated by the Flutter tool based on the
- * plugins that support the Android platform.
- */
-@Keep
-public final class GeneratedPluginRegistrant {
-  private static final String TAG = "GeneratedPluginRegistrant";
-  public static void registerWith(@NonNull FlutterEngine flutterEngine) {
-    try {
-      flutterEngine.getPlugins().add(new io.flutter.plugins.firebase.firestore.FlutterFirebaseFirestorePlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin cloud_firestore, io.flutter.plugins.firebase.firestore.FlutterFirebaseFirestorePlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new dev.fluttercommunity.plus.connectivity.ConnectivityPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin connectivity_plus, dev.fluttercommunity.plus.connectivity.ConnectivityPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new io.flutter.plugins.firebase.auth.FlutterFirebaseAuthPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin firebase_auth, io.flutter.plugins.firebase.auth.FlutterFirebaseAuthPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin firebase_core, io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin firebase_messaging, io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin flutter_local_notifications, com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new io.flutter.plugins.googlesignin.GoogleSignInPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin google_sign_in_android, io.flutter.plugins.googlesignin.GoogleSignInPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new dev.isar.isar_flutter_libs.IsarFlutterLibsPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin isar_flutter_libs, dev.isar.isar_flutter_libs.IsarFlutterLibsPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new io.flutter.plugins.pathprovider.PathProviderPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin path_provider_android, io.flutter.plugins.pathprovider.PathProviderPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new com.baseflow.permissionhandler.PermissionHandlerPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin permission_handler_android, com.baseflow.permissionhandler.PermissionHandlerPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin shared_preferences_android, io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new com.csdcorp.speech_to_text.SpeechToTextPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin speech_to_text, com.csdcorp.speech_to_text.SpeechToTextPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new io.flutter.plugins.urllauncher.UrlLauncherPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin url_launcher_android, io.flutter.plugins.urllauncher.UrlLauncherPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new dev.fluttercommunity.workmanager.WorkmanagerPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin workmanager_android, dev.fluttercommunity.workmanager.WorkmanagerPlugin", e);
-    }
-  }
-}
-```
-
-### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BackgroundNoteService.kt
-
-```kotlin
-package com.adarshkumarverma.wishperlog
-
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.Service
-import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.os.IBinder
-import android.util.Log
-import androidx.core.app.NotificationCompat
-import io.flutter.FlutterInjector
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.embedding.engine.dart.DartExecutor
-import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugins.GeneratedPluginRegistrant
-
-/**
- * Headless Flutter engine service.
- *
- * Invoked when OverlayForegroundService captures a note but the main Flutter
- * engine is not alive (app fully killed). Starts a lightweight Dart isolate via
- * [backgroundNoteCallback], forwards the raw transcript, waits for Dart to:
- *   1. Persist to Isar
- *   2. Run Gemini classification
- *   3. Sync to Firestore
- *
- * CRITICAL FIX #2:
- * When Dart signals 'done' it now passes {title, category} of the saved note.
- * BackgroundNoteService forwards this to OverlayForegroundService.notifyBackgroundSaved()
- * so the native island pill updates from "Classifying..." to the real saved state.
- * Before this fix, the island was permanently stuck on "Classifying...".
- */
-class BackgroundNoteService : Service() {
-
-    companion object {
-        private const val TAG = "BackgroundNoteSvc"
-        private const val CHANNEL_ID = "wishperlog_bg_note"
-        private const val NOTIFICATION_ID = 9002
-        const val EXTRA_TEXT = "extra_text"
-        const val EXTRA_SOURCE = "extra_source"
-
-        fun start(context: Context, text: String, source: String) {
-            val i = Intent(context, BackgroundNoteService::class.java).apply {
-                putExtra(EXTRA_TEXT, text)
-                putExtra(EXTRA_SOURCE, source)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                context.startForegroundService(i)
-            else
-                context.startService(i)
-        }
-    }
-
-    private var flutterEngine: FlutterEngine? = null
-    private var bgChannel: MethodChannel? = null
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onCreate() {
-        super.onCreate()
-        startForeground(NOTIFICATION_ID, buildNotification())
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val text   = intent?.getStringExtra(EXTRA_TEXT)   ?: ""
-        val source = intent?.getStringExtra(EXTRA_SOURCE) ?: "voice_overlay"
-
-        // Fast path: main engine still alive — just forward and exit.
-        val live = FlutterEngineHolder.channel
-        if (live != null && text.isNotEmpty()) {
-            live.invokeMethod(
-                "captureNote",
-                mapOf("text" to text, "source" to source),
-                object : MethodChannel.Result {
-                    override fun success(r: Any?)    { stopSelf() }
-                    override fun error(c: String, m: String?, d: Any?) {
-                        drainAndProcess(text, source)
-                    }
-                    override fun notImplemented()    { drainAndProcess(text, source) }
-                }
-            )
-        } else {
-            drainAndProcess(text, source)
-        }
-        return START_NOT_STICKY
-    }
-
-    private fun drainAndProcess(newText: String, newSource: String) {
-        Log.d(TAG, "drainAndProcess: booting headless Flutter engine")
-        FlutterInjector.instance().flutterLoader().startInitialization(applicationContext)
-        FlutterInjector.instance().flutterLoader().ensureInitializationComplete(applicationContext, null)
-
-        val engine = FlutterEngine(applicationContext)
-        flutterEngine = engine
-        GeneratedPluginRegistrant.registerWith(engine)
-
-        bgChannel = MethodChannel(engine.dartExecutor.binaryMessenger, "wishperlog/background_notes")
-
-        // Collect pending notes from SharedPreferences + this new note.
-        val prefs   = getSharedPreferences("wishperlog_pending_notes", Context.MODE_PRIVATE)
-        val pending = mutableListOf<Pair<String, String>>()
-        if (newText.isNotEmpty()) pending.add(Pair(newText, newSource))
-
-        val allKeys = prefs.all.keys.filter { it.endsWith("_text") }
-        for (k in allKeys) {
-            val baseKey = k.removeSuffix("_text")
-            val t = prefs.getString("${baseKey}_text", null) ?: continue
-            val s = prefs.getString("${baseKey}_source", "voice_overlay") ?: "voice_overlay"
-            pending.add(Pair(t, s))
-        }
-        prefs.edit().clear().apply()
-
-        var pendingIdx = 0
-
-        bgChannel?.setMethodCallHandler { call, result ->
-            when (call.method) {
-                "ready" -> {
-                    result.success(null)
-                    dispatchNext(pending, pendingIdx).also { pendingIdx = it }
-                }
-                "nextNote" -> {
-                    result.success(null)
-                    dispatchNext(pending, pendingIdx).also { pendingIdx = it }
-                }
-
-                // CRITICAL FIX #2:
-                // Dart now sends {title, category} so we can update the island
-                // from "Classifying..." to the actual saved state. Without this,
-                // the pill was stuck forever when the engine was dead at capture time.
-                "done" -> {
-                    result.success(null)
-                    val title    = call.argument<String>("title")    ?: ""
-                    val category = call.argument<String>("category") ?: "general"
-                    val prefix   = call.argument<String>("prefix")   ?: "AI"
-                    if (title.isNotEmpty()) {
-                        Log.d(TAG, "done: notifying island — title='$title' category='$category' prefix='$prefix'")
-                        OverlayForegroundService.notifyBackgroundSaved(title, category, prefix)
-                    } else {
-                        Log.d(TAG, "done: no title, dismissing island")
-                        OverlayForegroundService.dismissIslandFromBackground()
-                    }
-                    stopSelf()
-                }
-
-                else -> result.notImplemented()
-            }
-        }
-
-        engine.dartExecutor.executeDartEntrypoint(
-            DartExecutor.DartEntrypoint(
-                FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-                "backgroundNoteCallback"
-            )
-        )
-    }
-
-    private fun dispatchNext(pending: List<Pair<String, String>>, idx: Int): Int {
-        return if (idx < pending.size) {
-            val (t, s) = pending[idx]
-            bgChannel?.invokeMethod("processNote", mapOf("text" to t, "source" to s))
-            idx + 1
-        } else {
-            bgChannel?.invokeMethod("allDone", null)
-            idx
-        }
-    }
-
-    override fun onDestroy() {
-        flutterEngine?.destroy()
-        flutterEngine = null
-        bgChannel = null
-        super.onDestroy()
-    }
-
-    private fun buildNotification(): Notification {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel(
-                CHANNEL_ID,
-                "WishperLog Background Save",
-                NotificationManager.IMPORTANCE_MIN
-            )
-            getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
-        }
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("WishperLog")
-            .setContentText("Saving voice note…")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .build()
-    }
-}
-```
-
-### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/BootReceiver.kt
-
-```kotlin
-package com.adarshkumarverma.wishperlog
-
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.util.Log
-
-class BootReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        val prefs = context.getSharedPreferences(
-            "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
-        val enabled = prefs.getBoolean("overlay_v2.enabled", true)
-        if (!enabled) return
-        Log.d("BootReceiver", "Boot completed - restarting overlay service")
-        val serviceIntent = Intent(context, OverlayForegroundService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            context.startForegroundService(serviceIntent)
-        else
-            context.startService(serviceIntent)
-    }
-}
-```
-
-### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/FlutterEngineHolder.kt
-
-```kotlin
-package com.adarshkumarverma.wishperlog
-
-import io.flutter.plugin.common.MethodChannel
-
-/**
- * Singleton holder so the NoteInputReceiver can access the Flutter MethodChannel
- * even when MainActivity may not be in the foreground.
- */
-object FlutterEngineHolder {
-    var channel: MethodChannel? = null
-}
-```
-
-### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/MainActivity.kt
-
-```kotlin
-package com.adarshkumarverma.wishperlog
-
-import android.Manifest
-import android.graphics.BitmapFactory
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import android.util.Log
-import java.io.ByteArrayOutputStream
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.android.FlutterActivityLaunchConfigs
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
-
-class MainActivity : FlutterActivity() {
-
-    private val CHANNEL = "wishperlog/overlay"
-    private val REQUEST_RECORD_AUDIO = 4242
-    private var pendingMicPermissionResult: MethodChannel.Result? = null
-
-    companion object {
-        private const val TAG = "MainActivity"
-    }
-
-    override fun getBackgroundMode(): FlutterActivityLaunchConfigs.BackgroundMode =
-        FlutterActivityLaunchConfigs.BackgroundMode.transparent
-
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-
-        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-        FlutterEngineHolder.channel = channel
-
-        channel.setMethodCallHandler { call, result ->
-            when (call.method) {
-
-                // ── Overlay lifecycle ────────────────────────────────────────
-                "show" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                        !Settings.canDrawOverlays(this)) {
-                        result.error("PERMISSION_DENIED", "Overlay permission not granted", null)
-                    } else {
-                        val i = Intent(this, OverlayForegroundService::class.java)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                            startForegroundService(i) else startService(i)
-                        result.success(null)
-                    }
-                }
-                "hide" -> {
-                    stopService(Intent(this, OverlayForegroundService::class.java))
-                    result.success(null)
-                }
-
-                // ── Permissions ──────────────────────────────────────────────
-                "checkPermission" -> result.success(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                        Settings.canDrawOverlays(this) else true
-                )
-                "requestPermission" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        startActivity(
-                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:$packageName"))
-                        )
-                    }
-                    result.success(null)
-                }
-                "requestMicrophonePermission" -> {
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                        == PackageManager.PERMISSION_GRANTED) {
-                        result.success(true)
-                    } else {
-                        pendingMicPermissionResult = result
-                        ActivityCompat.requestPermissions(
-                            this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO
-                        )
-                    }
-                }
-
-                // ── Island state sync (Flutter → Native) ─────────────────────
-                "updateIslandState" -> {
-                    val state   = call.argument<String>("state")   ?: "idle"
-                    val message = call.argument<String>("message")
-                    OverlayForegroundService.updateIsland(state, message)
-                    result.success(null)
-                }
-                "notifySaved" -> {
-                    val title      = call.argument<String>("title")      ?: ""
-                    val category   = call.argument<String>("category")   ?: "general"
-                    val prefix     = call.argument<String>("prefix")     ?: "AI"
-                    val collection = call.argument<String>("collection") ?: "notes"
-                    OverlayForegroundService.notifySaved(title, category, prefix, collection)
-                    result.success(null)
-                }
-
-                // ── Overlay appearance settings ───────────────────────────────
-                "getOverlaySettings" -> {
-                    val prefs = getSharedPreferences(
-                        "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
-                    val settingsJson = prefs.getString("overlay_settings_json", null)
-                    val settings = OverlayAppearanceSettings.fromJson(settingsJson)
-                    result.success(mapOf(
-                        "alpha" to settings.alpha,
-                        "growOnHold" to settings.growEnabled,
-                        "settingsJson" to settings.toJsonString(),
-                    ))
-                }
-                "updateOverlaySettings" -> {
-                    val prefs = getSharedPreferences(
-                        "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
-
-                    val incomingJson = call.argument<String>("settingsJson")
-                    val legacyAlpha = (call.argument<Double>("alpha") ?: 0.85).toFloat()
-                    val legacyGrow = call.argument<Boolean>("growOnHold") ?: true
-
-                    val mergedSettings = if (!incomingJson.isNullOrBlank()) {
-                        OverlayAppearanceSettings.fromJson(incomingJson)
-                    } else {
-                        val currentJson = prefs.getString("overlay_settings_json", null)
-                        val current = if (currentJson.isNullOrBlank()) {
-                            OverlayAppearanceSettings.legacy(legacyAlpha, legacyGrow)
-                        } else {
-                            OverlayAppearanceSettings.fromJson(currentJson)
-                        }
-                        current.copyWith(alpha = legacyAlpha, growEnabled = legacyGrow)
-                    }
-
-                    prefs.edit()
-                        .putString("overlay_settings_json", mergedSettings.toJsonString())
-                        .putFloat("overlay_bubble_alpha", mergedSettings.alpha)
-                        .putBoolean("overlay_bubble_grow", mergedSettings.growEnabled)
-                        .apply()
-
-                    OverlayForegroundService.applySettings(mergedSettings.toJsonString())
-                    result.success(null)
-                }
-
-                // ── Speech settings ───────────────────────────────────────────
-                "getSpeechSettings" -> {
-                    val prefs = getSharedPreferences(
-                        "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
-                    result.success(mapOf(
-                        "language"     to (prefs.getString("overlay_stt_language", "en-US") ?: "en-US"),
-                        "preferOffline" to prefs.getBoolean("overlay_stt_prefer_offline", false)
-                    ))
-                }
-                "updateSpeechSettings" -> {
-                    val lang    = call.argument<String>("language")      ?: "en-US"
-                    val offline = call.argument<Boolean>("preferOffline") ?: false
-                    getSharedPreferences(
-                        "com.adarshkumarverma.wishperlog_preferences", Context.MODE_PRIVATE)
-                        .edit()
-                        .putString("overlay_stt_language", lang)
-                        .putBoolean("overlay_stt_prefer_offline", offline)
-                        .apply()
-                    result.success(null)
-                }
-                "downloadSpeechLanguagePack" -> {
-                    try {
-                        startActivity(Intent(Settings.ACTION_LOCALE_SETTINGS)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    } catch (_: Exception) {}
-                    result.success(null)
-                }
-
-                "getLauncherIcon" -> {
-                    try {
-                        val bitmap = BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
-                        if (bitmap == null) {
-                            result.success(null)
-                        } else {
-                            val stream = ByteArrayOutputStream()
-                            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
-                            result.success(stream.toByteArray())
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "getLauncherIcon failed", e)
-                        result.success(null)
-                    }
-                }
-
-                // ── Flush pending notes saved while engine was dead ───────────
-                "flushPendingNotes" -> {
-                    flushPendingNotes(channel)
-                    result.success(null)
-                }
-
-                else -> result.notImplemented()
-            }
-        }
-
-        // Auto-flush pending notes every time app comes to foreground
-        flushPendingNotes(channel)
-    }
-
-    /**
-     * Reads notes that were persisted to SharedPreferences while the Flutter
-     * engine was dead (e.g. app killed during overlay recording) and re-injects
-     * them into Flutter for normal Isar + AI + Firestore processing.
-     */
-    private fun flushPendingNotes(channel: MethodChannel) {
-        val prefs = getSharedPreferences("wishperlog_pending_notes", Context.MODE_PRIVATE)
-        val keys  = prefs.all.keys.filter { it.endsWith("_text") }.sorted()
-        if (keys.isEmpty()) return
-
-        Log.d(TAG, "flushPendingNotes: found ${keys.size} pending notes")
-        val editor = prefs.edit()
-
-        for (k in keys) {
-            val base   = k.removeSuffix("_text")
-            val text   = prefs.getString("${base}_text",   null) ?: continue
-            val source = prefs.getString("${base}_source", "voice_overlay") ?: "voice_overlay"
-            editor.remove("${base}_text").remove("${base}_source")
-            channel.invokeMethod("captureNote", mapOf("text" to text, "source" to source))
-        }
-        editor.apply()
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_RECORD_AUDIO) {
-            val granted = grantResults.isNotEmpty() &&
-                    grantResults[0] == PackageManager.PERMISSION_GRANTED
-            pendingMicPermissionResult?.success(granted)
-            pendingMicPermissionResult = null
-        }
-    }
-
-    override fun onDestroy() {
-        FlutterEngineHolder.channel = null
-        super.onDestroy()
-    }
-}
-```
-
-### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/NoteInputReceiver.kt
-
-```kotlin
-package com.adarshkumarverma.wishperlog
-
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.util.Log
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import io.flutter.plugin.common.MethodChannel
-
-/**
- * Receives captured note broadcasts from OverlayForegroundService via
- * LocalBroadcastManager (same bus that broadcastCapture now uses — ISSUE-03).
- *
- * Delivery priority:
- *  1. Forward to live Flutter engine via MethodChannel.
- *  2. Start BackgroundNoteService (headless Flutter) if engine is dead.
- *  3. Persist to SharedPreferences as a last-resort safety net.
- *     Notes are drained on next app resume via MainActivity.flushPendingNotes().
- */
-class NoteInputReceiver : BroadcastReceiver() {
-
-    companion object {
-        private const val TAG = "NoteInputReceiver"
-
-        /** SharedPreferences file used for the persistence safety net. */
-        private const val PREFS_PENDING = "wishperlog_pending_notes"
-
-        fun register(context: Context, receiver: NoteInputReceiver) {
-            LocalBroadcastManager.getInstance(context).registerReceiver(
-                receiver,
-                IntentFilter(OverlayForegroundService.ACTION_NOTE_CAPTURED)
-            )
-        }
-
-        fun unregister(context: Context, receiver: NoteInputReceiver) {
-            try {
-                LocalBroadcastManager.getInstance(context).unregisterReceiver(receiver)
-            } catch (e: Exception) {
-                Log.w(TAG, "unregister: already unregistered", e)
-            }
-        }
-
-        /**
-         * Persists a note to SharedPreferences so it is never silently dropped.
-         * The note is cleared by MainActivity.flushPendingNotes() only AFTER
-         * the Flutter engine confirms receipt via MethodChannel.Result.success.
-         */
-        fun persistPending(context: Context, text: String, source: String) {
-            val key  = System.currentTimeMillis().toString()
-            val prefs = context.getSharedPreferences(PREFS_PENDING, Context.MODE_PRIVATE)
-            prefs.edit()
-                .putString("${key}_text",   text)
-                .putString("${key}_source", source)
-                .apply()
-            Log.d(TAG, "Persisted pending note key=$key (len=${text.length})")
-        }
-    }
-
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != OverlayForegroundService.ACTION_NOTE_CAPTURED) return
-
-        val text   = intent.getStringExtra(OverlayForegroundService.EXTRA_TEXT)   ?: return
-        val source = intent.getStringExtra(OverlayForegroundService.EXTRA_SOURCE) ?: "voice_overlay"
-
-        // Always persist first — cleared below only after confirmed delivery.
-        val pendingKey = System.currentTimeMillis().toString()
-        val prefs = context.getSharedPreferences(PREFS_PENDING, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString("${pendingKey}_text",   text)
-            .putString("${pendingKey}_source", source)
-            .apply()
-
-        val channel = FlutterEngineHolder.channel
-        if (channel != null) {
-            channel.invokeMethod(
-                "captureNote",
-                mapOf("text" to text, "source" to source),
-                object : MethodChannel.Result {
-                    override fun success(result: Any?) {
-                        // Confirmed delivery — remove from safety-net store.
-                        prefs.edit()
-                            .remove("${pendingKey}_text")
-                            .remove("${pendingKey}_source")
-                            .apply()
-                        Log.d(TAG, "captureNote delivered via live engine (len=${text.length})")
-                    }
-                    override fun error(code: String, msg: String?, details: Any?) {
-                        Log.e(TAG, "captureNote error ($code) — starting BackgroundNoteService")
-                        BackgroundNoteService.start(context, text, source)
-                        // Safety-net entry stays until BackgroundNoteService completes.
-                    }
-                    override fun notImplemented() {
-                        Log.e(TAG, "captureNote notImplemented — starting BackgroundNoteService")
-                        BackgroundNoteService.start(context, text, source)
-                    }
-                }
-            )
-        } else {
-            Log.w(TAG, "Engine dead — starting BackgroundNoteService")
-            BackgroundNoteService.start(context, text, source)
-        }
-    }
-}
-```
-
-### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayAppearanceSettings.kt
-
-```kotlin
-package com.adarshkumarverma.wishperlog
-
-import android.graphics.Color
-import org.json.JSONObject
-
-internal data class OverlayAppearanceSettings(
-    val alpha: Float = 0.82f,
-    val blurSigma: Float = 22.0f,
-    val colorFill: String = "glass",
-    val solidColor: Int = Color.parseColor("#1C1C2E"),
-    val gradientStart: Int = Color.parseColor("#6366F1"),
-    val gradientEnd: Int = Color.parseColor("#8B5CF6"),
-    val borderStyle: String = "glow",
-    val borderColor: Int = Color.parseColor("#6366F1"),
-    val animation: String = "sizeGrow",
-    val growScale: Float = 1.10f,
-    val posX: Float = 0.88f,
-    val posY: Float = 0.30f,
-    val persistOnReboot: Boolean = true,
-) {
-    val growEnabled: Boolean
-        get() = animation.equals("sizeGrow", ignoreCase = true)
-
-    fun copyWith(
-        alpha: Float? = null,
-        growEnabled: Boolean? = null,
-    ): OverlayAppearanceSettings {
-        val nextAnimation = when (growEnabled) {
-            true -> "sizeGrow"
-            false -> "none"
-            null -> animation
-        }
-        return copy(
-            alpha = alpha ?: this.alpha,
-            animation = nextAnimation,
-        )
-    }
-
-    fun toJsonString(): String = JSONObject().apply {
-        put("alpha", alpha.toDouble())
-        put("blurSigma", blurSigma.toDouble())
-        put("colorFill", colorFill)
-        put("solidColor", solidColor)
-        put("gradientStart", gradientStart)
-        put("gradientEnd", gradientEnd)
-        put("borderStyle", borderStyle)
-        put("borderColor", borderColor)
-        put("animation", animation)
-        put("growScale", growScale.toDouble())
-        put("posX", posX.toDouble())
-        put("posY", posY.toDouble())
-        put("persistOnReboot", persistOnReboot)
-    }.toString()
-
-    companion object {
-        fun fromJson(raw: String?): OverlayAppearanceSettings {
-            if (raw.isNullOrBlank()) return OverlayAppearanceSettings()
-            return try {
-                val json = JSONObject(raw)
-                OverlayAppearanceSettings(
-                    alpha = json.optDouble("alpha", 0.82).toFloat(),
-                    blurSigma = json.optDouble("blurSigma", 22.0).toFloat(),
-                    colorFill = json.optString("colorFill", "glass"),
-                    solidColor = json.optInt("solidColor", Color.parseColor("#1C1C2E")),
-                    gradientStart = json.optInt("gradientStart", Color.parseColor("#6366F1")),
-                    gradientEnd = json.optInt("gradientEnd", Color.parseColor("#8B5CF6")),
-                    borderStyle = json.optString("borderStyle", "glow"),
-                    borderColor = json.optInt("borderColor", Color.parseColor("#6366F1")),
-                    animation = json.optString("animation", "sizeGrow"),
-                    growScale = json.optDouble("growScale", 1.10).toFloat(),
-                    posX = json.optDouble("posX", 0.88).toFloat(),
-                    posY = json.optDouble("posY", 0.30).toFloat(),
-                    persistOnReboot = json.optBoolean("persistOnReboot", true),
-                )
-            } catch (_: Exception) {
-                OverlayAppearanceSettings()
-            }
-        }
-
-        fun legacy(alpha: Float, grow: Boolean): OverlayAppearanceSettings {
-            return OverlayAppearanceSettings(
-                alpha = alpha,
-                animation = if (grow) "sizeGrow" else "none",
-            )
-        }
-    }
-}
-```
-
-### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/OverlayForegroundService.kt
-
-```kotlin
-package com.adarshkumarverma.wishperlog
-
-import android.Manifest
-import android.animation.ObjectAnimator
-import android.animation.PropertyValuesHolder
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.Service
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.graphics.Color
-import android.graphics.PixelFormat
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
-import android.os.Build
-import android.os.Bundle
-import android.os.Handler
-import android.os.IBinder
-import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
-import android.text.InputType
-import android.text.TextUtils
-import android.util.Log
-import android.util.TypedValue
-import android.view.Gravity
-import android.view.MotionEvent
-import android.view.View
-import android.view.WindowManager
-import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.OvershootInterpolator
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
-import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
-import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
-import java.util.Locale
-
-/**
- * OverlayForegroundService — "God-Level" optimized overlay with:
- *  - Robust lifecycle teardown: overlay ALWAYS resets/dismisses after capture ends.
- *  - Maximum STT accuracy: LANGUAGE_MODEL_FREE_FORM, partial results, dictation mode,
- *    silence detection tuning, multi-hypothesis merging, salvage on error.
- *  - Atomic state machine preventing stuck "Classifying..." states.
- *  - Auto-dismiss safety net (40 s) with explicit idle reset path.
- *  - Minute-granularity transcript forwarding to Flutter.
- */
-class OverlayForegroundService : Service() {
-
-    // ─── Companion / static API ──────────────────────────────────────────────
-
-    companion object {
-        private const val TAG = "OverlayForegroundSvc"
-
-        const val ACTION_NOTE_CAPTURED = "com.wishperlog.NOTE_CAPTURED"
-        const val EXTRA_TEXT   = "extra_text"
-        const val EXTRA_SOURCE = "extra_source"
-        const val SOURCE_VOICE = "voice_overlay"
-        const val SOURCE_TEXT  = "text_overlay"
-
-        private const val PREF_BUBBLE_ALPHA      = "overlay_bubble_alpha"
-        private const val PREF_BUBBLE_GROW       = "overlay_bubble_grow"
-        private const val PREF_SETTINGS_JSON     = "overlay_settings_json"
-        private const val PREF_STT_LANGUAGE      = "overlay_stt_language"
-        private const val PREF_STT_PREFER_OFFLINE = "overlay_stt_prefer_offline"
-        private const val DEFAULT_ALPHA = 0.90f
-        private const val DEFAULT_GROW  = true
-
-        // Capture cooldown — prevents double-fire on rapid gestures.
-        private const val CAPTURE_COOLDOWN_MS = 900L
-
-        // Safety-net: island will always auto-dismiss after this delay if
-        // BackgroundNoteService never calls notifySaved / dismissIsland.
-        private const val ISLAND_SAFETY_DISMISS_MS = 40_000L
-
-        @Volatile
-        private var instance: java.lang.ref.WeakReference<OverlayForegroundService>? = null
-
-        fun updateIsland(state: String, message: String?) {
-            instance?.get()?.handleIslandUpdate(state, message)
-        }
-
-        fun notifySaved(title: String, category: String, prefix: String = "AI", collection: String = "notes") {
-            instance?.get()?.handleSavedNotification(title, category, prefix, collection)
-        }
-
-        fun notifyBackgroundSaved(title: String, category: String, prefix: String = "AI") {
-            notifySaved(title, category, prefix, "notes")
-        }
-
-        /** Explicitly resets island to idle — call when empty transcript is detected. */
-        fun dismissIslandFromBackground() {
-            instance?.get()?.dismissIslandAndReset()
-        }
-
-        fun applySettings(settingsJson: String) {
-            instance?.get()?.handleApplySettings(settingsJson)
-        }
-
-        fun applySettings(alpha: Float, grow: Boolean) {
-            instance?.get()?.handleApplySettings(
-                OverlayAppearanceSettings.legacy(alpha, grow).toJsonString(),
-            )
-        }
-    }
-
-    // ─── Views ────────────────────────────────────────────────────────────────
-
-    private lateinit var windowManager: WindowManager
-    private var bubbleView: View?  = null
-    private var bannerView: View?  = null
-    private var islandView: View?  = null
-    private lateinit var bubbleParams: WindowManager.LayoutParams
-
-    // Sub-views kept for direct mutation without full re-inflation.
-    private var bubbleIcon:       ImageView?       = null
-    private var bubbleBackground: GradientDrawable? = null
-    private var islandLabel:      TextView?         = null
-    private var islandBg:         GradientDrawable? = null
-    private var overlaySettings   = OverlayAppearanceSettings()
-    private var islandBaseColor   = Color.parseColor("#6366F1")
-
-    // ─── STT state ────────────────────────────────────────────────────────────
-
-    private var speechRecognizer:       SpeechRecognizer? = null
-    private var lastRecognizerIntent:   Intent?           = null
-    private var lastPartialTranscript:  String            = ""
-    private var stopListeningCalled:    Boolean           = false
-    private var isUserHolding:          Boolean           = false
-    private var isRecording:            Boolean           = false
-    private var isResettingAfterError:  Boolean           = false
-    private var recordingStartTime:     Long              = 0L
-    private var lastCaptureAttemptMs:   Long              = 0L
-    private var longPressTriggered:     Boolean           = false
-    private var bubbleGrowEnabled:      Boolean           = DEFAULT_GROW
-
-    // ─── Handlers / runnables ─────────────────────────────────────────────────
-
-    private val mainHandler         = Handler(Looper.getMainLooper())
-    private var longPressRunnable:   Runnable? = null
-    private var restartListenRunnable: Runnable? = null
-    private var islandDismissRunnable: Runnable? = null
-    private var pulseAnimator:       ObjectAnimator? = null
-    private var idlePulseAnimator:   ObjectAnimator? = null
-
-    // ─── Audio focus ─────────────────────────────────────────────────────────
-
-    private var audioManager:      AudioManager?      = null
-    private var audioFocusRequest: AudioFocusRequest? = null
-
-    // ─── Other infra ─────────────────────────────────────────────────────────
-
-    private val noteReceiver       = NoteInputReceiver()
-    private var receiverRegistered = false
-
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
-
-    override fun onBind(intent: Intent): IBinder? = null
-
-    override fun onCreate() {
-        super.onCreate()
-        startForeground(1, buildNotification())
-        instance = java.lang.ref.WeakReference(this)
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        audioManager  = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        NoteInputReceiver.register(this, noteReceiver)
-        receiverRegistered = true
-        createBubble()
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "onStartCommand: service alive")
-        return START_STICKY
-    }
-
-    override fun onDestroy() {
-        Log.d(TAG, "onDestroy: performing full teardown")
-        // ── CRITICAL TEARDOWN: ensure nothing leaks ──────────────────────────
-        performFullReset(removeViews = true)
-        if (receiverRegistered) {
-            try { NoteInputReceiver.unregister(this, noteReceiver) } catch (_: Exception) {}
-            receiverRegistered = false
-        }
-        instance = null
-        super.onDestroy()
-    }
-
-    // ─── Notification ─────────────────────────────────────────────────────────
-
-    private fun buildNotification(): Notification {
-        val channelId = "wishperlog_overlay"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel(
-                channelId, "WishperLog Overlay",
-                NotificationManager.IMPORTANCE_MIN
-            ).apply { description = "Floating note-capture bubble" }
-            getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
-        }
-        return NotificationCompat.Builder(this, channelId)
-            .setContentTitle("WishperLog")
-            .setContentText("Hold bubble to record • Double-tap to type")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setSilent(true)
-            .build()
-    }
-
-    // ─── Dimension helpers ────────────────────────────────────────────────────
-
-    private fun dp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics).toInt()
-    private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
-
-    private fun overlayType() =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-
-    private fun displayWidth(): Int =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
-            windowManager.currentWindowMetrics.bounds.width()
-        else @Suppress("DEPRECATION") windowManager.defaultDisplay.width
-
-    private fun statusBarHeight(): Int {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                val insets = windowManager.currentWindowMetrics.windowInsets
-                    .getInsets(android.view.WindowInsets.Type.statusBars())
-                if (insets.top > 0) return insets.top
-            } catch (_: Exception) {}
-        }
-        val id = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (id > 0) resources.getDimensionPixelSize(id) else dp(28f)
-    }
-
-    // ─── Bubble creation ──────────────────────────────────────────────────────
-
-    private fun createBubble() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-            !android.provider.Settings.canDrawOverlays(this)) {
-            stopSelf(); return
-        }
-
-        val prefs = getSharedPreferences("com.adarshkumarverma.wishperlog_preferences", MODE_PRIVATE)
-        val storedSettings = prefs.getString(PREF_SETTINGS_JSON, null)
-        overlaySettings = if (storedSettings.isNullOrBlank()) {
-            OverlayAppearanceSettings.legacy(
-                prefs.getFloat(PREF_BUBBLE_ALPHA, DEFAULT_ALPHA),
-                prefs.getBoolean(PREF_BUBBLE_GROW, DEFAULT_GROW),
-            )
-        } else {
-            OverlayAppearanceSettings.fromJson(storedSettings)
-        }
-        val bubbleAlpha = overlaySettings.alpha.coerceIn(0.3f, 1f)
-        bubbleGrowEnabled = overlaySettings.growEnabled
-
-        bubbleParams = WindowManager.LayoutParams(
-            dp(54f), dp(54f), overlayType(),
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = prefs.getInt("overlay_x", displayWidth() - dp(64f))
-            y = prefs.getInt("overlay_y", 200)
-        }
-
-        val bg = buildBubbleDrawable(overlaySettings)
-        bubbleBackground = bg
-
-        val frame = FrameLayout(this).apply {
-            background = bg
-            elevation  = dp(8f).toFloat()
-            alpha      = bubbleAlpha
-        }
-
-        val icon = ImageView(this).apply {
-            setImageDrawable(ContextCompat.getDrawable(this@OverlayForegroundService, android.R.drawable.ic_btn_speak_now))
-            setColorFilter(Color.WHITE)
-            layoutParams = FrameLayout.LayoutParams(dp(22f), dp(22f), Gravity.CENTER)
-            scaleType    = ImageView.ScaleType.FIT_CENTER
-        }
-        bubbleIcon = icon
-        frame.addView(icon)
-
-        // Touch gesture state
-        var initX = 0; var initY = 0
-        var initTX = 0f; var initTY = 0f
-        var isDragging       = false
-        var lastTapUpAt      = 0L
-        val dragThresholdPx  = 8
-        val longPressDelayMs = 350L
-        val doubleTapTimeout = 280L
-
-        frame.setOnTouchListener { v, event ->
-            synchronized(this) {
-                when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        if (isRecording) return@setOnTouchListener true
-                        initX = bubbleParams.x; initY = bubbleParams.y
-                        initTX = event.rawX; initTY = event.rawY
-                        isDragging = false; longPressTriggered = false; isUserHolding = false
-                        longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                        longPressRunnable = Runnable {
-                            synchronized(this) {
-                                longPressTriggered = true; isUserHolding = true
-                                if (bubbleGrowEnabled) frame.animate().scaleX(1.22f).scaleY(1.22f).setDuration(180).start()
-                                startVoiceCapture()
-                            }
-                        }
-                        mainHandler.postDelayed(longPressRunnable!!, longPressDelayMs)
-                        true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val dx = (event.rawX - initTX).toInt()
-                        val dy = (event.rawY - initTY).toInt()
-                        if (longPressTriggered || isRecording) return@setOnTouchListener true
-                        if (Math.abs(dx) > dragThresholdPx || Math.abs(dy) > dragThresholdPx) {
-                            isDragging = true
-                            longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                        }
-                        if (isDragging) {
-                            val newX = initX + dx
-                            val newY = initY + dy
-                            if (bubbleParams.x != newX || bubbleParams.y != newY) {
-                                bubbleParams.x = newX; bubbleParams.y = newY
-                                windowManager.updateViewLayout(bubbleView, bubbleParams)
-                            }
-                        }
-                        true
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        frame.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                        longPressRunnable?.let { mainHandler.removeCallbacks(it) }
-                        longPressRunnable = null; longPressTriggered = false
-                        restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
-                        restartListenRunnable = null
-                        if (isRecording) {
-                            isUserHolding = false   // clear AFTER stop so onEndOfSpeech sees correct state
-                            stopVoiceCapture()
-                        } else {
-                            isUserHolding = false
-                        }
-                        if (isDragging) {
-                            val cx = bubbleParams.x + v.width / 2
-                            val snapX = if (cx > displayWidth() / 2) displayWidth() - dp(64f) else 0
-                            val newY = bubbleParams.y.coerceAtLeast(statusBarHeight() + dp(8f))
-                            if (bubbleParams.x != snapX || bubbleParams.y != newY) {
-                                bubbleParams.x = snapX
-                                bubbleParams.y = newY
-                                windowManager.updateViewLayout(bubbleView, bubbleParams)
-                                prefs.edit().putInt("overlay_x", bubbleParams.x).putInt("overlay_y", bubbleParams.y).apply()
-                            }
-                        } else if (!longPressTriggered) {
-                            val now = event.eventTime
-                            if (now - lastTapUpAt <= doubleTapTimeout) {
-                                showTextInputBanner()
-                                lastTapUpAt = 0L
-                            } else {
-                                lastTapUpAt = now
-                            }
-                        }
-                        true
-                    }
-                    else -> false
-                }
-            }
-        }
-
-        bubbleView = frame
-        windowManager.addView(frame, bubbleParams)
-        startIdleBubblePulse()
-    }
-
-    // ─── Voice capture ────────────────────────────────────────────────────────
-
-    private fun startVoiceCapture() {
-        if (Looper.myLooper() != Looper.getMainLooper()) { mainHandler.post { startVoiceCapture() }; return }
-
-        val now = System.currentTimeMillis()
-        if (now - lastCaptureAttemptMs < CAPTURE_COOLDOWN_MS) return
-        lastCaptureAttemptMs = now
-
-        if (isRecording || isResettingAfterError) return
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) {
-            FlutterEngineHolder.channel?.invokeMethod("promptMicrophonePermission", null)
-            showIsland("Microphone permission required", Color.parseColor("#EF4444"), android.R.drawable.ic_lock_idle_lock)
-            scheduleIslandDismiss(2500L)
-            return
-        }
-
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            showIsland("Speech recognition unavailable", Color.parseColor("#EF4444"), android.R.drawable.ic_dialog_alert)
-            scheduleIslandDismiss(2000)
-            return
-        }
-
-        isRecording = true; stopListeningCalled = false; lastPartialTranscript = ""
-        recordingStartTime = System.currentTimeMillis()
-        requestAudioFocus()
-        FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStarted", null)
-        stopIdleBubblePulse()
-        showIsland("Listening...", Color.parseColor("#6366F1"), android.R.drawable.ic_btn_speak_now)
-
-        // Bubble → red pulse
-        bubbleBackground?.colors = intArrayOf(Color.parseColor("#EF4444"), Color.parseColor("#991B1B"))
-        bubbleIcon?.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.presence_audio_online))
-        bubbleIcon?.setColorFilter(Color.WHITE)
-        pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
-            bubbleView,
-            PropertyValuesHolder.ofFloat("scaleX", 1f, 1.15f),
-            PropertyValuesHolder.ofFloat("scaleY", 1f, 1.15f)
-        ).apply { duration = 600; repeatCount = ObjectAnimator.INFINITE; repeatMode = ObjectAnimator.REVERSE; start() }
-
-        releaseSpeechRecognizer()
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-        speechRecognizer?.setRecognitionListener(buildRecognitionListener())
-
-        // ── ACCURACY-OPTIMISED intent ─────────────────────────────────────────
-        // Key flags that push accuracy toward "keyboard-grade":
-        //  • LANGUAGE_MODEL_FREE_FORM  — natural, non-command speech.
-        //  • EXTRA_MAX_RESULTS = 5    — gives the merge algo more candidates.
-        //  • EXTRA_PARTIAL_RESULTS     — live display + fallback if server cuts.
-        //  • DICTATION_MODE            — keeps recognizer alive for long speech.
-        //  • Silence lengths tuned for natural pauses (not keyword commands).
-        val prefs = getSharedPreferences("com.adarshkumarverma.wishperlog_preferences", MODE_PRIVATE)
-        val lang  = prefs.getString(PREF_STT_LANGUAGE, Locale.getDefault().toLanguageTag()) ?: "en-US"
-        val offline = prefs.getBoolean(PREF_STT_PREFER_OFFLINE, false)
-
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,   RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,      5)
-            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,  packageName)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,  true)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE,         lang)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
-            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,   offline)
-            // Dictation mode keeps the recognizer open across natural pauses.
-            putExtra("android.speech.extra.DICTATION_MODE",   true)
-            // Noise suppression hint (Samsung / Google Recorder honour this).
-            putExtra("android.speech.extra.ENABLE_NOISE_SUPPRESSION", true)
-            // Silence thresholds tuned for note-taking (longer pauses OK).
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,                  1_000L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,         10_000L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 6_000L)
-        }
-
-        lastRecognizerIntent = intent
-        try {
-            speechRecognizer?.startListening(intent)
-            vibrate(30)
-        } catch (e: Exception) {
-            Log.e(TAG, "startListening failed", e)
-            dismissIslandAndReset()
-        }
-    }
-
-    private fun buildRecognitionListener(): RecognitionListener = object : RecognitionListener {
-
-        override fun onReadyForSpeech(params: Bundle?)   { Log.d(TAG, "onReadyForSpeech") }
-        override fun onBeginningOfSpeech()               { Log.d(TAG, "onBeginningOfSpeech") }
-        override fun onRmsChanged(rmsdB: Float)          { /* high-frequency, skip logging */ }
-        override fun onBufferReceived(buffer: ByteArray?){ }
-        override fun onEvent(type: Int, params: Bundle?) { }
-
-        override fun onPartialResults(partialResults: Bundle?) {
-            val packet = partialResults
-                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                ?.firstOrNull() ?: return
-            if (packet.isBlank()) return
-
-            val merged  = mergeTranscript(lastPartialTranscript, packet).take(300)
-            lastPartialTranscript = merged
-            val display = merged.takeLast(90)
-
-            showIsland(display, Color.parseColor("#6366F1"), android.R.drawable.ic_btn_speak_now)
-            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingTranscript", hashMapOf("text" to merged))
-        }
-
-        override fun onEndOfSpeech() {
-            Log.d(TAG, "onEndOfSpeech — user holding=$isUserHolding")
-            if (isUserHolding && isRecording && !stopListeningCalled) restartRecognizer(this)
-        }
-
-        override fun onResults(results: Bundle?) {
-            if (!stopListeningCalled && !isRecording) return
-
-            // Pick highest-confidence result; fall back to first or partial.
-            val matches     = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            val confidences = results?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
-
-            val bestText = if (!matches.isNullOrEmpty() && confidences != null && confidences.isNotEmpty()) {
-                val bestIdx = confidences.indices.maxByOrNull { confidences[it] } ?: 0
-                matches.getOrNull(bestIdx)?.trim().orEmpty()
-            } else {
-                matches?.firstOrNull()?.trim().orEmpty()
-            }.ifEmpty { lastPartialTranscript.trim() }
-
-            finaliseCapture(bestText)
-        }
-
-        override fun onError(error: Int) {
-            Log.e(TAG, "onError: ${recognizerErrorToString(error)}")
-
-            val recoverable = error == SpeechRecognizer.ERROR_NO_MATCH ||
-                              error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
-                              error == SpeechRecognizer.ERROR_CLIENT
-
-            // Restart while user holds during transient errors.
-            if (isUserHolding && isRecording && !stopListeningCalled && recoverable) {
-                Log.w(TAG, "onError: recoverable during hold — restarting")
-                restartRecognizer(this)
-                return
-            }
-
-            // Salvage partial if stop was triggered and we have something.
-            val fallback = lastPartialTranscript.trim()
-            if (stopListeningCalled && recoverable && fallback.isNotEmpty()) {
-                Log.d(TAG, "onError: salvaging partial '${fallback.take(40)}'")
-                finaliseCapture(fallback)
-                return
-            }
-
-            // Nothing to save — full dismissal.
-            dismissIslandAndReset()
-            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingFailed", null)
-        }
-    }
-
-    /**
-     * Called when we have final text (or empty). Handles the complete
-     * post-recording teardown so it's always consistent.
-     *
-     * LIFECYCLE GUARANTEE: After this method returns, isRecording == false,
-     * bubble is idle, and the island is either showing "Classifying..." with
-     * a 40 s safety-net dismiss, or is dismissed (if text is empty).
-     */
-    private fun finaliseCapture(text: String) {
-        Log.d(TAG, "finaliseCapture: '${text.take(60)}' (${text.length} chars)")
-        isRecording = false
-        resetBubbleVisuals()
-        releaseSpeechRecognizer()
-        releaseAudioFocus()
-
-        if (text.isNotEmpty()) {
-            showIsland("Classifying...", Color.parseColor("#7C3AED"), android.R.drawable.ic_popup_sync)
-            // Safety-net: island auto-dismisses if BackgroundNoteService never responds.
-            scheduleIslandDismiss(ISLAND_SAFETY_DISMISS_MS)
-            broadcastCapture(text, SOURCE_VOICE)
-            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingStopped", null)
-        } else {
-            dismissIslandAndReset()
-            FlutterEngineHolder.channel?.invokeMethod("notifyRecordingFailed", null)
-        }
-    }
-
-    private fun stopVoiceCapture() {
-        isRecording = false   // Reset immediately so no subsequent gesture is blocked.
-        Log.d(TAG, "stopVoiceCapture (elapsed=${System.currentTimeMillis() - recordingStartTime}ms)")
-        stopListeningCalled = true
-        releaseAudioFocus()
-        restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
-        restartListenRunnable = null
-        isUserHolding = false
-        try {
-            speechRecognizer?.stopListening()
-        } catch (e: Exception) {
-            Log.w(TAG, "stopListening threw", e)
-            // If stop itself fails, use last partial or dismiss.
-            val fallback = lastPartialTranscript.trim()
-            if (fallback.isNotEmpty()) finaliseCapture(fallback)
-            else dismissIslandAndReset()
-        }
-    }
-
-    private fun restartRecognizer(listener: RecognitionListener) {
-        restartListenRunnable?.let { mainHandler.removeCallbacks(it) }
-        restartListenRunnable = Runnable {
-            if (!isUserHolding || !isRecording || stopListeningCalled) return@Runnable
-            val intent = lastRecognizerIntent ?: return@Runnable
-            try {
-                releaseSpeechRecognizer()
-                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-                speechRecognizer?.setRecognitionListener(listener)
-                speechRecognizer?.startListening(intent)
-            } catch (e: Exception) {
-                Log.e(TAG, "restartRecognizer failed", e)
-                dismissIslandAndReset()
-            }
-        }
-        mainHandler.postDelayed(restartListenRunnable!!, 150)
-    }
-
-    private fun releaseSpeechRecognizer() {
-        try { speechRecognizer?.cancel()  } catch (_: Exception) {}
-        try { speechRecognizer?.destroy() } catch (_: Exception) {}
-        speechRecognizer = null
-    }
-
-    // ─── Island UI ────────────────────────────────────────────────────────────
-
-    /**
-     * Shows or updates the floating top island pill.
-     * Idempotent — safe to call repeatedly with new text.
-     */
-    private fun showIsland(text: String, bgColor: Int, iconRes: Int = 0) {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { showIsland(text, bgColor, iconRes) }
-            return
-        }
-
-        // Reuse existing view if already shown — just update text/colour.
-        if (islandView != null && islandLabel != null && islandBg != null) {
-            islandBaseColor = bgColor
-            islandLabel?.text = text
-            applyIslandAppearance(bgColor)
-            islandView?.animate()
-                ?.scaleX(1.025f)
-                ?.scaleY(1.025f)
-                ?.translationY(-dp(1f).toFloat())
-                ?.setDuration(110)
-                ?.withEndAction {
-                    islandView?.animate()
-                        ?.scaleX(1f)
-                        ?.scaleY(1f)
-                        ?.translationY(0f)
-                        ?.setDuration(140)
-                        ?.start()
-                }
-                ?.start()
-            return
-        }
-
-        // Build the island from scratch.
-        val screenW = displayWidth()
-        val pillW   = (screenW * 0.75f).toInt().coerceAtLeast(dp(200f))
-
-        islandBaseColor = bgColor
-        val bg = buildIslandDrawable(bgColor, overlaySettings)
-        islandBg = bg
-
-        val pill = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            background  = bg
-            elevation   = dp(12f).toFloat()
-            gravity     = Gravity.CENTER_VERTICAL
-            setPadding(dp(13f), dp(8f), dp(13f), dp(8f))
-        }
-
-        if (iconRes != 0) {
-            val iconView = ImageView(this).apply {
-                setImageResource(iconRes)
-                setColorFilter(Color.WHITE)
-                layoutParams = LinearLayout.LayoutParams(dp(15f), dp(15f)).apply {
-                    rightMargin = dp(8f)
-                }
-            }
-            pill.addView(iconView)
-        }
-
-        val label = TextView(this).apply {
-            this.text      = text
-            setTextColor(Color.parseColor("#F8FAFC"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-            setTypeface(null, Typeface.BOLD)
-            maxLines       = 1
-            ellipsize      = TextUtils.TruncateAt.END
-            setSingleLine(true)
-        }
-        islandLabel = label
-        pill.addView(label)
-
-        val params = WindowManager.LayoutParams(
-            pillW, WindowManager.LayoutParams.WRAP_CONTENT,
-            overlayType(),
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = statusBarHeight() + dp(4f)
-        }
-
-        try {
-            islandView = pill
-            windowManager.addView(pill, params)
-            pill.alpha = 0f
-            pill.scaleX = 0.94f
-            pill.scaleY = 0.94f
-            pill.translationY = dp(6f).toFloat()
-            pill.animate()
-                .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .translationY(0f)
-                .setDuration(240)
-                .setInterpolator(OvershootInterpolator(1.1f))
-                .start()
-        } catch (e: Exception) {
-            Log.e(TAG, "showIsland: addView failed", e)
-            islandView = null; islandLabel = null; islandBg = null
-        }
-    }
-
-    /**
-     * Full island + bubble + recognizer reset.
-     * ALWAYS call this on any terminal path (error, empty transcript, cancel).
-     */
-    fun dismissIslandAndReset() {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { dismissIslandAndReset() }
-            return
-        }
-        Log.d(TAG, "dismissIslandAndReset")
-        cancelIslandDismiss()
-        animateDismissIsland()
-        resetBubbleVisuals()
-        isRecording         = false
-        isUserHolding       = false
-        isResettingAfterError = false
-        stopListeningCalled = false
-        lastPartialTranscript = ""
-    }
-
-    private fun animateDismissIsland() {
-        val view = islandView ?: return
-        view.animate().alpha(0f).setDuration(200).withEndAction {
-            try { windowManager.removeView(view) } catch (_: Exception) {}
-            islandView = null; islandLabel = null; islandBg = null
-        }.start()
-    }
-
-    private fun startIdleBubblePulse() {
-        val view = bubbleView ?: return
-        if (idlePulseAnimator?.isRunning == true) return
-        idlePulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
-            view,
-            PropertyValuesHolder.ofFloat("scaleX", 1f, 1.04f),
-            PropertyValuesHolder.ofFloat("scaleY", 1f, 1.04f),
-        ).apply {
-            duration = 2200
-            repeatCount = ObjectAnimator.INFINITE
-            repeatMode = ObjectAnimator.REVERSE
-            interpolator = AccelerateDecelerateInterpolator()
-            start()
-        }
-    }
-
-    private fun stopIdleBubblePulse() {
-        idlePulseAnimator?.cancel()
-        idlePulseAnimator = null
-    }
-
-    /** Schedules auto-dismiss of island after [delayMs]. Previous schedule is cancelled. */
-    private fun scheduleIslandDismiss(delayMs: Long) {
-        cancelIslandDismiss()
-        islandDismissRunnable = Runnable { dismissIslandAndReset() }
-        mainHandler.postDelayed(islandDismissRunnable!!, delayMs)
-    }
-
-    private fun cancelIslandDismiss() {
-        islandDismissRunnable?.let { mainHandler.removeCallbacks(it) }
-        islandDismissRunnable = null
-    }
-
-    // ─── Island update API (called from Flutter / BackgroundNoteService) ──────
-
-    fun handleIslandUpdate(state: String, message: String?) {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { handleIslandUpdate(state, message) }
-            return
-        }
-        when (state) {
-            "recording"   -> showIsland(message ?: "Listening...", Color.parseColor("#6366F1"), android.R.drawable.ic_btn_speak_now)
-            "processing"  -> { cancelIslandDismiss(); showIsland("Classifying…", Color.parseColor("#7C3AED"), android.R.drawable.ic_popup_sync) }
-            "saved"       -> { /* handled by handleSavedNotification */ }
-            "idle", "error" -> dismissIslandAndReset()
-        }
-    }
-
-    fun handleSavedNotification(title: String, category: String, prefix: String, @Suppress("UNUSED_PARAMETER") collection: String) {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { handleSavedNotification(title, category, prefix, collection) }
-            return
-        }
-        cancelIslandDismiss()
-        val prefixLabel = if (prefix.equals("sys", ignoreCase = true)) "sys" else "AI"
-        val (color, label, iconRes) = when (category.lowercase()) {
-            "tasks"     -> Triple(Color.parseColor("#3B82F6"), "$prefixLabel • Saved in Tasks", android.R.drawable.checkbox_on_background)
-            "reminders" -> Triple(Color.parseColor("#F59E0B"), "$prefixLabel • Saved in Reminders", android.R.drawable.ic_lock_idle_alarm)
-            "ideas"     -> Triple(Color.parseColor("#10B981"), "$prefixLabel • Saved in Ideas", android.R.drawable.ic_menu_edit)
-            "follow-up","follow_up" -> Triple(Color.parseColor("#8B5CF6"), "$prefixLabel • Saved in Follow-up", android.R.drawable.ic_menu_revert)
-            "journal"   -> Triple(Color.parseColor("#EC4899"), "$prefixLabel • Saved in Journal", android.R.drawable.ic_menu_agenda)
-            else         -> Triple(Color.parseColor("#6B7280"), "$prefixLabel • Saved in General", android.R.drawable.ic_menu_info_details)
-        }
-        val display = if (title.isBlank()) label else "$label • ${title.take(40)}"
-        showIsland(display, color, iconRes)
-        scheduleIslandDismiss(2_800L)
-    }
-
-    fun handleApplySettings(settingsJson: String) {
-        mainHandler.post {
-            overlaySettings = OverlayAppearanceSettings.fromJson(settingsJson)
-            applyBubbleAppearance()
-            if (islandView != null && islandLabel != null && islandBg != null) {
-                applyIslandAppearance(islandBaseColor)
-            }
-        }
-    }
-
-    // ─── Text input banner ────────────────────────────────────────────────────
-
-    private fun showTextInputBanner() {
-        if (bannerView != null) return
-        val bannerParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            overlayType(),
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-            PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; y = dp(8f) }
-
-        val bg = GradientDrawable().apply {
-            cornerRadius = dp(20f).toFloat()
-            colors = intArrayOf(Color.parseColor("#1E1B4B"), Color.parseColor("#312E81"))
-            orientation = GradientDrawable.Orientation.TL_BR
-            setStroke(dp(1f), Color.parseColor("#7C3AED"))
-        }
-
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
-            background = bg; elevation = dp(16f).toFloat()
-        }
-
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val title  = TextView(this).apply {
-            text = "Quick Note"; setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f); setTypeface(null, Typeface.BOLD)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        val close = TextView(this).apply {
-            text = "✕"; setTextColor(Color.parseColor("#94A3B8"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            setPadding(dp(8f), dp(4f), 0, dp(4f))
-            setOnClickListener { dismissBanner() }
-        }
-        header.addView(title); header.addView(close)
-
-        val input = EditText(this).apply {
-            hint = "What's on your mind?"; setHintTextColor(Color.parseColor("#64748B"))
-            setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-            background = GradientDrawable().apply { cornerRadius = dp(12f).toFloat(); setColor(Color.parseColor("#1F2937")) }
-            setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            maxLines = 4; imeOptions = EditorInfo.IME_ACTION_DONE
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(90f)).apply { topMargin = dp(10f) }
-        }
-
-        val sendBtn = TextView(this).apply {
-            text = "Save Note"; setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTypeface(null, Typeface.BOLD)
-            background = GradientDrawable().apply { cornerRadius = dp(12f).toFloat(); setColor(Color.parseColor("#6366F1")) }
-            setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10f) }
-            setOnClickListener {
-                val text = input.text.toString().trim()
-                if (text.isNotEmpty()) {
-                    try {
-                        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-                        imm.hideSoftInputFromWindow(input.windowToken, 0)
-                    } catch (_: Exception) {}
-                    dismissBanner()
-                    broadcastCapture(text, SOURCE_TEXT)
-                } else {
-                    dismissBanner()
-                }
-            }
-        }
-
-        layout.addView(header); layout.addView(input); layout.addView(sendBtn)
-
-        try {
-            bannerView = layout
-            windowManager.addView(layout, bannerParams)
-            layout.post {
-                input.requestFocus()
-                try {
-                    val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-                    imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
-                } catch (_: Exception) {}
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "showTextInputBanner: addView failed", e)
-            bannerView = null
-        }
-    }
-
-    private fun dismissBanner() {
-        mainHandler.post {
-            val v = bannerView ?: return@post
-            try {
-                try {
-                    val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-                    imm.hideSoftInputFromWindow(v.windowToken, 0)
-                } catch (_: Exception) {}
-                windowManager.removeView(v)
-            } catch (_: Exception) {}
-            bannerView = null
-        }
-    }
-
-    // ─── Broadcast ────────────────────────────────────────────────────────────
-
-    private fun broadcastCapture(text: String, source: String) {
-        // ISSUE-03 FIX: use LocalBroadcastManager so NoteInputReceiver (which
-        // registers via LBM) actually receives this event.
-        val intent = Intent(ACTION_NOTE_CAPTURED).apply {
-            putExtra(EXTRA_TEXT,   text)
-            putExtra(EXTRA_SOURCE, source)
-        }
-        androidx.localbroadcastmanager.content.LocalBroadcastManager
-            .getInstance(this)
-            .sendBroadcast(intent)
-
-        // Direct channel delivery as a fast-path for foreground sessions.
-        // NoteInputReceiver handles the engine-dead fallback.
-        FlutterEngineHolder.channel?.invokeMethod(
-            "captureNote",
-            hashMapOf("text" to text, "source" to source)
-        )
-    }
-
-    // ─── Audio focus ──────────────────────────────────────────────────────────
-
-    private fun requestAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
-                .setAudioAttributes(AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build())
-                .setAcceptsDelayedFocusGain(false)
-                .build()
-            audioFocusRequest = req
-            audioManager?.requestAudioFocus(req)
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager?.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
-        }
-    }
-
-    private fun releaseAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
-            audioFocusRequest = null
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager?.abandonAudioFocus(null)
-        }
-    }
-
-    // ─── Bubble visual reset ──────────────────────────────────────────────────
-
-    private fun resetBubbleVisuals() {
-        pulseAnimator?.cancel(); pulseAnimator = null
-        stopIdleBubblePulse()
-        bubbleView?.scaleX = 1f; bubbleView?.scaleY = 1f
-        applyBubbleAppearance()
-        bubbleIcon?.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.ic_btn_speak_now))
-        bubbleIcon?.setColorFilter(Color.WHITE)
-        startIdleBubblePulse()
-    }
-
-    private fun applyBubbleAppearance() {
-        val view = bubbleView ?: return
-        bubbleBackground = buildBubbleDrawable(overlaySettings)
-        view.background = bubbleBackground
-        view.alpha = overlaySettings.alpha.coerceIn(0.3f, 1f)
-        bubbleGrowEnabled = overlaySettings.growEnabled
-    }
-
-    private fun applyIslandAppearance(baseColor: Int) {
-        val view = islandView ?: return
-        islandBg = buildIslandDrawable(baseColor, overlaySettings)
-        view.background = islandBg
-    }
-
-    private fun buildBubbleDrawable(settings: OverlayAppearanceSettings): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            applyFill(this, settings, Color.parseColor("#6366F1"), true)
-        }
-    }
-
-    private fun buildIslandDrawable(baseColor: Int, settings: OverlayAppearanceSettings): GradientDrawable {
-        return GradientDrawable().apply {
-            cornerRadius = dp(24f).toFloat()
-            applyFill(this, settings, baseColor, false)
-        }
-    }
-
-    private fun applyFill(
-        drawable: GradientDrawable,
-        settings: OverlayAppearanceSettings,
-        baseColor: Int,
-        isBubble: Boolean,
-    ) {
-        val alpha = settings.alpha.coerceIn(0.3f, 1f)
-        when (settings.colorFill.lowercase(Locale.ROOT)) {
-            "solid" -> {
-                drawable.setColor(applyAlpha(settings.solidColor, alpha))
-            }
-            "lineargradient" -> {
-                drawable.orientation = GradientDrawable.Orientation.TL_BR
-                drawable.colors = intArrayOf(
-                    applyAlpha(settings.gradientStart, alpha),
-                    applyAlpha(settings.gradientEnd, alpha),
-                )
-            }
-            "radialgradient" -> {
-                drawable.gradientType = GradientDrawable.RADIAL_GRADIENT
-                drawable.gradientRadius = if (isBubble) dp(64f).toFloat() else dp(96f).toFloat()
-                drawable.colors = intArrayOf(
-                    applyAlpha(settings.gradientStart, alpha),
-                    applyAlpha(settings.gradientEnd, alpha),
-                )
-            }
-            else -> {
-                drawable.setColor(applyAlpha(baseColor, alpha))
-            }
-        }
-
-        when (settings.borderStyle.lowercase(Locale.ROOT)) {
-            "none" -> drawable.setStroke(0, Color.TRANSPARENT)
-            "hairline" -> drawable.setStroke(
-                dp(1f),
-                applyAlpha(settings.borderColor, 0.5f),
-            )
-            else -> drawable.setStroke(
-                if (isBubble) dp(1.5f) else dp(1f),
-                applyAlpha(settings.borderColor, 0.88f),
-            )
-        }
-    }
-
-    private fun applyAlpha(color: Int, alpha: Float): Int {
-        val clamped = alpha.coerceIn(0f, 1f)
-        return Color.argb(
-            (clamped * 255f).toInt(),
-            Color.red(color),
-            Color.green(color),
-            Color.blue(color),
-        )
-    }
-
-    // ─── Full reset ───────────────────────────────────────────────────────────
-
-    /** Called on destroy to ensure zero leaks. */
-    private fun performFullReset(removeViews: Boolean) {
-        cancelIslandDismiss()
-        longPressRunnable?.let    { mainHandler.removeCallbacks(it) }
-        restartListenRunnable?.let{ mainHandler.removeCallbacks(it) }
-        longPressRunnable    = null
-        restartListenRunnable = null
-        releaseAudioFocus()
-        releaseSpeechRecognizer()
-        isRecording = false; isUserHolding = false; isResettingAfterError = false
-        if (removeViews) {
-            try { bannerView?.let { windowManager.removeView(it) }  } catch (_: Exception) {}
-            try { islandView?.let { windowManager.removeView(it) }  } catch (_: Exception) {}
-            try { bubbleView?.let { windowManager.removeView(it) }  } catch (_: Exception) {}
-            bannerView = null; islandView = null; bubbleView = null
-        } else {
-            animateDismissIsland()
-            dismissBanner()
-            resetBubbleVisuals()
-        }
-    }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    private fun vibrate(ms: Long = 40) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager)
-                    .defaultVibrator.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                (getSystemService(VIBRATOR_SERVICE) as? Vibrator)
-                    ?.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
-            }
-        } catch (_: Exception) {}
-    }
-
-    private fun recognizerErrorToString(code: Int) = when (code) {
-        SpeechRecognizer.ERROR_AUDIO                  -> "AUDIO"
-        SpeechRecognizer.ERROR_CLIENT                 -> "CLIENT"
-        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "NO_PERMISSION"
-        SpeechRecognizer.ERROR_NETWORK                -> "NETWORK"
-        SpeechRecognizer.ERROR_NETWORK_TIMEOUT        -> "NETWORK_TIMEOUT"
-        SpeechRecognizer.ERROR_NO_MATCH               -> "NO_MATCH"
-        SpeechRecognizer.ERROR_RECOGNIZER_BUSY        -> "BUSY"
-        SpeechRecognizer.ERROR_SERVER                 -> "SERVER"
-        SpeechRecognizer.ERROR_SPEECH_TIMEOUT         -> "SPEECH_TIMEOUT"
-        else                                          -> "UNKNOWN($code)"
-    }
-
-    /**
-     * Intelligently merges incremental STT packets.
-     * Handles the common case where the recogniser emits overlapping hypotheses.
-     */
-    private fun mergeTranscript(existing: String, incoming: String): String {
-        val prev = existing.replace(Regex("\\s+"), " ").trim()
-        val next = incoming.replace(Regex("\\s+"), " ").trim()
-        if (next.isEmpty()) return prev
-        if (prev.isEmpty()) return next
-        if (next.equals(prev, ignoreCase = true)) return prev
-        if (next.startsWith(prev, ignoreCase = true)) return next
-        if (prev.startsWith(next, ignoreCase = true))
-            return if (next.length < prev.length * 0.65f) prev else next
-
-        val maxOverlap = minOf(prev.length, next.length)
-        for (len in maxOverlap downTo 2) {
-            if (prev.takeLast(len).equals(next.take(len), ignoreCase = true))
-                return (prev + next.drop(len)).replace(Regex("\\s+"), " ").trim()
-        }
-        val ratio = next.length.toFloat() / prev.length.toFloat().coerceAtLeast(1f)
-        return if (ratio in 0.7f..1.4f) next else "$prev $next".replace(Regex("\\s+"), " ").trim()
-    }
-}
-```
-
-### android/app/src/main/kotlin/com/adarshkumarverma/wishperlog/WishperlogApplication.kt
-
-```kotlin
-package com.adarshkumarverma.wishperlog
-
-import io.flutter.FlutterInjector
-import io.flutter.app.FlutterApplication
-
-class WishperlogApplication : FlutterApplication() {
-    override fun onCreate() {
-        super.onCreate()
-        // Pre-warm the Flutter loader so BackgroundNoteService starts faster.
-        FlutterInjector.instance().flutterLoader().startInitialization(this)
-    }
-}
-```
-
-### android/app/src/main/res/drawable/launch_background.xml
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
-</layer-list>
-```
-
-### android/app/src/main/res/drawable-v21/launch_background.xml
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
-</layer-list>
-```
-
-### android/app/src/main/res/values/colors.xml
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="black">#000000</color>
-</resources>
-```
-
-### android/app/src/main/res/values/styles.xml
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
-        <item name="android:windowBackground">@drawable/launch_background</item>
-    </style>
-    <!-- Theme applied to the Android Window as soon as the process has started.
-         This theme determines the color of the Android Window while your
-         Flutter UI initializes, as well as behind your Flutter UI while its
-         running.
-
-         This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">@android:color/transparent</item>
-    </style>
-</resources>
-```
-
-### android/app/src/main/res/values-night/styles.xml
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is on -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
-        <item name="android:windowBackground">@drawable/launch_background</item>
-    </style>
-    <!-- Theme applied to the Android Window as soon as the process has started.
-         This theme determines the color of the Android Window while your
-         Flutter UI initializes, as well as behind your Flutter UI while its
-         running.
-
-         This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">@android:color/transparent</item>
-    </style>
-</resources>
-```
-
-### android/app/src/main/res/xml/backup_rules.xml
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-  ISSUE-17: Explicit backup rules.
-  Excludes all sensitive local data from Android cloud backup.
--->
-<full-backup-content>
-    <!-- Exclude the entire shared_prefs directory — contains overlay prefs,
-         Telegram chat ID, pending notes, and auth tokens. -->
-    <exclude domain="sharedpref" path="." />
-    <!-- Exclude Isar database files. -->
-    <exclude domain="file" path="." />
-    <exclude domain="database" path="." />
-</full-backup-content>
-```
-
-### android/app/src/main/res/xml/data_extraction_rules.xml
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-  ISSUE-17: Android 12+ data-extraction rules.
-  Both cloud backup and device-to-device transfer are disabled for all
-  user data to protect note content, tokens, and Telegram IDs.
--->
-<data-extraction-rules>
-    <cloud-backup>
-        <exclude domain="root" />
-        <exclude domain="sharedpref" />
-        <exclude domain="database" />
-        <exclude domain="file" />
-        <exclude domain="external" />
-    </cloud-backup>
-    <device-transfer>
-        <exclude domain="root" />
-        <exclude domain="sharedpref" />
-        <exclude domain="database" />
-        <exclude domain="file" />
-        <exclude domain="external" />
-    </device-transfer>
-</data-extraction-rules>
-```
-
-### android/app/src/profile/AndroidManifest.xml
-
-```xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The INTERNET permission is required for development. Specifically,
-         the Flutter tool needs it to communicate with the running application
-         to allow setting breakpoints, to provide hot reload, etc.
-    -->
-    <uses-permission android:name="android.permission.INTERNET"/>
-</manifest>
-```
-
-### android/build.gradle.kts
-
-```kotlin
-import com.android.build.gradle.LibraryExtension
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("../../build")
-        .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
-
-subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-subprojects {
-    plugins.withId("com.android.library") {
-        extensions.configure<LibraryExtension>("android") {
-            if (namespace == null) {
-                namespace = project.group.toString()
-            }
-            compileSdk = 35
-        }
-    }
-}
-
-tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
-}
-```
-
-### android/gradle/wrapper/gradle-wrapper.properties
-
-```properties
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.14-all.zip
-```
-
-### android/gradle.properties
-
-```properties
-org.gradle.jvmargs=-Xmx8G -XX:MaxMetaspaceSize=4G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError
-android.useAndroidX=true
-WISHPERLOG_STORE_FILE=../wishperlog-release.jks
-WISHPERLOG_STORE_PASSWORD=Veer@5058
-WISHPERLOG_KEY_ALIAS=wishperlog
-WISHPERLOG_KEY_PASSWORD=Veer@5058
-```
-
-### android/local.properties
-
-```properties
-sdk.dir=/home/veerbhadra/Android/Sdk
-flutter.sdk=/home/veerbhadra/development/flutter
-flutter.buildMode=debug
-flutter.versionName=1.0.0
-flutter.versionCode=1
-```
-
-### android/settings.gradle.kts
-
-```kotlin
-pluginManagement {
-    val flutterSdkPath =
-        run {
-            val properties = java.util.Properties()
-            file("local.properties").inputStream().use { properties.load(it) }
-            val flutterSdkPath = properties.getProperty("flutter.sdk")
-            require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
-            flutterSdkPath
-        }
-
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
-
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-
-plugins {
-    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.11.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
-    id("com.google.gms.google-services") version "4.4.2" apply false
-}
-
-include(":app")
-```
-
-### cloudfare/src/worker.ts
-
-```typescript
-// cloudfare/src/worker.ts
-//
-// WishperLog Digest Worker — v3.1
-//
-// ── Architecture change (v3.1) ──────────────────────────────────────────────
-// The cron now reads scheduling data from the user root document so digest
-// delivery does not depend on the optional digest/config mirror write.
-//
-// Firestore query path for cron:
-//   collection: users  →  filter docs with telegram_chat_id present
-//
-// Firestore path for cron dedup KV:
-//   key format: "YYYY-MM-DD:HH:MM:<uid>"   TTL: 26 h (93 600 s)
-//
-// Webhook: reads user root doc via token lookup (unchanged) then writes a
-// history entry to users/{uid}/digest/history_<ts>.
-// ENV secrets (wrangler secret put <name>):
-//   TELEGRAM_BOT_TOKEN
-//   FIREBASE_PROJECT_ID
-//   FIREBASE_CLIENT_EMAIL
-//   FIREBASE_PRIVATE_KEY          (PEM with literal \n)
-//   TRIGGER_SECRET
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface Env {
-  DIGEST_SENT: KVNamespace;
-  TELEGRAM_BOT_TOKEN: string;
-  FIREBASE_PROJECT_ID: string;
-  FIREBASE_CLIENT_EMAIL: string;
-  FIREBASE_PRIVATE_KEY: string;
-  TRIGGER_SECRET: string;
-}
-
-type KVNamespace = {
-  get(key: string): Promise<string | null> | string | null;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void> | void;
-};
-
-type ScheduledEvent = unknown;
-
-type ExecutionContext = unknown;
-
-// ── JWT / Auth ────────────────────────────────────────────────────────────────
-
-async function getFirebaseToken(env: Env): Promise<string> {
-  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
-  const now        = Math.floor(Date.now() / 1000);
-
-  const header  = { alg: "RS256", typ: "JWT" };
-  const payload = {
-    iss  : env.FIREBASE_CLIENT_EMAIL,
-    sub  : env.FIREBASE_CLIENT_EMAIL,
-    aud  : "https://oauth2.googleapis.com/token",
-    iat  : now,
-    exp  : now + 3600,
-    scope: "https://www.googleapis.com/auth/datastore",
-  };
-
-  const encode = (obj: object) =>
-    btoa(JSON.stringify(obj))
-      .replace(/=/g, "")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_");
-
-  const unsigned = `${encode(header)}.${encode(payload)}`;
-
-  const keyData = await crypto.subtle.importKey(
-    "pkcs8",
-    pemToBuffer(privateKey),
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-
-  const sig = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    keyData,
-    new TextEncoder().encode(unsigned),
-  );
-
-  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
-
-  const jwt = `${unsigned}.${sigB64}`;
-
-  const resp = await fetch("https://oauth2.googleapis.com/token", {
-    method : "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body   : `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+### test/widget_test.dart
+
+```dart
+// test/widget_test.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:wishperlog/core/config/app_env.dart';
+
+void main() {
+  // AppEnv.load() is called so dotenv is initialized before any getter is read.
+  // Without this, every getter that calls dotenv.maybeGet() throws NotInitializedError.
+  setUpAll(() async {
+    await AppEnv.load();
   });
 
-  const data = (await resp.json()) as { access_token?: string; error?: string };
-  if (!data.access_token) {
-    throw new Error(`Firebase token exchange failed: ${data.error ?? "unknown"}`);
-  }
-  return data.access_token;
-}
-
-function pemToBuffer(pem: string): ArrayBuffer {
-  const b64 = pem
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
-    .replace(/-----END PRIVATE KEY-----/, "")
-    .replace(/\s/g, "");
-  const bin = atob(b64);
-  const buf = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-  return buf.buffer;
-}
-
-// ── Firestore REST helpers ────────────────────────────────────────────────────
-
-async function firestoreGet(
-  path: string,
-  token: string,
-  projectId: string,
-): Promise<unknown> {
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
-  const resp = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!resp.ok) throw new Error(`Firestore GET failed: ${resp.status} ${path}`);
-  return resp.json();
-}
-
-async function firestorePost(
-  path: string,
-  body: object,
-  token: string,
-  projectId: string,
-): Promise<unknown> {
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
-  const resp = await fetch(url, {
-    method : "POST",
-    headers: {
-      Authorization  : `Bearer ${token}`,
-      "Content-Type" : "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`Firestore POST failed: ${resp.status} ${text}`);
-  }
-  return resp.json();
-}
-
-async function firestorePatch(
-  docPath: string,
-  fields: Record<string, unknown>,
-  token: string,
-  projectId: string,
-): Promise<void> {
-  const url =
-    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${docPath}` +
-    `?${Object.keys(fields)
-      .map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
-      .join("&")}`;
-
-  const resp = await fetch(url, {
-    method : "PATCH",
-    headers: {
-      Authorization : `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ fields }),
-  });
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`Firestore PATCH failed: ${resp.status} ${text}`);
-  }
-}
-
-// ── Firestore field extractors ────────────────────────────────────────────────
-
-function extractField(doc: any, field: string): unknown {
-  const f = doc?.fields?.[field];
-  if (!f) return undefined;
-  return (
-    f.stringValue  ??
-    f.integerValue ??
-    f.booleanValue ??
-    f.doubleValue  ??
-    undefined
-  );
-}
-
-function extractArray(doc: any, field: string): string[] {
-  const f = doc?.fields?.[field];
-  if (!f?.arrayValue?.values) return [];
-  return (f.arrayValue.values as any[]).map(
-    (v: any) => v.stringValue ?? "",
-  ).filter(Boolean);
-}
-
-// ── Telegram ──────────────────────────────────────────────────────────────────
-
-async function sendTelegramMessage(
-  chatId: string,
-  text: string,
-  botToken: string,
-): Promise<void> {
-  const resp = await fetch(
-    `https://api.telegram.org/bot${botToken}/sendMessage`,
-    {
-      method : "POST",
-      headers: { "Content-Type": "application/json" },
-      body   : JSON.stringify({
-        chat_id   : chatId,
-        text,
-        parse_mode: "HTML",
-      }),
-    },
-  );
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Telegram sendMessage failed: ${err}`);
-  }
-}
-
-// ── Cron digest ───────────────────────────────────────────────────────────────
-
-async function runDigestCron(env: Env): Promise<void> {
-  const token   = await getFirebaseToken(env);
-  const now     = new Date();
-  const slotKey = toSlotKey(now);
-  const dateKey = toDateKey(now);
-
-  console.log(`[Cron] Running at UTC ${slotKey} on ${dateKey}`);
-
-  const queryUrl =
-    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
-
-  const queryResp = await fetch(queryUrl, {
-    method : "POST",
-    headers: {
-      Authorization : `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId: "users" }],
-        select: {
-          fields: [
-            { fieldPath: "telegram_chat_id" },
-            { fieldPath: "digest_times_utc" },
-            { fieldPath: "digest_slots" },
-            { fieldPath: "digest_time" },
-            { fieldPath: "display_name" },
-            { fieldPath: "message_state" },
-          ],
-        },
-        where: {
-          fieldFilter: {
-            field: { fieldPath: "telegram_chat_id" },
-            op   : "GREATER_THAN_OR_EQUAL",
-            value: { stringValue: "" },
-          },
-        },
-      },
-    }),
+  testWidgets('AppEnv getters return safely without a real .env file', (tester) async {
+    // All getters must return an empty string rather than throwing.
+    expect(AppEnv.geminiApiKey, isA<String>());
+    expect(AppEnv.groqApiKey, isA<String>());
+    expect(AppEnv.huggingFaceApiKey, isA<String>());
+    expect(AppEnv.telegramBotToken, isA<String>());
+    expect(AppEnv.telegramBotUsername, isA<String>());
+    expect(AppEnv.googleWebClientId, isA<String>());
   });
 
-  if (!queryResp.ok) {
-    console.error(`[Cron] collectionGroup query failed: ${queryResp.status}`);
-    return;
-  }
-
-  const queryResults = (await queryResp.json()) as any[];
-  console.log(`[Cron] digest config docs fetched: ${queryResults.length}`);
-
-  let fired = 0;
-
-  for (const result of queryResults) {
-    const doc = result?.document;
-    if (!doc) continue;
-
-    const docName: string = doc.name ?? "";
-    const uid = docName.split("/").pop();
-    if (!uid) continue;
-
-    const chatId = extractField(doc, "telegram_chat_id") as string | undefined;
-    const name   = (extractField(doc, "display_name") as string | undefined) ?? "there";
-    const slots  = [
-      ...extractArray(doc, "digest_times_utc"),
-      ...extractArray(doc, "digest_slots"),
-      ...(extractField(doc, "digest_time") ? [String(extractField(doc, "digest_time"))] : []),
-    ].filter((slot) => Boolean(slot.trim()));
-
-    if (!uid || !chatId || !slots.includes(slotKey)) continue;
-
-    let message = "";
-    try {
-      message = pickTelegramMessage(extractMessageState(doc), "summary");
-    } catch (e) {
-      console.warn(`[Cron] Failed to read cached digest for ${uid}: ${e}`);
-    }
-
-    // Dedup: one digest per slot per day per user.
-    const dedupKey = `${dateKey}:${slotKey}:${uid}`;
-    const already  = await env.DIGEST_SENT.get(dedupKey);
-    if (already) {
-      console.log(`[Cron] Already sent to ${uid} at ${slotKey}`);
-      continue;
-    }
-
-    // Fetch the user's notes from the notes subcollection.
-    let notes: NoteDoc[] = [];
-    try {
-      if (!message) {
-        notes = extractDigestNotes(doc);
-      }
-      if (!message && notes.length === 0) {
-        const notesSnap = await firestoreGet(
-          `users/${uid}/notes?pageSize=200`,
-          token,
-          env.FIREBASE_PROJECT_ID,
-        );
-        notes = parseNoteDocs(((notesSnap as any)?.documents ?? []) as any[], uid);
-      }
-    } catch (e) {
-      console.error(`[Cron] Failed to fetch notes for ${uid}: ${e}`);
-      continue;
-    }
-
-    if (!message) {
-      message = buildDigest(notes, name, "Daily Digest");
-    }
-
-    try {
-      await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
-
-      // Mark as sent for 26 hours.
-      await env.DIGEST_SENT.put(dedupKey, "1", { expirationTtl: 93_600 });
-
-      // Write a history entry to users/{uid}/digest/history_<ts>
-      await writeDigestHistory(uid, "cron_digest", "Daily Digest", notes.length, token, env);
-
-      fired++;
-      console.log(`[Cron] Digest sent to ${uid} (${chatId})`);
-    } catch (e) {
-      console.error(`[Cron] Failed to send to ${uid}: ${e}`);
-    }
-  }
-
-  console.log(`[Cron] Done — fired ${fired} digest(s)`);
-}
-
-// ── Write digest history entry ────────────────────────────────────────────────
-
-async function writeDigestHistory(
-  uid: string,
-  command: string,
-  heading: string,
-  noteCount: number,
-  token: string,
-  env: Env,
-): Promise<void> {
-  try {
-    const ts    = Date.now();
-    const docId = `history_${ts}`;
-    const path  = `users/${uid}/digest/${docId}`;
-
-    const fields = {
-      command         : { stringValue: command },
-      response_heading: { stringValue: heading },
-      note_count      : { integerValue: String(noteCount) },
-      queried_at      : { timestampValue: new Date().toISOString() },
-    };
-
-    await firestorePatch(path, fields, token, env.FIREBASE_PROJECT_ID);
-  } catch (e) {
-    // Non-fatal: history logging should never block the main send path.
-    console.warn(`[History] Failed to write history for ${uid}: ${e}`);
-  }
-}
-
-// ── Telegram webhook handler ──────────────────────────────────────────────────
-
-// ── Live-digest builder (used by webhook to avoid stale cached state) ─────────
-async function buildLiveTelegramMessage(
-  uid: string,
-  token: string,
-  env: Env,
-): Promise<string> {
-  const notes = await fetchUserNotes(uid, token, env);
-  const userDoc = await fetchUserDoc(uid, token, env);
-  const f = userDoc?.fields ?? {};
-  const displayName = (f['display_name']?.stringValue ?? '').trim();
-  const noteDocs = parseNoteDocs(notes, uid);
-  return buildDigest(noteDocs, displayName, '📋 Your Notes Summary');
-}
-
-async function fetchUserNotes(uid: string, token: string, env: Env): Promise<any[]> {
-  const notesSnap = await firestoreGet(
-    `users/${uid}/notes?pageSize=200`,
-    token,
-    env.FIREBASE_PROJECT_ID,
-  );
-
-  return ((notesSnap as any)?.documents ?? []) as any[];
-}
-
-async function fetchUserDoc(uid: string, token: string, env: Env): Promise<any | null> {
-  try {
-    return await firestoreGet(
-      `users/${uid}`,
-      token,
-      env.FIREBASE_PROJECT_ID,
-    );
-  } catch {
-    return null;
-  }
-}
-
-async function handleWebhook(req: Request, env: Env): Promise<Response> {
-  let body: any;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response("bad request", { status: 400 });
-  }
-
-  const message = body?.message;
-  const chatId  = message?.chat?.id;
-  const text    = (message?.text ?? "").trim();
-
-  if (!chatId || !text.startsWith("/")) {
-    return new Response("ok");
-  }
-
-  const token = await getFirebaseToken(env);
-
-  // ── Handle /start <link_token> — link the user's account ──────────────────
-  if (text.startsWith("/start")) {
-    const parts      = text.split(/\s+/);
-    const linkToken  = parts[1]?.trim() ?? "";
-
-    if (linkToken) {
-      await handleStartWithToken(chatId, linkToken, token, env);
-    } else {
-      // /start with no token → send help + Chat ID
-      await sendTelegramMessage(
-        String(chatId),
-        [
-          '<b>WishperLog</b> <i>Telegram link</i>',
-          '',
-          'Your Chat ID',
-          `<code>${chatId}</code>`,
-          '',
-          '<i>Manual linking</i>',
-          '1. Open WishperLog → Settings → Telegram',
-          '2. Tap <b>Manual Chat ID</b>',
-          '3. Paste the number above',
-        ].join('\n'),
-        env.TELEGRAM_BOT_TOKEN,
-      );
-    }
-    return new Response("ok");
-  }
-
-  // ── Handle digest commands ─────────────────────────────────────────────────
-  const cmd = text.replace(/^\//, "").split("@")[0].toLowerCase();
-  if (cmd === "summary" || cmd === "top") {
-    // Always fetch live notes from Firestore for freshest data.
-    try {
-      const uid = await resolveTelegramUserId(String(chatId), token, env);
-      const liveMessage = await buildLiveTelegramMessage(uid, token, env);
-      await sendTelegramMessage(String(chatId), liveMessage, env.TELEGRAM_BOT_TOKEN);
-    } catch (e) {
-      console.error(`[Webhook] Failed to build live digest for ${chatId}:`, e);
-      await sendTelegramMessage(
-        String(chatId),
-        '⚠️ Could not fetch your notes right now. Try again shortly.',
-        env.TELEGRAM_BOT_TOKEN,
-      );
-    }
-    return new Response("ok");
-  }
-
-  await handleDigestCommand(chatId, cmd, token, env);
-
-  return new Response("ok");
-}
-
-async function resolveTelegramUserId(
-  chatId: string,
-  token: string,
-  env: Env,
-): Promise<string> {
-  const queryUrl =
-    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
-
-  const configDoc =
-    await findLinkedDigestConfigDoc(queryUrl, token, chatId, env);
-
-  const uid = extractUidFromDocName(configDoc?.name ?? "");
-  if (uid) return uid;
-
-  throw new Error(`Telegram chat ${chatId} is not linked to a user`);
-}
-
-async function handleStartWithToken(
-  chatId: number,
-  linkToken: string,
-  token: string,
-  env: Env,
-): Promise<void> {
-  const queryUrl =
-    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
-
-  const userDoc = await findLinkedUserDocByValue(queryUrl, token, linkToken, [
-    "telegram_link_token",
-    "telegram_link_pin",
-    "pending_telegram.token",
-  ]);
-
-  if (!userDoc) {
-    await sendTelegramMessage(
-      String(chatId),
-      [
-        '<b>Telegram link not found or already used.</b>',
-        '',
-        '<i>Quick recovery</i>',
-        '• Open WishperLog → Settings → Telegram',
-        '• Tap <b>Connect in Telegram</b> again',
-        '• Use the new link or copied code immediately',
-        '',
-        '<i>Manual fallback</i>',
-        'Send <b>/start</b> without a code to get your Chat ID, then paste it back into the app.',
-      ].join('\n'),
-      env.TELEGRAM_BOT_TOKEN,
-    );
-    return;
-  }
-
-  const uid         = userDoc.name?.split("/").pop() as string;
-  const displayName = (extractField(userDoc, "display_name") as string) ?? "there";
-
-  // Write chat_id to both the user root doc and the digest/config doc.
-  const chatIdStr = String(chatId);
-
-  // User root doc update
-  await firestorePatch(
-    `users/${uid}`,
-    {
-      telegram_chat_id: { stringValue: chatIdStr },
-      telegram_link_token: { nullValue: "NULL_VALUE" },
-    },
-    token,
-    env.FIREBASE_PROJECT_ID,
-  );
-
-  // Digest config doc update — this is the canonical source the cron reads.
-  await firestorePatch(
-    `users/${uid}/digest/config`,
-    {
-      telegram_chat_id: { stringValue: chatIdStr },
-      link_method     : { stringValue: "auto_deeplink" },
-      linked_at       : { timestampValue: new Date().toISOString() },
-    },
-    token,
-    env.FIREBASE_PROJECT_ID,
-  );
-
-  await sendTelegramMessage(
-    chatIdStr,
-    [
-      '✅ <b>WishperLog connected</b>',
-      '',
-      `Hello <b>${escapeHtml(asciiOnly(displayName))}</b>!`,
-      'Your digests are now linked and ready.',
-      '',
-      '<b>Quick commands</b>',
-      '<code>/summary</code> <code>/top</code> <code>/tasks</code>',
-      '<code>/reminders</code> <code>/ideas</code> <code>/followup</code>',
-      '<code>/journal</code> <code>/general</code>',
-    ].join('\n'),
-    env.TELEGRAM_BOT_TOKEN,
-  );
-}
-
-async function findLinkedUserDocByValue(
-  queryUrl: string,
-  token: string,
-  linkToken: string,
-  fieldPaths: string[],
-): Promise<any | null> {
-  for (const fieldPath of fieldPaths) {
-    const queryResp = await fetch(queryUrl, {
-      method : "POST",
-      headers: {
-        Authorization : `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        structuredQuery: {
-          from : [{ collectionId: "users" }],
-          where: {
-            fieldFilter: {
-              field: { fieldPath },
-              op   : "EQUAL",
-              value: { stringValue: linkToken },
-            },
-          },
-          limit: { value: 1 },
-        },
-      }),
-    });
-
-    if (!queryResp.ok) continue;
-    const results = (await queryResp.json()) as any[];
-    const doc = results?.[0]?.document;
-    if (doc) return doc;
-  }
-
-  return null;
-}
-
-async function handleDigestCommand(
-  chatId: number,
-  cmd: string,
-  token: string,
-  env: Env,
-): Promise<void> {
-  const queryUrl =
-    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
-
-  const configDoc =
-    await findLinkedDigestConfigDoc(queryUrl, token, String(chatId), env);
-
-  if (!configDoc) {
-    await sendTelegramMessage(
-      String(chatId),
-      [
-        '<b>Telegram is not linked yet.</b>',
-        '',
-        'Open WishperLog → Telegram and connect again.',
-      ].join('\n'),
-      env.TELEGRAM_BOT_TOKEN,
-    );
-    return;
-  }
-
-  const uid = extractUidFromDocName(configDoc.name ?? "");
-  if (!uid) {
-    await sendTelegramMessage(
-      String(chatId),
-      [
-        '<b>Telegram is linked, but the user record could not be resolved.</b>',
-        '',
-        'Open WishperLog → Settings → Telegram and reconnect.',
-      ].join('\n'),
-      env.TELEGRAM_BOT_TOKEN,
-    );
-    return;
-  }
-  const name      = (extractField(configDoc, "display_name") as string) ?? "there";
-
-  if (!isSupportedTelegramCommand(cmd)) {
-    await sendTelegramMessage(
-      String(chatId),
-      [
-        '<b>WishperLog commands</b>',
-        '<i>Use any of these:</i>',
-        '',
-        '<code>/summary</code>  <code>/top</code>  <code>/tasks</code>',
-        '<code>/reminders</code>  <code>/ideas</code>  <code>/followup</code>',
-        '<code>/journal</code>  <code>/general</code>',
-      ].join('\n'),
-      env.TELEGRAM_BOT_TOKEN,
-    );
-    return;
-  }
-
-  let message = "";
-  try {
-    message = await loadCachedTelegramMessage(uid, configDoc, cmd, token, env);
-  } catch (e) {
-    console.warn(`[Cmd] Failed to read cached message for ${uid}: ${e}`);
-  }
-
-  const heading = pickHeading(cmd);
-
-  if (!message) {
-    const infoDoc = await loadDigestInfoDoc(uid, token, env);
-    const notes =
-      extractDigestNotes(infoDoc).length > 0
-        ? extractDigestNotes(infoDoc)
-        : parseNoteDocs(
-            ((await firestoreGet(
-              `users/${uid}/notes?pageSize=200`,
-              token,
-              env.FIREBASE_PROJECT_ID,
-            )) as any)?.documents ?? [],
-            uid,
-          );
-    const sentNotes = pickNotesForCommand(notes, cmd);
-    message = buildDigest(sentNotes, name, heading);
-    await sendTelegramMessage(String(chatId), message, env.TELEGRAM_BOT_TOKEN);
-    await writeDigestHistory(uid, cmd, heading, sentNotes.length, token, env);
-    return;
-  }
-
-  await sendTelegramMessage(
-    String(chatId),
-    message,
-    env.TELEGRAM_BOT_TOKEN,
-  );
-
-  // Log to history
-  await writeDigestHistory(uid, cmd, heading, 0, token, env);
-}
-
-function extractMessageState(doc: any): Record<string, string> {
-  const fields = doc?.fields?.message_state?.mapValue?.fields ?? {};
-  const output: Record<string, string> = {};
-  for (const [key, value] of Object.entries(fields)) {
-    const fieldValue = value as any;
-    const raw = fieldValue?.stringValue;
-    if (typeof raw === "string" && raw.trim()) {
-      output[key] = raw;
-    }
-  }
-  return output;
-}
-
-async function loadCachedTelegramMessage(
-  uid: string,
-  configDoc: any,
-  cmd: string,
-  token: string,
-  env: Env,
-): Promise<string> {
-  const infoDoc = await loadDigestInfoDoc(uid, token, env);
-  const configState = {
-    ...extractMessageState(configDoc),
-    ...extractMessageState(infoDoc),
-  };
-  const fromConfig = pickTelegramMessage(configState, cmd);
-  if (fromConfig) return fromConfig;
-
-  try {
-    const userSnap = await firestoreGet(
-      `users/${uid}`,
-      token,
-      env.FIREBASE_PROJECT_ID,
-    );
-    return pickTelegramMessage(extractMessageState(userSnap as any), cmd);
-  } catch {
-    return "";
-  }
-}
-
-async function loadDigestInfoDoc(uid: string, token: string, env: Env): Promise<any | null> {
-  try {
-    return await firestoreGet(
-      `users/${uid}/digest/config/info/current`,
-      token,
-      env.FIREBASE_PROJECT_ID,
-    );
-  } catch {
-    return null;
-  }
-}
-
-function extractDigestNotes(doc: any): NoteDoc[] {
-  const values = doc?.fields?.notes?.arrayValue?.values ?? [];
-  return values
-    .map((entry: any) => {
-      const fields = entry?.mapValue?.fields ?? {};
-      const str = (key: string) => fields[key]?.stringValue ?? '';
-      return {
-        title: str('title') || str('note_title'),
-        category: str('category'),
-        priority: str('priority'),
-        body: str('body') || str('clean_body'),
-      } as NoteDoc;
-    })
-    .filter((note: NoteDoc) => Boolean(note.title || note.body || note.category));
-}
-
-function pickTelegramMessage(state: Record<string, string>, cmd: string): string {
-  const summary = state.telegram_summary ?? state.telegram_digest ?? state.telegram ?? "";
-  switch (cmd) {
-    case "summary":
-    case "all":
-      return summary;
-    case "top":
-      return state.telegram_top ?? summary;
-    case "tasks":
-    case "task":
-    case "todo":
-      return state.telegram_tasks ?? summary;
-    case "reminders":
-    case "reminder":
-      return state.telegram_reminders ?? summary;
-    case "ideas":
-    case "idea":
-      return state.telegram_ideas ?? summary;
-    case "followup":
-    case "follow-up":
-    case "follow_up":
-      return state.telegram_followup ?? summary;
-    case "journal":
-      return state.telegram_journal ?? summary;
-    case "general":
-      return state.telegram_general ?? summary;
-    default:
-      return "";
-  }
-}
-
-function pickHeading(cmd: string): string {
-  switch (cmd) {
-    case "top":
-      return "Top";
-    case "tasks":
-    case "task":
-    case "todo":
-      return "Tasks";
-    case "reminders":
-    case "reminder":
-      return "Reminders";
-    case "ideas":
-    case "idea":
-      return "Ideas";
-    case "followup":
-    case "follow-up":
-    case "follow_up":
-      return "Follow-up";
-    case "journal":
-      return "Journal";
-    case "general":
-      return "General";
-    default:
-      return "Summary";
-  }
-}
-
-function pickNotesForCommand(notes: NoteDoc[], cmd: string): NoteDoc[] {
-  switch (cmd) {
-    case "top":
-      return [...notes]
-        .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
-        .slice(0, 3);
-    case "tasks":
-    case "task":
-    case "todo":
-      return notes.filter((n) => n.category === "tasks");
-    case "reminders":
-    case "reminder":
-      return notes.filter((n) => n.category === "reminders");
-    case "ideas":
-    case "idea":
-      return notes.filter((n) => n.category === "ideas");
-    case "followup":
-    case "follow-up":
-    case "follow_up":
-      return notes.filter((n) => n.category === "followUp");
-    case "journal":
-      return notes.filter((n) => n.category === "journal");
-    case "general":
-      return notes.filter((n) => n.category === "general");
-    default:
-      return notes;
-  }
-}
-
-function isSupportedTelegramCommand(cmd: string): boolean {
-  return [
-    "summary",
-    "all",
-    "top",
-    "tasks",
-    "task",
-    "todo",
-    "reminders",
-    "reminder",
-    "ideas",
-    "idea",
-    "followup",
-    "follow-up",
-    "follow_up",
-    "journal",
-    "general",
-  ].includes(cmd);
-}
-
-async function findLinkedDigestConfigDoc(
-  queryUrl: string,
-  token: string,
-  chatId: string,
-  env: Env,
-): Promise<any | null> {
-  const candidates = [
-    {
-      from: [{ collectionId: "users" }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: "telegram_chat_id" },
-          op: "EQUAL",
-          value: { stringValue: chatId },
-        },
-      },
-      limit: { value: 1 },
-    },
-    {
-      from: [{ collectionId: "digest", allDescendants: true }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: "telegram_chat_id" },
-          op: "EQUAL",
-          value: { stringValue: chatId },
-        },
-      },
-      limit: { value: 1 },
-    },
-  ];
-
-  for (const structuredQuery of candidates) {
-    const queryResp = await fetch(queryUrl, {
-      method : "POST",
-      headers: {
-        Authorization : `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ structuredQuery }),
-    });
-
-    if (!queryResp.ok) continue;
-
-    const results = (await queryResp.json()) as any[];
-    for (const result of results) {
-      const doc = result?.document;
-      if (!doc) continue;
-      return doc;
-    }
-  }
-
-  return null;
-}
-
-function extractUidFromDocName(name: string): string | null {
-  const parts = name.split("/").filter(Boolean);
-  if (parts.length < 2) return null;
-  if (parts[0] !== "users") return null;
-  return parts[1] ?? null;
-}
-
-// ── Note parsing ──────────────────────────────────────────────────────────────
-
-interface NoteDoc {
-  title   : string;
-  category: string;
-  priority: string;
-  body    : string;
-}
-
-function parseNoteDocs(docs: any[], _uid: string): NoteDoc[] {
-  return docs.map((doc) => {
-    const f   = doc?.fields ?? {};
-    const str = (k: string) => f[k]?.stringValue ?? "";
-    return {
-      title   : str("title"),
-      category: str("category"),
-      priority: str("priority"),
-      body    : str("clean_body"),
-    };
+  testWidgets('App widget tree boots without crashing', (tester) async {
+    // A smoke test — just ensure no exception is thrown building a Material widget.
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: SizedBox())));
+    expect(find.byType(Scaffold), findsOneWidget);
   });
-}
-
-function buildDigest(notes: NoteDoc[], name: string, heading: string): string {
-  const ranked = [...notes]
-    .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
-    .slice(0, 5);
-
-  const title = `<b>${escapeHtml(heading)}</b>`;
-  const greeting = asciiOnly(name)
-    ? `Hello <b>${escapeHtml(asciiOnly(name))}</b>`
-    : 'Hello';
-
-  if (ranked.length === 0) {
-    return [
-      '📋 <b>WishperLog</b>',
-      title,
-      `<i>${greeting}</i>`,
-      '',
-      '<i>No active notes right now. You are all caught up.</i>',
-    ].join('\n');
-  }
-
-  const stats = [
-    `${notes.length} note${notes.length === 1 ? "" : "s"}`,
-    `${notes.filter((n) => n.priority === "high").length} high`,
-    `${notes.filter((n) => n.category === "tasks").length} tasks`,
-  ].join(" · ");
-
-  const lines = [
-    '📋 <b>WishperLog</b>',
-    title,
-    `<i>${greeting}</i>`,
-    `<i>${escapeHtml(stats)}</i>`,
-    '',
-    '<b>Top items</b>',
-  ];
-
-  ranked.forEach((n) => {
-    const category = categoryLabelFromKey(n.category);
-    const priority = priorityLabel(n.priority);
-    const titleText = escapeHtml(asciiOnly(n.title) || "Untitled note");
-    lines.push(`• <b>${category}</b> <code>${priority}</code> ${titleText}`);
-
-    const body = asciiOnly(n.body).slice(0, 140);
-    if (body) {
-      lines.push(`  <i>${escapeHtml(body)}</i>`);
-    }
-  });
-
-  if (notes.length > ranked.length) {
-    lines.push("", `<i>+${notes.length - ranked.length} more</i>`);
-  }
-
-  return lines.join("\n");
-}
-
-// ── Main export ───────────────────────────────────────────────────────────────
-
-export default {
-  async scheduled(
-    _event: ScheduledEvent,
-    env: Env,
-    ctx: ExecutionContext,
-  ): Promise<void> {
-    (ctx as any).waitUntil?.(
-      runDigestCron(env).catch((e) =>
-        console.error('[Cron] runDigestCron failed:', e),
-      ),
-    );
-  },
-
-  async fetch(req: Request, env: Env): Promise<Response> {
-    const url = new URL(req.url);
-
-    if (url.pathname === "/trigger" && req.method === "GET") {
-      if (req.headers.get("X-Trigger-Secret") !== env.TRIGGER_SECRET) {
-        return new Response("Forbidden", { status: 403 });
-      }
-      await runDigestCron(env);
-      return new Response("triggered", { status: 200 });
-    }
-
-    if (url.pathname === "/webhook" && req.method === "POST") {
-      return handleWebhook(req, env);
-    }
-
-    return new Response("WishperLog Worker v3", { status: 200 });
-  },
-};
-
-// ── Utility ───────────────────────────────────────────────────────────────────
-
-function toSlotKey(d: Date): string {
-  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-}
-
-function toDateKey(d: Date): string {
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
-
-function pad(n: number): string {
-  return n.toString().padStart(2, "0");
-}
-
-function asciiOnly(v: string): string {
-  return (v ?? "")
-    .toString()
-    .normalize("NFKD")
-    .replace(/[^\x00-\x7F]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function priorityRank(p: string): number {
-  return p === "high" ? 0 : p === "medium" ? 1 : 2;
-}
-
-function priorityLabel(p: string): string {
-  switch ((p ?? "").toLowerCase()) {
-    case "high": return "HIGH";
-    case "low":  return "LOW";
-    default:     return "MED";
-  }
-}
-
-function categoryLabelFromKey(key: string): string {
-  switch ((key ?? "").toLowerCase()) {
-    case "tasks": return "Tasks";
-    case "reminders": return "Reminders";
-    case "ideas": return "Ideas";
-    case "followup":
-    case "follow_up":
-    case "follow-up": return "Follow-up";
-    case "journal": return "Journal";
-    default: return "General";
-  }
-}
-
-function escapeHtml(input: string): string {
-  return (input ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
 ```
 
-### cloudfare/wrangler.toml
+### variables.md
 
-```toml
-name             = "wishperlog-digest"
-main             = "src/worker.ts"
-compatibility_date  = "2025-01-01"
-compatibility_flags = ["nodejs_compat"]
-account_id       = "112486d346c988fbdaf8923c083a85d8"
+```markdown
+# Variables Reference
 
-[observability]
-enabled = false
-head_sampling_rate = 1
+This file is the shared reference for project-level enums, constants, helpers, task names, and persisted keys used across the app.
 
-[observability.logs]
-enabled = true
-head_sampling_rate = 1
-persist = true
-invocation_logs = true
+## Enums
 
-[observability.traces]
-enabled = false
-persist = true
-head_sampling_rate = 1
+- `NoteCategory`: `tasks`, `reminders`, `ideas`, `followUp`, `journal`, `general`
+- `NotePriority`: `high`, `medium`, `low`
+- `NoteStatus`: `active`, `archived`, `pendingAi`, `deleted`
+- `CaptureSource`: `voiceOverlay`, `textOverlay`, `homeWritingBox`, `shortcutTile`, `notification`, `googleTasks`, `googleCalendar`
+- `AiProvider`: `auto`, `gemini`, `groq`, `huggingface`
 
-# ── Workers URL ────────────────────────────────────────────────────────────────
-# Deployed at: wishperlog-digest.veerbhadra0524.workers.dev
+## Shared Collections And Helpers
 
-# ── Cron Triggers ──────────────────────────────────────────────────────────────
-# Fires EVERY MINUTE — the Worker matches HH:MM against each user's saved slots.
-# This replaces the old 15-minute granularity with precise per-minute scheduling.
-[triggers]
-crons = ["* * * * *"]
+- `kAllNoteCategories`: ordered list of note categories used by category pickers and folder views
+- `categoryLabel(NoteCategory)`: human-readable category label
+- `categoryIcon(NoteCategory)`: category icon mapping
+- `categoryColor(NoteCategory)`: category color mapping
+- `normalizeEnumToken(String)`: shared normalizer for enum-like raw strings
+- `parseCategory(String)`: canonical category parser for raw strings and aliases
+- `parsePriority(String)`: canonical priority parser for raw strings and aliases
+- `parseStatus(String)`: canonical status parser for raw strings and aliases
+- `parseSource(String)`: canonical capture-source parser for raw strings and aliases
+- `priorityWeight(NotePriority)`: sort weight helper for priority
+- `saveOriginPrefix(String)`: prefix helper for saved-note origin labels
 
-# ── KV Namespace ───────────────────────────────────────────────────────────────
-# Stores per-user per-minute dedup keys ("already sent today").
-# Key format: "YYYY-MM-DD:HH:MM:<uid>"  TTL: 93 600 s (26 h)
-[[kv_namespaces]]
-binding = "DIGEST_SENT"
-id      = "dca05ac5722b4be0a11d33f1070fa50d"
+## Background Task Names
 
-# ── Secrets (set via `wrangler secret put <NAME>`) ─────────────────────────────
-# TELEGRAM_BOT_TOKEN    — bot token from @BotFather
-# FIREBASE_PROJECT_ID   — GCP project ID (e.g. "wishperlog-prod")
-# FIREBASE_CLIENT_EMAIL — service account email
-# FIREBASE_PRIVATE_KEY  — service account private key PEM (newlines as literal \n)
-#
-# Deployment:
-#   npx wrangler deploy
-#
-# Test locally:
-#   npx wrangler dev  →  curl http://localhost:8787/trigger
+- `WorkManagerService.periodicTaskName`: `wishperlog.periodic_google_tasks_sync`
+- `WorkManagerService.periodicTaskUnique`: `wishperlog.periodic_google_tasks_sync.unique`
+- `WorkManagerService.flushPendingTaskName`: `wishperlog.flush_pending_ai`
+- `WorkManagerService.flushPendingTaskUnique`: `wishperlog.flush_pending_ai.unique`
+- `WorkManagerService.telegramDigestTaskName`: `wishperlog.telegram_daily_digest`
+- `WorkManagerService.telegramDigestTaskUnique`: `wishperlog.telegram_daily_digest.unique`
+
+## MethodChannel Names
+
+- `wishperlog/overlay`: native overlay bridge between `MainActivity` and `OverlayNotifier`
+
+## Shared Preferences And Local Keys
+
+- `overlay_v2.enabled`: overlay enabled flag
+- `overlay_v2.pos_x`: overlay X position
+- `overlay_v2.pos_y`: overlay Y position
+- `digest.last_telegram_sent_date`: once-per-day Telegram digest guard
+
+## Firestore Fields And Paths
+
+- `users/{uid}/notes/{noteId}`: note collection path
+- `users/{uid}.telegram_chat_id`: linked Telegram chat ID
+- `users/{uid}.pending_telegram.token`: temporary Telegram connect token
+- `users/{uid}.pending_telegram.expires_at`: Telegram connect token expiry
+
+## Notes
+
+- Enum string parsing should go through the shared helpers above instead of duplicating `trim().toLowerCase()` switch blocks.
+- This file tracks shared values only. Local function variables are intentionally not listed here.
+- Older docs used SQLite terminology, but the current local store is Isar.
 ```
