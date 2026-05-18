@@ -1288,3 +1288,4 @@ function escapeHtml(input: string): string {
     .replaceAll("'", "&#39;");
 }Improved worker logic - 2026-05-05T11:11:00
 Improved worker logic - 2026-05-15T14:50:00
+Improved worker logic - 2026-05-18T14:46:00
